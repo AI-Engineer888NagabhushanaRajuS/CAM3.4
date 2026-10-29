@@ -7,6 +7,7 @@ orchestration loop around it.
 import constants
 import helpers
 import queries
+import validator
 
 
 def clear_reports_rfq(con, rfq_id):
@@ -31,12 +32,15 @@ def generate_reports(con, rfq_id):
 
     counts = {}
     issues = []
+    validation_results = {}
     insert_sqls = queries.report_insert_sqls(rfq_lit)
     for table in constants.REPORT_ORDER:
         try:
             con.execute(insert_sqls[table])
             counts[table] = con.execute(f"SELECT COUNT(*) FROM {table} WHERE rfq_id = {rfq_lit}").fetchone()[0]
+            tab_validation = validator.validate_report_tab(con, rfq_id, table)
+            validation_results[table] = tab_validation
         except Exception as e:
             issues.append({"table": table, "error": str(e)})
             counts[table] = None
-    return {"counts": counts, "issues": issues}
+    return {"counts": counts, "issues": issues, "validation_results": validation_results}

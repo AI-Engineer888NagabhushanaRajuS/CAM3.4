@@ -133,6 +133,21 @@ def generate_reports(rfq_id: str) -> dict:
 
 
 @mcp.tool
+def validate_reports(rfq_id: str) -> dict:
+    """Run all per-tab business-rule validators for one rfq_id against the already-generated
+    report tables. Read-only -- does not modify any data. Returns a summary with
+    passed/failed counts and per-table check details. Call after generate_reports to
+    confirm data quality without needing to export to Excel first.
+    """
+    try:
+        with db.duckdb_file_lock():
+            return reporting_pipeline.run_validate_reports(rfq_id)
+    except Exception as e:
+        logger.exception(f"validate_reports tool failed for rfq_id={rfq_id!r}")
+        return {"status": "failed", "rfq_id": rfq_id, "error": str(e)}
+
+
+@mcp.tool
 def export_reports(rfq_id: str) -> dict:
     """Export the already-generated CBOM + 16 reports for one rfq_id into a single
     consolidated Excel workbook. Does not regenerate any data -- reads whatever is

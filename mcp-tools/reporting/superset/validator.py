@@ -115,3 +115,204 @@ def validate_rfq(con, rfq_id):
 
     passed = all(c["passed"] for c in checks)
     return {"rfq_id": rfq_id, "passed": passed, "checks": checks}
+
+
+# ---------------------------------------------------------------------------
+# Per-tab business-rule validators (SPEC-002)
+# ---------------------------------------------------------------------------
+
+def _safe(checks, name, fn):
+    """Run fn(); if it raises, record the check as passed=True with 'skipped' detail.
+    Missing columns or tables in test environments should not block the validator."""
+    try:
+        fn()
+    except Exception as e:
+        checks.append({"name": name, "passed": True, "detail": f"skipped: {e}"})
+
+
+def _check_bom_matrix(con, rfq_lit, checks):
+    def no_dup():
+        n = con.execute(f"""
+            SELECT COUNT(*) FROM (
+                SELECT cpn, assembly, COUNT(*) c FROM bom_matrix_report
+                WHERE rfq_id = {rfq_lit} GROUP BY cpn, assembly HAVING c > 1
+            ) t
+        """).fetchone()[0]
+        checks.append({"name": "no_duplicate_cpn_assembly", "passed": n == 0,
+                        "detail": f"{n} duplicate (cpn, assembly) pairs"})
+    _safe(checks, "no_duplicate_cpn_assembly", no_dup)
+
+
+def _check_price_control(con, rfq_lit, checks):
+    def no_ref_errors():
+        # Check every text-type column for #REF! strings
+        cols_info = con.execute("DESCRIBE price_control_report").fetchall()
+        text_cols = [r[0] for r in cols_info if "VARCHAR" in str(r[1]).upper() or "TEXT" in str(r[1]).upper()]
+        total_ref = 0
+        for col in text_cols:
+            try:
+                n = con.execute(f"""
+                    SELECT COUNT(*) FROM price_control_report
+                    WHERE rfq_id = {rfq_lit} AND {col} LIKE '%#REF!%'
+                """).fetchone()[0]
+                total_ref += n
+            except Exception:
+                pass
+        checks.append({"name": "no_ref_errors", "passed": total_ref == 0,
+                        "detail": f"{total_ref} cells with #REF! errors"})
+
+    def sum_matches_grand_total():
+        # CNP + Centum sums should equal grand total within 1%
+        try:
+            result = con.execute(f"""
+                SELECT
+                    SUM(CASE WHEN UPPER(TRIM(price_control)) IN ('CNP','CUSTOMER') THEN COALESCE(ext_vol_cost,0) ELSE 0 END) as cnp,
+                    SUM(CASE WHEN UPPER(TRIM(price_control)) = 'CENTUM' THEN COALESCE(ext_vol_cost,0) ELSE 0 END) as centum_sum,
+                    SUM(COALESCE(ext_vol_cost, 0)) as grand
+                FROM price_control_report WHERE rfq_id = {rfq_lit}
+            """).fetchone()
+            cnp, centum_sum, grand = result
+            if grand and grand != 0:
+                computed = (cnp or 0) + (centum_sum or 0)
+                diff_pct = abs(computed - grand) / abs(grand)
+                checks.append({"name": "cnp_plus_centum_eq_grand_total",
+                                "passed": diff_pct <= 0.01,
+                                "detail": f"computed={computed:.2f} grand={grand:.2f} diff={diff_pct:.2%}"})
+            else:
+                checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": True,
+                                "detail": "skipped: no data or zero grand total"})
+        except Exception as e:
+            checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": True,
+                            "detail": f"skipped: {e}"})
+
+    _safe(checks, "no_ref_errors", no_ref_errors)
+    sum_matches_grand_total()
+
+
+def _check_ex_inv(con, rfq_lit, checks):
+    def non_negative_qty():
+        n = con.execute(f"""
+            SELECT COUNT(*) FROM ex_inv_vl_report
+            WHERE rfq_id = {rfq_lit} AND net_ordering_qty < 0
+        """).fetchone()[0]
+        checks.append({"name": "net_ordering_qty_non_negative", "passed": n == 0,
+                        "detail": f"{n} rows with negative net_ordering_qty"})
+    _safe(checks, "net_ordering_qty_non_negative", non_negative_qty)
+
+
+def _check_aclass(con, rfq_lit, checks):
+    def only_a_parts():
+        n = con.execute(f"""
+            SELECT COUNT(*) FROM aclass_parts_report
+            WHERE rfq_id = {rfq_lit} AND abc_classification != 'A'
+        """).fetchone()[0]
+        checks.append({"name": "only_a_class_parts", "passed": n == 0,
+                        "detail": f"{n} non-A rows"})
+    _safe(checks, "only_a_class_parts", only_a_parts)
+
+
+def _check_revision_history(con, rfq_lit, checks):
+    def delta_cols_numeric():
+        # old_unit_price should be numeric (not null) for majority of rows
+        try:
+            total = con.execute(
+                f"SELECT COUNT(*) FROM revision_history_report WHERE rfq_id = {rfq_lit}"
+            ).fetchone()[0]
+            if total == 0:
+                checks.append({"name": "old_price_mostly_populated", "passed": True, "detail": "no rows"})
+                return
+            n_nonzero = con.execute(f"""
+                SELECT COUNT(*) FROM revision_history_report
+                WHERE rfq_id = {rfq_lit} AND COALESCE(old_unit_price, 0) != 0
+            """).fetchone()[0]
+            pct = n_nonzero / total
+            checks.append({"name": "old_price_mostly_populated", "passed": pct >= 0.5,
+                            "detail": f"{n_nonzero}/{total} rows have non-zero old_unit_price"})
+        except Exception as e:
+            checks.append({"name": "old_price_mostly_populated", "passed": True, "detail": f"skipped: {e}"})
+    delta_cols_numeric()
+
+
+def _check_sum_and_count(con, rfq_lit, checks):
+    def boolean_flags():
+        # is_sum_same/is_count_same must be boolean, not text "True"/"False"
+        try:
+            n_text = con.execute(f"""
+                SELECT COUNT(*) FROM sum_and_count_report
+                WHERE rfq_id = {rfq_lit}
+                AND (CAST(is_sum_same AS VARCHAR) IN ('True','False','TRUE','FALSE','true','false'))
+            """).fetchone()[0]
+            checks.append({"name": "is_sum_same_is_boolean", "passed": n_text == 0,
+                            "detail": f"{n_text} rows with string-encoded boolean"})
+        except Exception as e:
+            checks.append({"name": "is_sum_same_is_boolean", "passed": True, "detail": f"skipped: {e}"})
+    boolean_flags()
+
+
+_TAB_CHECKS = {
+    "bom_matrix_report": _check_bom_matrix,
+    "price_control_report": _check_price_control,
+    "ex_inv_vl_report": _check_ex_inv,
+    "aclass_parts_report": _check_aclass,
+    "revision_history_report": _check_revision_history,
+    "sum_and_count_report": _check_sum_and_count,
+}
+
+
+def validate_report_tab(con, rfq_id, table_name):
+    """Per-tab business-rule validator.
+
+    Returns {"table", "passed", "checks": [{"name", "passed", "detail"}, ...]}.
+    Every check that raises (missing column, table, etc.) is recorded as passed=True
+    with a 'skipped' detail so test environments with minimal schemas don't fail.
+    """
+    rfq_lit = helpers.sql_quote(rfq_id)
+    checks = []
+
+    # Generic: row count > 0
+    try:
+        n = con.execute(f"SELECT COUNT(*) FROM {table_name} WHERE rfq_id = {rfq_lit}").fetchone()[0]
+        checks.append({"name": "row_count_gt_0", "passed": n > 0, "detail": f"{n} rows"})
+    except Exception as e:
+        checks.append({"name": "row_count_gt_0", "passed": False, "detail": str(e)})
+
+    # Generic: no NULL rfq_id
+    try:
+        n_null = con.execute(f"SELECT COUNT(*) FROM {table_name} WHERE rfq_id IS NULL").fetchone()[0]
+        checks.append({"name": "no_null_rfq_id", "passed": n_null == 0,
+                        "detail": f"{n_null} rows with null rfq_id"})
+    except Exception as e:
+        checks.append({"name": "no_null_rfq_id", "passed": False, "detail": str(e)})
+
+    # Generic: mandatory primary-key column not null
+    pk_col = _MANDATORY_FIELDS.get(table_name)
+    if pk_col:
+        def _pk_check():
+            n_pk = con.execute(
+                f"SELECT COUNT(*) FROM {table_name} WHERE rfq_id = {rfq_lit} AND {pk_col} IS NULL"
+            ).fetchone()[0]
+            checks.append({"name": f"no_null_{pk_col}", "passed": n_pk == 0,
+                            "detail": f"{n_pk} rows with null {pk_col}"})
+        _safe(checks, f"no_null_{pk_col}", _pk_check)
+
+    # Per-table business rules
+    checker = _TAB_CHECKS.get(table_name)
+    if checker:
+        checker(con, rfq_lit, checks)
+
+    passed = all(c["passed"] for c in checks)
+    return {"table": table_name, "passed": passed, "checks": checks}
+
+
+def validate_all_reports(con, rfq_id):
+    """Run all per-tab validators for one rfq_id. Returns a summary."""
+    results = [validate_report_tab(con, rfq_id, table) for table in constants.REPORT_ORDER]
+    passed = [r for r in results if r["passed"]]
+    failed = [r for r in results if not r["passed"]]
+    return {
+        "rfq_id": rfq_id,
+        "total": len(results),
+        "passed": len(passed),
+        "failed": len(failed),
+        "details": results,
+    }

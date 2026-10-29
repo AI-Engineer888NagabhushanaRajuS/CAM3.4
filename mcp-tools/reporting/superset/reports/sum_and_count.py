@@ -87,8 +87,8 @@ def sum_and_count(payload):
             sum_values.append(vol_sum)
             count_values.append(vol_count)
 
-        row["Is Sum Same"] = "True" if len(set(sum_values)) == 1 else "False"
-        row["Is Count Same"] = "True" if len(set(count_values)) == 1 else "False"
+        row["Is Sum Same"] = len(set(sum_values)) == 1
+        row["Is Count Same"] = len(set(count_values)) == 1
 
         rows.append(row)
 
@@ -220,10 +220,7 @@ def build_sum_and_count_sheet(wb, rows, detailed_last_row, include_proto=True):
             row.pop("Proto Count", None)
 
     def sort_key(row):
-        both_true = (
-            str(row.get("Is Sum Same", "")).upper() == "TRUE"
-            and str(row.get("Is Count Same", "")).upper() == "TRUE"
-        )
+        both_true = row.get("Is Sum Same") is True and row.get("Is Count Same") is True
         return 1 if both_true else 0
 
     display_rows.sort(key=sort_key)
@@ -338,8 +335,8 @@ def _demo():
             "VL-1 Count": 2,
             "VL-2 Sum": 15.0,
             "VL-2 Count": 2,
-            "Is Sum Same": "True",
-            "Is Count Same": "True",
+            "Is Sum Same": True,
+            "Is Count Same": True,
         },
         {
             "Assembly": "ASSY-002",
@@ -351,8 +348,8 @@ def _demo():
             "VL-1 Count": 0,
             "VL-2 Sum": 0,
             "VL-2 Count": 0,
-            "Is Sum Same": "False",
-            "Is Count Same": "False",
+            "Is Sum Same": False,
+            "Is Count Same": False,
         },
     ]
 

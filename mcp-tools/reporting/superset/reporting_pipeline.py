@@ -23,7 +23,27 @@ import enrichment
 import final_selection
 import helpers
 import report_generator
+import validator
 from logging_utils import logger
+
+
+def run_validate_reports(rfq_id):
+    """Run all per-tab business-rule validators for one rfq_id against already-generated
+    report tables. Read-only: does not modify any data. Returns a summary with
+    passed/failed counts and per-table details.
+    """
+    start = time.time()
+    con = database.connect()
+    try:
+        result = validator.validate_all_reports(con, rfq_id)
+    finally:
+        con.close()
+    result["execution_time_seconds"] = round(time.time() - start, 3)
+    logger.info(
+        f"run_validate_reports rfq_id={rfq_id!r} "
+        f"passed={result['passed']}/{result['total']} failed={result['failed']}"
+    )
+    return result
 
 
 def run_cbom(rfq_id):
