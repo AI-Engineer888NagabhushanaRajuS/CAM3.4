@@ -1,0 +1,475 @@
+/* Geist Font Faces */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KMR Apparat Font */
+@font-face {
+  font-family: 'KMR Apparat';
+  src: url('/fonts/KMR-Apparat-Light.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KMR Apparat';
+  src: url('/fonts/KMR-Apparat-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KMR Apparat';
+  src: url('/fonts/KMR-Apparat-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Berry admin template — visual theme reference (light theme, blue/purple
+   accents). Values below are HSL-triplet conversions of Berry's exact hex
+   tokens (palette.jsx), kept in this format so they slot into the existing
+   hsl(var(--x)) consumption pattern in tailwind.config.ts unchanged. */
+:root {
+  --background: 210 40% 98%; /* #F8FAFC — Berry grey-50, page canvas */
+  --foreground: 216 21% 27%; /* #364152 — Berry grey-700, text.primary */
+
+  --card: 0 0% 100%; /* #FFFFFF — Berry paper */
+  --card-foreground: 216 21% 27%; /* #364152 */
+
+  --popover: 0 0% 100%; /* #FFFFFF */
+  --popover-foreground: 216 21% 27%; /* #364152 */
+
+  --surface: 0 0% 100%; /* #FFFFFF — Berry sidebar background */
+  --surface-2: 210 33% 96%; /* #EEF2F6 — Berry grey-100 */
+
+  --primary: 207 90% 54%; /* #2196F3 — Berry primary.main */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --secondary: 210 33% 96%; /* #EEF2F6 — Berry grey-100 (neutral secondary surface, not the accent purple — this token backs plain badges/pills/secondary buttons throughout the app) */
+  --secondary-foreground: 216 21% 27%; /* #364152 */
+
+  --muted: 210 33% 96%; /* #EEF2F6 */
+  --muted-foreground: 215 12% 47%; /* #697586 — Berry grey-500, text.secondary */
+
+  --accent: 210 33% 96%; /* #EEF2F6 */
+  --accent-foreground: 219 36% 11%; /* #121926 — Berry grey-900, text.dark */
+
+  --destructive: 4 90% 58%; /* #F44336 — Berry error.main */
+  --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --border: rgba(17, 25, 38, 0.09); /* Berry divider tone, translucent */
+  --input: rgba(17, 25, 38, 0.14);
+
+  --ring: 207 90% 54%; /* same as primary */
+  --link: 207 90% 45%; /* darker primary for AA contrast on white */
+
+  --brand: 262 52% 47%; /* #673AB7 — Berry secondary.main (purple), used sparingly as a distinct third accent */
+  --brand-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --warning-subtle: 36 95% 95%;
+  --success-subtle: 0 0% 93%;
+  --provider-bg: 40 20% 93%;
+  --provider-bg-active: 0 0% 90%;
+  --provider-bg-hover: 40 15% 96%;
+  --provider-border-active: 40 30% 25%;
+  --provider-accent: 0 0% 20%;
+  --provider-accent-text: 0 0% 12%;
+  --todo-progress-pending: 0 0% 85%;
+  --todo-item-completed: 36 11% 95%;
+  --todo-item-in-progress: 0 0% 98%;
+
+  /* BOM ag-grid palette (StageExecutionOutput's review grids) — a
+     deliberately distinct, branded light-blue "spreadsheet" look, separate
+     from the app's general --muted/--foreground/--border chrome tokens
+     above. See lib/agGridTheme.ts. */
+  --bom-grid-header-bg: #dcebfa;
+  --bom-grid-header-text: #17365d;
+  --bom-grid-icon: #2563a8;
+  --bom-grid-row-bg: #ffffff;
+  --bom-grid-alt-row-bg: #f7fafd;
+  --bom-grid-border: #d9e4ef;
+}
+
+/* .dark — this app's own pre-Berry dark palette (deep navy background,
+   lighter dark panels, light text, muted borders), kept as a genuinely
+   distinct theme rather than mirroring :root. Same primary/brand hues as
+   the light theme, just brightened for contrast against a dark background
+   — "the same indigo/purple accent," not a different color. */
+.dark {
+  --background: 220 35% 7%; /* #0B0F17 */
+  --foreground: 210 40% 98%; /* #F8FAFC */
+
+  --card: 217 33% 17%; /* #1E293B */
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 32% 12%; /* #151B29 */
+  --popover-foreground: 210 40% 98%;
+
+  --surface: 222 32% 12%;
+  --surface-2: 217 33% 17%;
+
+  --primary: 207 90% 62%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%; /* #94A3B8 */
+
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 4 90% 58%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.14);
+
+  --ring: 207 90% 68%;
+  --link: 207 90% 68%;
+
+  --brand: 262 55% 65%;
+  --brand-foreground: 0 0% 100%;
+
+  --warning-subtle: 30 60% 15%;
+  --success-subtle: 0 0% 12%;
+  --provider-bg: 0 0% 15%;
+  --provider-bg-active: 0 0% 20%;
+  --provider-bg-hover: 0 0% 13%;
+  --provider-border-active: 40 30% 50%;
+  --provider-accent: 0 0% 85%;
+  --provider-accent-text: 0 0% 85%;
+  --todo-progress-pending: 0 0% 24%;
+  --todo-item-completed: 0 0% 14%;
+  --todo-item-in-progress: 0 0% 11%;
+
+  /* BOM ag-grid palette dark counterpart — same ~210-213° blue hue family
+     as the light values above, lightness/saturation adjusted for legibility
+     on a dark background. See lib/agGridTheme.ts. */
+  --bom-grid-header-bg: #213750;
+  --bom-grid-header-text: #d4e5f7;
+  --bom-grid-icon: #5a9ce2;
+  --bom-grid-row-bg: #151d28;
+  --bom-grid-alt-row-bg: #1d2734;
+  --bom-grid-border: #364659;
+}
+
+/* Custom scrollbar — auto-hide, shown only while scrolling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: var(--border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+*:hover::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Drag region for frameless window - these work when loaded in Electron BrowserView */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Base styles */
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Prevent text selection in UI elements */
+  button,
+  [role='button'] {
+    @apply select-none;
+  }
+}
+
+/* Placeholder font family for textareas */
+textarea::-webkit-input-placeholder {
+  font-family:
+    'Geist',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !important;
+}
+
+textarea:-ms-input-placeholder {
+  font-family:
+    'Geist',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !important;
+}
+
+textarea:-moz-placeholder {
+  font-family:
+    'Geist',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !important;
+}
+
+textarea::-moz-placeholder {
+  font-family:
+    'Geist',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !important;
+}
+
+textarea::placeholder {
+  font-family:
+    'Geist',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !important;
+}
+
+/* Global layout + component utilities (EMS RFQ Global Styling Guide §13-17, §32).
+   New components should reach for these before inventing feature-specific
+   layout classes. */
+@layer utilities {
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  .page-container {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 1680px;
+    padding-inline: 1.25rem;
+  }
+
+  .content-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .content-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-block: 1rem;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-block: 0.5rem;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .app-pad-x {
+    padding-inline: 1.25rem;
+  }
+
+  .app-panel {
+    border-radius: var(--radius-lg);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+  }
+
+  .app-row {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--surface-2));
+    border-radius: 9999px;
+  }
+
+  /* Status pills (§16). Color alone is never the sole state indicator —
+     every consumer must pair a pill with text/an icon, not color alone. */
+  .pill-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    border-width: 1px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .pill-indigo {
+    @apply pill-base bg-primary/15 text-primary border-primary/30;
+  }
+
+  .pill-emerald {
+    @apply pill-base bg-emerald-500/15 text-emerald-300 border-emerald-500/30;
+  }
+
+  .pill-green {
+    @apply pill-base bg-green-500/15 text-green-300 border-green-500/30;
+  }
+
+  .pill-purple {
+    @apply pill-base bg-purple-500/15 text-purple-300 border-purple-500/30;
+  }
+
+  .pill-amber {
+    @apply pill-base bg-amber-500/15 text-amber-300 border-amber-500/30;
+  }
+
+  .pill-rose {
+    @apply pill-base bg-rose-500/15 text-rose-300 border-rose-500/30;
+  }
+
+  .pill-cyan {
+    @apply pill-base bg-cyan-500/15 text-cyan-300 border-cyan-500/30;
+  }
+
+  .pill-slate {
+    @apply pill-base bg-slate-500/15 text-slate-300 border-slate-500/30;
+  }
+}

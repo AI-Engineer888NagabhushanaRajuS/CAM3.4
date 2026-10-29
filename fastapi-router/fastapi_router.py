@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import ast
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 import httpx
 from datetime import datetime
 
@@ -585,6 +585,98 @@ def execute_tool(request: ToolExecuteRequest):
         )
 
 _USE_TEMPORAL = os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true"
+_OLLAMA_BASE = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+_OLLAMA_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "llama3.1:8b")
+
+_RFQ_GUARD = (
+    "You are a read-only RFQ assistant for Centum Electronics. "
+    "You CANNOT trigger RFQ runs, approve HITL gates, or change any data. "
+    "If asked to perform an action, respond: "
+    "'I can only read data. Please use the main RFQ interface to make changes.' "
+    "Answer only from the RFQ context supplied below.\n\n"
+)
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
+def _build_rfq_context(rfq_id: str) -> dict:
+    """Pull summary facts from DuckDB for the chat system prompt."""
+    import sys as _sys
+    _reporting_dir = str(pathlib.Path(__file__).parent.parent / "mcp-tools" / "reporting" / "superset")
+    if _reporting_dir not in _sys.path:
+        _sys.path.insert(0, _reporting_dir)
+
+    ctx: dict = {}
+    try:
+        import database as _db
+        con = _db.connect()
+        try:
+            rfq_lit = f"'{rfq_id}'"
+            row = con.execute(
+                f"SELECT * FROM summary_report WHERE rfq_id = {rfq_lit} LIMIT 1"
+            ).fetchdf()
+            if not row.empty:
+                ctx["summary"] = row.to_dict(orient="records")[0]
+            miss = con.execute(
+                f"SELECT COUNT(*) FROM missing_notes_report WHERE rfq_id = {rfq_lit}"
+            ).fetchone()
+            ctx["missing_parts_count"] = miss[0] if miss else 0
+            aclass = con.execute(
+                f"SELECT COUNT(*) FROM aclass_parts_report WHERE rfq_id = {rfq_lit}"
+            ).fetchone()
+            ctx["aclass_parts_count"] = aclass[0] if aclass else 0
+        finally:
+            con.close()
+    except Exception as e:
+        ctx["db_error"] = str(e)
+    return ctx
+
+
+@app.post("/rfq/{rfq_id}/chat")
+async def rfq_chat(rfq_id: str, request: ChatRequest):
+    """Read-only RFQ assistant — answers questions from DuckDB data via Ollama.
+
+    Cannot trigger actions, approve HITL, or modify any data.
+    """
+    try:
+        rfq_id = _validate_sql_identifier(rfq_id, "rfq_id")
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+    ctx = _build_rfq_context(rfq_id)
+    system_prompt = (
+        _RFQ_GUARD
+        + f"RFQ ID: {rfq_id}\n"
+        + f"Context data:\n{json.dumps(ctx, indent=2, default=str)}"
+    )
+
+    payload = {
+        "model": _OLLAMA_MODEL,
+        "system": system_prompt,
+        "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+        "stream": False,
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{_OLLAMA_BASE}/api/chat", json=payload, timeout=60.0
+            )
+            resp.raise_for_status()
+            answer = resp.json()["message"]["content"]
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"error": f"LLM unavailable: {e}", "message": "Service temporarily unavailable."},
+        )
+
+    return {"rfq_id": rfq_id, "message": answer, "sources": list(ctx.keys())}
 
 
 @app.get("/rfq/{rfq_id}/status")

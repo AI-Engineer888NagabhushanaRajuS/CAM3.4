@@ -36,3 +36,9 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# accomplish-ui build artifacts (source checked in, build output is not)
+accomplish-ui/**/node_modules/
+accomplish-ui/**/.next/
+accomplish-ui/**/dist/
+accomplish-ui/**/.turbo/
