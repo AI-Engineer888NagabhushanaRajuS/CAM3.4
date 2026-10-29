@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import re
 from fastapi import FastAPI
@@ -582,6 +583,53 @@ def execute_tool(request: ToolExecuteRequest):
             status_code=500,
             content={"hitl": 1, "error": f"Tool call failed: {str(e)}"}
         )
+
+_USE_TEMPORAL = os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true"
+
+
+@app.get("/rfq/{rfq_id}/status")
+def get_rfq_status(rfq_id: str):
+    """Unified RFQ status: Postgres stage + Temporal workflow status + HITL flag."""
+    import asyncio as _asyncio
+
+    try:
+        rfq_id = _validate_sql_identifier(rfq_id, "rfq_id")
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+    try:
+        stage = get_active_version(rfq_id)
+    except Exception as e:
+        stage = None
+        print(f"[STATUS] get_active_version failed: {e}")
+
+    temporal_status = None
+    if _USE_TEMPORAL:
+        import pathlib as _pathlib
+        import sys as _sys
+        _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+        try:
+            import client as _tc
+            temporal_status = _asyncio.run(_tc.get_workflow_status(rfq_id))
+        except Exception as e:
+            temporal_status = {"error": str(e)}
+
+    # Check for pending HITL from Postgres
+    hitl_required = False
+    try:
+        from db import check_hitl_required  # noqa: F401 — only available in 3.4+ db.py
+        hitl_required = check_hitl_required(rfq_id)
+    except (ImportError, Exception):
+        pass  # check_hitl_required not available in all versions — skip silently
+
+    return {
+        "rfq_id": rfq_id,
+        "postgres_stage": stage,
+        "temporal": temporal_status,
+        "hitl_required": hitl_required,
+        "engine": "temporal" if _USE_TEMPORAL else "dify",
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5100)

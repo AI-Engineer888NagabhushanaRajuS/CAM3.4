@@ -33,6 +33,37 @@ async def send_hitl_signal(workflow_id: str, decision: dict):
     await handle.signal(RFQWorkflow.human_decision, decision)
 
 
+async def send_hitl_approve(rfq_id: str, resolution: dict) -> bool:
+    """Approve a HITL gate — unblocks the workflow to continue.
+
+    resolution: gate-specific data (e.g. {"gate": "resolve_final_selection", ...})
+    """
+    client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+    handle = client.get_workflow_handle(f"rfq-{rfq_id}")
+    await handle.signal(RFQWorkflow.human_decision, {"action": "approve", **resolution})
+    return True
+
+
+async def send_hitl_reject(rfq_id: str, reason: str) -> bool:
+    """Reject a HITL gate — terminates the workflow."""
+    client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+    handle = client.get_workflow_handle(f"rfq-{rfq_id}")
+    await handle.signal(RFQWorkflow.human_decision, {"action": "reject", "reason": reason})
+    return True
+
+
+async def get_workflow_status(rfq_id: str) -> dict:
+    """Get current workflow status — running, paused at HITL, completed, failed."""
+    client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+    handle = client.get_workflow_handle(f"rfq-{rfq_id}")
+    desc = await handle.describe()
+    return {
+        "status": str(desc.status),
+        "workflow_id": desc.workflow_id,
+        "run_id": desc.run_id,
+    }
+
+
 def get_workflow_id(rfq_id: str) -> str:
     """Derive the deterministic Temporal workflow ID for an rfq_id."""
     return f"rfq-{rfq_id}"
