@@ -432,6 +432,23 @@ SERVICES = [
         "health_path": "/health",
         "health_kind": "http_2xx",
     },
+    {
+        # CAM 3.4: Temporal workflow worker -- runs RFQWorkflow activities.
+        # Only started when CAM_USE_TEMPORAL=true; exit-0 immediately when
+        # Temporal is not configured (worker.py checks and self-exits cleanly).
+        "name": "temporal_worker",
+        "script": os.path.join(REPO_ROOT, "temporal_worker", "worker.py"),
+        "cwd": os.path.join(REPO_ROOT, "temporal_worker"),
+        "host": "127.0.0.1",
+        "port": 7233,  # Temporal gRPC frontend -- health-checked via TCP connect
+        "health_path": None,
+        "health_kind": "tcp",
+        "env": {
+            "CAM_USE_TEMPORAL": os.environ.get("CAM_USE_TEMPORAL", "false"),
+            "CAM_TEMPORAL_HOST": os.environ.get("CAM_TEMPORAL_HOST", "localhost:7233"),
+            "CAM_FASTAPI_ROUTER_URL": os.environ.get("CAM_FASTAPI_ROUTER_URL", "http://localhost:5100"),
+        },
+    },
 ]
 
 # External infrastructure the services above depend on but that this script does not

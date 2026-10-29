@@ -345,6 +345,20 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
             print(f"[FINAL-SELECTION ERROR] advance failed: {e}")
             raise
         fully_approved = True
+
+        # CAM 3.4: send Temporal signal when workflow is waiting at this HITL gate
+        if os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true":
+            import asyncio as _asyncio
+            import pathlib as _pathlib
+            sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+            try:
+                import client as temporal_client
+                workflow_id = temporal_client.get_workflow_id(rfq_id)
+                _asyncio.run(temporal_client.send_hitl_signal(workflow_id, {"action": "approve"}))
+                print(f"[TEMPORAL SIGNAL] sent human_decision approve to workflow {workflow_id!r}")
+            except Exception as sig_err:
+                # Signal failure is non-fatal: rfq_process_stage already advanced above.
+                print(f"[TEMPORAL SIGNAL ERROR] {sig_err}")
     else:
         print(f"[FINAL-SELECTION] not advancing -- {remaining} conflict(s) still unresolved")
 

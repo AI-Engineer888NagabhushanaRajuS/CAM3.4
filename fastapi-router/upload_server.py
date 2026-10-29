@@ -1,3 +1,4 @@
+import asyncio
 import os
 import random
 import json
@@ -21,13 +22,20 @@ import rfq_memory_client
 # reachable during development from the same instance.
 ENABLE_FDE_ROUTES = os.environ.get("ENABLE_FDE_ROUTES", "false").lower() == "true"
 
+# CAM 3.4: Temporal engine switch. Set CAM_USE_TEMPORAL=true to route pipeline
+# triggers through Temporal instead of Dify. Dify path stays live for
+# shadow-run comparison during rollout. Default: false (Dify).
+USE_TEMPORAL = os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true"
+
 app = FastAPI()
 
 # No hardcoded fallback on purpose -- DIFY_API_KEY used to default to a real
 # local-dev key, which is not safe to keep in source control. Set both env
 # vars in your local .env before running this service.
-DIFY_BASE_URL = os.environ["DIFY_BASE_URL"]
-DIFY_API_KEY = os.environ["DIFY_API_KEY"]
+# When USE_TEMPORAL=true these are unused but must still be set to avoid
+# os.environ[] KeyError on import -- set to any placeholder in that case.
+DIFY_BASE_URL = os.environ.get("DIFY_BASE_URL", "http://localhost:3001")
+DIFY_API_KEY = os.environ.get("DIFY_API_KEY", "placeholder-not-used-when-temporal")
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,14 +65,18 @@ def get_db_connection():
     return psycopg2.connect(DB_CONFIG)
 
 def trigger_dify_workflow_internal(rfq_id: str):
-    """Triggers Dify API workflow and logs the attempt to DB.
+    """Triggers workflow and logs the attempt to DB.
+
+    When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify.
+    When USE_TEMPORAL=false (default): calls Dify as before.
 
     Guarded by db.try_start_pipeline_run() -- both callers of this function
     (a brand-new upload, and GET /api/dify/start/{rfq_id}'s HITL-resume
     trigger) funnel through here, so this is the single chokepoint that
     prevents 2 near-simultaneous triggers for the same (rfq_id, active
-    version) from both starting a Dify run at once. See that function's own
-    docstring in db.py for the full reasoning and its stated limitations.
+    version) from both starting a Dify/Temporal run at once. See that
+    function's own docstring in db.py for the full reasoning and its stated
+    limitations.
     """
     db.ensure_processing_guard_schema()
     if not db.try_start_pipeline_run(rfq_id):
@@ -74,49 +86,54 @@ def trigger_dify_workflow_internal(rfq_id: str):
             "error": f"A pipeline run for rfq_id={rfq_id!r} was already triggered recently and is still considered in-flight. Try again shortly.",
         }
 
-    dify_url = f"{DIFY_BASE_URL}/workflows/run"
-    dify_headers = {
-        "Authorization": f"Bearer {DIFY_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    dify_payload = {
-        "inputs": {"rfq_id": rfq_id},
-        "response_mode": "streaming",
-        "user": f"system-user-{rfq_id}"
-    }
-
     dify_status = "TRIGGERED"
     dify_response_summary = {}
 
-    try:
-        dify_response = requests.post(
-            dify_url,
-            headers=dify_headers,
-            json=dify_payload,
-            timeout=(10, 120)
-        )
-
-        if dify_response.ok:
-            print(f"[DIFY API SUCCESS]: Workflow initiated for {rfq_id}")
-            dify_response_summary = {
-                "status": "SUCCESS",
-                "code": dify_response.status_code
-            }
-        else:
-            print(f"[DIFY API WARNING]: {dify_response.status_code} — {dify_response.text}")
-            dify_status = "TRIGGER_FAILED"
-            dify_response_summary = {
-                "status": "REJECTED",
-                "error": dify_response.text
-            }
-
-    except requests.exceptions.RequestException as req_err:
-        print(f"[DIFY API EXCEPTION]: {req_err}")
-        dify_status = "CONNECTION_REFUSED"
-        dify_response_summary = {
-            "status": "NETWORK_ERROR",
-            "error": str(req_err)
+    if USE_TEMPORAL:
+        # CAM 3.4: Temporal path — same idempotent ID as Dify's rfq_id key
+        try:
+            import sys as _sys
+            import pathlib as _pathlib
+            _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+            import client as temporal_client
+            workflow_id = asyncio.run(temporal_client.start_rfq_workflow(rfq_id))
+            print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} started for {rfq_id}")
+            dify_status = "TRIGGERED"
+            dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id}
+        except Exception as temporal_err:
+            print(f"[TEMPORAL EXCEPTION]: {temporal_err}")
+            dify_status = "CONNECTION_REFUSED"
+            dify_response_summary = {"status": "NETWORK_ERROR", "error": str(temporal_err)}
+    else:
+        # Original Dify path (unchanged)
+        dify_url = f"{DIFY_BASE_URL}/workflows/run"
+        dify_headers = {
+            "Authorization": f"Bearer {DIFY_API_KEY}",
+            "Content-Type": "application/json"
         }
+        dify_payload = {
+            "inputs": {"rfq_id": rfq_id},
+            "response_mode": "streaming",
+            "user": f"system-user-{rfq_id}"
+        }
+        try:
+            dify_response = requests.post(
+                dify_url,
+                headers=dify_headers,
+                json=dify_payload,
+                timeout=(10, 120)
+            )
+            if dify_response.ok:
+                print(f"[DIFY API SUCCESS]: Workflow initiated for {rfq_id}")
+                dify_response_summary = {"status": "SUCCESS", "code": dify_response.status_code}
+            else:
+                print(f"[DIFY API WARNING]: {dify_response.status_code} — {dify_response.text}")
+                dify_status = "TRIGGER_FAILED"
+                dify_response_summary = {"status": "REJECTED", "error": dify_response.text}
+        except requests.exceptions.RequestException as req_err:
+            print(f"[DIFY API EXCEPTION]: {req_err}")
+            dify_status = "CONNECTION_REFUSED"
+            dify_response_summary = {"status": "NETWORK_ERROR", "error": str(req_err)}
 
     # Append status log to PostgreSQL telemetry
     conn = None

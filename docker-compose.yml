@@ -1,0 +1,198 @@
+# CAM 3.4 docker-compose stack.
+# Port offsets deliberately avoid collision with the live bare-metal
+# centum-intake stack. Temporal services added in SPEC-004.
+#
+# Usage:
+#   docker compose up -d postgres temporal      # infra first
+#   docker compose up -d                         # remaining services
+
+x-python-common: &python-common
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  volumes:
+    - ./database:/app/database
+
+x-python-env: &python-env
+  LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/logic_db_2
+  FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/file_metadata_db_2
+  STAGING_LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_logic_db_2
+  STAGING_FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_file_metadata_db_2
+  JWT_SECRET: ${JWT_SECRET:?set a real secret}
+  REPORTING_DATABASE_DIR: /app/database
+  CENTUM_INPUT_DB: /app/database/input_db.duckdb
+  # Temporal connection for services that use CAM_USE_TEMPORAL=true
+  CAM_TEMPORAL_HOST: temporal:7233
+  CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
+
+networks:
+  default:
+    name: cam34-net
+
+services:
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: centum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/pg_dump_seed:/docker-entrypoint-initdb.d/seed:ro
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U centum -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Temporal server (single-process dev mode -- cassandra-less, in-memory history)
+  # For production switch to the temporalio/auto-setup image with a real Cassandra/
+  # Postgres persistence backend.
+  temporal:
+    image: temporalio/auto-setup:1.24
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: centum
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "7233:7233"    # gRPC frontend
+      - "8233:8233"    # HTTP API
+    healthcheck:
+      test: ["CMD", "tctl", "cluster", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  temporal-ui:
+    image: temporalio/ui:2.26
+    restart: unless-stopped
+    depends_on: [temporal]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8080:8080"
+
+  # fastapi-router/* services
+  upload-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: upload_server.py }
+    environment:
+      <<: *python-env
+      CAM_USE_TEMPORAL: ${CAM_USE_TEMPORAL:-false}
+    ports: ["13100:3100"]
+
+  fastapi-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: fastapi_router.py }
+    environment: *python-env
+    ports: ["15100:5100"]
+
+  hitl-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: hitl_router.py }
+    environment:
+      <<: *python-env
+      CAM_USE_TEMPORAL: ${CAM_USE_TEMPORAL:-false}
+    ports: ["15102:5102"]
+
+  # Temporal worker -- runs the RFQWorkflow activity loop
+  temporal-worker:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: temporal_worker, ENTRYPOINT: worker.py }
+    environment:
+      <<: *python-env
+      CAM_TEMPORAL_HOST: temporal:7233
+      CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  # mcp-tools/* services
+  reporting-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18105:8105"]
+
+  intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/intake, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18002:8002"]
+
+  distributor-pricing-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/distributor-pricing, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    env_file: [mcp-tools/distributor-pricing/.env]
+    ports: ["18003:8003"]
+
+  gerber-integration-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/gerber-integration, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18007:8007"]
+
+  scrub-intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/scrub-intake, ENTRYPOINT: scrub_mcp_server.py }
+    environment:
+      <<: *python-env
+      OLLAMA_HOST: host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["18004:8004"]
+
+  rfq-memory-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/rfq-memory, ENTRYPOINT: memory_service.py }
+    environment:
+      <<: *python-env
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
+    ports: ["18108:8108", "18109:8109"]
+
+volumes:
+  postgres-data:
