@@ -1,0 +1,35 @@
+# cognee is PINNED to exactly 1.4.2, not a >= range -- confirmed via direct
+# testing (2026-09-07) that cognee 1.5.0 through 1.5.4 all ship an
+# alembic/versions/b9274c27a25a_kuzu_11_migration.py migration file with a
+# module-level `import kuzu`, which transitively imports a native-library
+# wrapper ("ladybug") that fails to load on Windows/Python 3.10
+# ("Could not find lbug C API shared library") -- Alembic's own revision-
+# graph resolution imports EVERY file in that directory unconditionally
+# (to build _revision_map), so this crashes cognee.add()/cognify() on this
+# platform regardless of which graph/relational provider is actually
+# configured. 1.4.2 was confirmed (add/cognify/search/dataset-isolation/
+# forget all passing, Postgres-backed graph storage) NOT to have this
+# problem. Do not bump this version without re-running that same
+# compatibility check on Windows first.
+cognee==1.4.2
+
+# Required for cognee's Postgres-backed relational+graph storage (see
+# config.py's COGNEE_RELATIONAL_DB_CONFIG/GRAPH_DATABASE_PROVIDER) --
+# cognee's own create_relational_engine() raises ImportError without it.
+asyncpg
+
+# litellm is PINNED (not left to cognee's own >=1.83.7 floor) because the
+# newest available release at the time of testing imports
+# `typing.NotRequired`, which does not exist before Python 3.11 -- this
+# repo's shared environment is 3.10. 1.83.7 (cognee 1.4.2's own stated
+# floor) is confirmed importable and working; a narrow floor pin (not an
+# exact pin) leaves room for patch-level litellm fixes while still
+# protecting against a newer release reintroducing this same incompatibility.
+litellm>=1.83.7,<1.84
+
+fastapi
+uvicorn[standard]
+psycopg2-binary
+duckdb
+requests
+pyjwt

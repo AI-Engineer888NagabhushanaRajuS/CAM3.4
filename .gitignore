@@ -1,0 +1,38 @@
+# Client data — NEVER commit these
+fastapi-router/staged/inbox/*.xlsx
+fastapi-router/staged/inbox/*.zip
+fastapi-router/staged/inbox/*.xls
+fastapi-router/staged/staging_inbox/**
+mcp-tools/distributor-pricing/quote_exports/*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# DuckDB files (runtime data, not source)
+*.duckdb
+*.duckdb.wal
+database/*.duckdb
+
+# Logs
+*.log
+service_logs/
+.backend_services_state.json
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.pkl
+*_raw_result.json
+
+# OS
+.DS_Store
+Thumbs.db
