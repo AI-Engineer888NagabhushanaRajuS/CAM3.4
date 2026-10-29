@@ -1,0 +1,65 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_reporting",
+  "name": "Centum Reporting Module",
+  "version": "3.4.0",
+  "description": "Generates and validates all 16 CBOM report tabs for one RFQ. Also handles CBOM regeneration, ERP/costing enrichment, final-selection HITL gate, and Excel export.",
+  "mcp_server": "mcp-tools/reporting/superset/mcp_server.py",
+  "fastmcp_name": "cbom-reporting",
+  "port": 8105,
+  "routing_profile": "Standard_BOM_Flow",
+  "duckdb_scoped_tools": [
+    "centum_reporting__cbom",
+    "centum_reporting__enrich_erp",
+    "centum_reporting__enrich_costing_sheet",
+    "centum_reporting__resolve_final_selection",
+    "centum_reporting__generate_reports",
+    "centum_reporting__export_reports"
+  ],
+  "tools": [
+    {
+      "name": "centum_reporting__cbom",
+      "description": "Regenerate only the CBOM table for one rfq_id, from the existing (read-only) input tables. Does not touch the 16 downstream reports.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"cbom_row_count": "integer", "detected_volumes": "array", "warnings": "array"}
+    },
+    {
+      "name": "centum_reporting__enrich_erp",
+      "description": "Fill the _erp columns on the existing CBOM rows for one rfq_id, from erp master data.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"cbom_row_count": "integer", "rows_matched_erp": "integer"}
+    },
+    {
+      "name": "centum_reporting__enrich_costing_sheet",
+      "description": "Fill the _costing columns on the existing CBOM rows for one rfq_id, from costing_sheet data.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"cbom_row_count": "integer", "rows_matched_costing": "integer"}
+    },
+    {
+      "name": "centum_reporting__resolve_final_selection",
+      "description": "HITL gate: auto-resolve final_* for single-source rows, flag multi-source conflicts for human review. When hitl=1, caller must not advance past this step.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"hitl": "integer", "pending_conflicts": "integer", "auto_resolved": "integer"},
+      "hitl_gate": true
+    },
+    {
+      "name": "centum_reporting__generate_reports",
+      "description": "Regenerate all 16 report tables for one rfq_id from the already-generated CBOM.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"report_row_counts": "object", "issues": "array", "validation_results": "object"}
+    },
+    {
+      "name": "centum_reporting__validate_reports",
+      "description": "Run all per-tab business-rule validators for one rfq_id. Read-only. Returns passed/failed counts and per-table check details.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"total": "integer", "passed": "integer", "failed": "integer", "details": "array"}
+    },
+    {
+      "name": "centum_reporting__export_reports",
+      "description": "Export the already-generated CBOM + 16 reports for one rfq_id into a single consolidated Excel workbook.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"file_path": "string", "tab_count": "integer"}
+    }
+  ],
+  "dependencies": ["postgresql:logic_db", "duckdb:cbom.duckdb", "duckdb:reports.duckdb", "duckdb:input.duckdb"]
+}

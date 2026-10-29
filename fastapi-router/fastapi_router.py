@@ -1,4 +1,5 @@
 import json
+import pathlib
 import re
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -22,28 +23,57 @@ from db import (
 )
 import rfq_memory_client
 
-# The 6 reporting_module MCP tools -- these touch cbom.duckdb/reports.duckdb
-# directly and take a single opaque "rfq_id" string argument. Gets rewritten
-# to the versioned key before dispatch.
-DUCKDB_SCOPED_TOOLS = {
-    "centum_reporting__cbom",
-    "centum_reporting__enrich_erp",
-    "centum_reporting__enrich_costing_sheet",
-    "centum_reporting__resolve_final_selection",
-    "centum_reporting__generate_reports",
-    "centum_reporting__export_reports",
-}
 
-# The 4 scrub_mcp_server.py intake tools -- these need the BARE rfq_id (to
-# query rfq_file_telemetry, which is keyed on canonical rfq_id + a real
-# version column) plus an explicit numeric "version" argument; they build
-# their own versioned key internally right before touching DuckDB.
-SCRUB_TOOLS = {
-    "centum_intake__standardize_scrub_bom",
-    "centum_intake__standardize_quote_win",
-    "centum_intake__standardize_erp",
-    "centum_intake__standardize_costing_sheet",
-}
+def _load_tool_routing_sets():
+    """Load DUCKDB_SCOPED_TOOLS and SCRUB_TOOLS from ISATVON manifests.
+
+    Falls back to hardcoded sets if manifests/ is missing (e.g., during early
+    bootstrap before SPEC-003 manifests are present).
+    """
+    manifests_dir = pathlib.Path(__file__).parent.parent / "manifests"
+    if not manifests_dir.is_dir():
+        # Fallback: hardcoded sets (pre-manifest bootstrap)
+        return (
+            {
+                "centum_reporting__cbom",
+                "centum_reporting__enrich_erp",
+                "centum_reporting__enrich_costing_sheet",
+                "centum_reporting__resolve_final_selection",
+                "centum_reporting__generate_reports",
+                "centum_reporting__export_reports",
+            },
+            {
+                "centum_intake__standardize_scrub_bom",
+                "centum_intake__standardize_quote_win",
+                "centum_intake__standardize_erp",
+                "centum_intake__standardize_costing_sheet",
+            },
+        )
+
+    duckdb_tools = set()
+    scrub_tools = set()
+    for mf in manifests_dir.glob("*.json"):
+        try:
+            manifest = json.loads(mf.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        # duckdb_scoped_tools: explicit list in manifest (not all tools in the module)
+        for tool_name in manifest.get("duckdb_scoped_tools", []):
+            duckdb_tools.add(tool_name)
+        # scrub_tools: explicit list in manifest
+        for tool_name in manifest.get("scrub_tools", []):
+            scrub_tools.add(tool_name)
+
+    return duckdb_tools, scrub_tools
+
+
+# The reporting_module MCP tools -- these touch cbom.duckdb/reports.duckdb
+# directly and take a single opaque "rfq_id" string argument. Gets rewritten
+# to the versioned key before dispatch. Loaded from manifests/ at startup.
+# The 4 scrub_mcp_server.py intake tools -- these need the BARE rfq_id plus
+# an explicit numeric "version" argument; they build their own versioned key
+# internally right before touching DuckDB. Also loaded from manifests/.
+DUCKDB_SCOPED_TOOLS, SCRUB_TOOLS = _load_tool_routing_sets()
 
 
 class ToolExecuteRequest(BaseModel):

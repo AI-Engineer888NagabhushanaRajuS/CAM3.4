@@ -1,0 +1,45 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_distributor_pricing",
+  "name": "Centum Distributor Pricing Module",
+  "version": "3.4.0",
+  "description": "Enriches CBOM with live distributor pricing (Digi-Key, Mouser, Element14), detects alternates, and exports pricing workbooks.",
+  "mcp_server": "mcp-tools/distributor-pricing/mcp_server.py",
+  "fastmcp_name": "DistributorPricing",
+  "port": 8003,
+  "routing_profile": "RFQ_Flow",
+  "tools": [
+    {
+      "name": "centum_distributor_pricing__enrich_bom",
+      "description": "Enrich BOM parts with live distributor pricing from Digi-Key/Mouser/Element14 APIs.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"enriched_count": "integer", "failed_count": "integer", "warnings": "array"}
+    },
+    {
+      "name": "centum_distributor_pricing__export_enriched_bom",
+      "description": "Export the distributor-enriched BOM as a pricing workbook Excel file.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"file_path": "string", "row_count": "integer"}
+    },
+    {
+      "name": "centum_distributor_pricing__export_quote_summary",
+      "description": "Export a quote summary Excel workbook aggregating distributor pricing by part.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"file_path": "string", "row_count": "integer"}
+    },
+    {
+      "name": "centum_distributor_pricing__detect_alternates",
+      "description": "HITL gate: detect alternate parts for unquoted/overpriced CPNs and flag for human review.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"alternates_found": "integer", "hitl": "integer"},
+      "hitl_gate": true
+    },
+    {
+      "name": "centum_distributor_pricing__apply_alternatives",
+      "description": "Apply human-reviewed alternate part selections to the CBOM.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"applied_count": "integer", "warnings": "array"}
+    }
+  ],
+  "dependencies": ["duckdb:cbom.duckdb", "postgresql:logic_db"]
+}

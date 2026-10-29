@@ -1,0 +1,20 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_gerber_integration",
+  "name": "Centum Gerber Integration Module",
+  "version": "3.4.0",
+  "description": "Extracts PCB features (layer count, board area, via types, surface finish) from Gerber archive zips for NRE cost calculation.",
+  "mcp_server": "mcp-tools/gerber-integration/mcp_server.py",
+  "fastmcp_name": "Gerber-Integration",
+  "port": 8007,
+  "routing_profile": "Standard_BOM_Flow",
+  "tools": [
+    {
+      "name": "centum_gerber_integration__extract_features",
+      "description": "Extract PCB features from the uploaded Gerber archive for one rfq_id. Feeds layer count and board area into pcb_nre_fai_charge_report.",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"layer_count": "integer", "board_area_cm2": "number", "features": "object"}
+    }
+  ],
+  "dependencies": ["postgresql:logic_db"]
+}
