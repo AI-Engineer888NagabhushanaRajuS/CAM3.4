@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@accomplish_ai/agent-core": "workspace:*",
+    "@assistant-ui/react": "^0.7.0",
     "@phosphor-icons/react": "^2.1.10",
     "@uppy/core": "^4.4.0",
     "@uppy/dashboard": "^4.3.0",
