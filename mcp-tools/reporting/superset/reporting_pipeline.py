@@ -27,6 +27,38 @@ import validator
 from logging_utils import logger
 
 
+def _emit_posthog_tab_failures(rfq_id: str, result: dict) -> None:
+    """Fire-and-forget PostHog event when per-tab validation fails.
+    No-op if POSTHOG_API_KEY is not set (dev/test environments).
+    Uses httpx instead of the posthog SDK to avoid a new dependency.
+    """
+    api_key = os.environ.get("POSTHOG_API_KEY", "")
+    if not api_key:
+        return
+    failed_tabs = [t for t in result.get("details", []) if not t.get("passed", True)]
+    if not failed_tabs:
+        return
+    try:
+        import httpx
+        httpx.post(
+            "https://app.posthog.com/capture/",
+            json={
+                "api_key": api_key,
+                "event": "rfq_tab_validation_failed",
+                "distinct_id": f"cam-server-{rfq_id}",
+                "properties": {
+                    "rfq_id": rfq_id,
+                    "failed_count": result.get("failed", len(failed_tabs)),
+                    "total_count": result.get("total", 0),
+                    "failed_tabs": [t.get("table", "unknown") for t in failed_tabs[:10]],
+                },
+            },
+            timeout=5,
+        )
+    except Exception as e:
+        logger.warning(f"[PostHog] event emit failed (non-fatal): {e}")
+
+
 def run_validate_reports(rfq_id):
     """Run all per-tab business-rule validators for one rfq_id against already-generated
     report tables. Read-only: does not modify any data. Returns a summary with
@@ -43,6 +75,7 @@ def run_validate_reports(rfq_id):
         f"run_validate_reports rfq_id={rfq_id!r} "
         f"passed={result['passed']}/{result['total']} failed={result['failed']}"
     )
+    _emit_posthog_tab_failures(rfq_id, result)
     return result
 
 
