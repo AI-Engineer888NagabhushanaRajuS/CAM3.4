@@ -618,18 +618,17 @@ def _build_rfq_context(rfq_id: str) -> dict:
         import database as _db
         con = _db.connect()
         try:
-            rfq_lit = f"'{rfq_id}'"
             row = con.execute(
-                f"SELECT * FROM summary_report WHERE rfq_id = {rfq_lit} LIMIT 1"
+                "SELECT * FROM summary_report WHERE rfq_id = ? LIMIT 1", [rfq_id]
             ).fetchdf()
             if not row.empty:
                 ctx["summary"] = row.to_dict(orient="records")[0]
             miss = con.execute(
-                f"SELECT COUNT(*) FROM missing_notes_report WHERE rfq_id = {rfq_lit}"
+                "SELECT COUNT(*) FROM missing_notes_report WHERE rfq_id = ?", [rfq_id]
             ).fetchone()
             ctx["missing_parts_count"] = miss[0] if miss else 0
             aclass = con.execute(
-                f"SELECT COUNT(*) FROM aclass_parts_report WHERE rfq_id = {rfq_lit}"
+                "SELECT COUNT(*) FROM aclass_parts_report WHERE rfq_id = ?", [rfq_id]
             ).fetchone()
             ctx["aclass_parts_count"] = aclass[0] if aclass else 0
         finally:

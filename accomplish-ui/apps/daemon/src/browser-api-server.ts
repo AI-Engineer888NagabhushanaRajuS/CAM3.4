@@ -1017,18 +1017,20 @@ export class BrowserApiServer {
 
 
         // ====================================================================
-        // STEP 3: Dispatch Callback Webhook to wake up Orchestrator Engine
+        // STEP 3: Signal the HITL router (hitl_router.py :5102) so it can
+        // advance the rfq_process_stage and send the Temporal human_decision
+        // signal. Route: POST /api/rfq/{rfq_id}/hitl/decision
         // ====================================================================
-        const ORCHESTRATOR_BASE = (process.env.ORCHESTRATOR_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
-        const ORCHESTRATOR_CALLBACK = `${ORCHESTRATOR_BASE}/api/orchestrator/resume`;
-        log.info(`[HITL Callback] Awakening execution orchestrator via HTTP POST at: ${ORCHESTRATOR_CALLBACK}`);
+        const HITL_ROUTER_BASE = (process.env.CAM_HITL_ROUTER_URL ?? 'http://127.0.0.1:5102').replace(/\/$/, '');
+        const HITL_DECISION_URL = `${HITL_ROUTER_BASE}/api/rfq/${encodeURIComponent(rfqId)}/hitl/decision`;
+        log.info(`[HITL Callback] Signalling hitl_router at: ${HITL_DECISION_URL}`);
 
-        fetch(ORCHESTRATOR_CALLBACK, {
+        fetch(HITL_DECISION_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rfqId, approved, stage: 'Intake' })
+          body: JSON.stringify({ approved, stage: 'Intake' })
         }).catch((err) => {
-          log.error(`[HITL Callback Fault] Orchestrator listener unreachable: ${err.message}`);
+          log.error(`[HITL Callback Fault] hitl_router unreachable: ${err.message}`);
         });
 
         return { success: true };

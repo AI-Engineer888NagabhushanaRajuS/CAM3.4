@@ -22,10 +22,9 @@ import rfq_memory_client
 # reachable during development from the same instance.
 ENABLE_FDE_ROUTES = os.environ.get("ENABLE_FDE_ROUTES", "false").lower() == "true"
 
-# CAM 3.4: Temporal engine switch. Set CAM_USE_TEMPORAL=true to route pipeline
-# triggers through Temporal instead of Dify. Dify path stays live for
-# shadow-run comparison during rollout. Default: false (Dify).
-USE_TEMPORAL = os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true"
+# CAM 3.4: Temporal is the default engine. Set CAM_USE_TEMPORAL=false only to
+# fall back to Dify for shadow-run comparison during rollout.
+USE_TEMPORAL = os.environ.get("CAM_USE_TEMPORAL", "true").lower() == "true"
 
 app = FastAPI()
 

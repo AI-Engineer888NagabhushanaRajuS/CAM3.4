@@ -347,7 +347,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
         fully_approved = True
 
         # CAM 3.4: send Temporal signal when workflow is waiting at this HITL gate
-        if os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true":
+        if os.environ.get("CAM_USE_TEMPORAL", "true").lower() == "true":
             import asyncio as _asyncio
             import pathlib as _pathlib
             sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
@@ -599,7 +599,7 @@ def submit_alternates(rfq_id: str, request: ResolveAlternatesBatchRequest, token
         fully_approved = True
 
         # CAM 3.4: send Temporal signal when workflow is waiting at this HITL gate
-        if os.environ.get("CAM_USE_TEMPORAL", "false").lower() == "true":
+        if os.environ.get("CAM_USE_TEMPORAL", "true").lower() == "true":
             import asyncio as _asyncio
             import pathlib as _pathlib
             sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
@@ -621,6 +621,34 @@ def submit_alternates(rfq_id: str, request: ResolveAlternatesBatchRequest, token
         "remaining": remaining,
         "fully_approved": fully_approved,
     }
+
+
+class HITLDecisionRequest(BaseModel):
+    approved: bool
+    stage: str = "Intake"
+
+
+@app.post("/api/rfq/{rfq_id}/hitl/decision")
+def hitl_decision(rfq_id: str, request: HITLDecisionRequest):
+    """Generic HITL approve/reject called by the daemon's hitl:submit-decision IPC.
+    Sends the Temporal human_decision signal and clears the hitl_required flag.
+    """
+    use_temporal = os.environ.get("CAM_USE_TEMPORAL", "true").lower() == "true"
+    if use_temporal:
+        import asyncio as _asyncio
+        import pathlib as _pathlib
+        sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+        try:
+            import client as temporal_client
+            if request.approved:
+                _asyncio.run(temporal_client.send_hitl_approve(rfq_id, {"gate": request.stage, "approved": True}))
+            else:
+                _asyncio.run(temporal_client.send_hitl_reject(rfq_id, f"Rejected at stage={request.stage}"))
+            print(f"[TEMPORAL SIGNAL] hitl/decision approved={request.approved} for rfq_id={rfq_id!r}")
+        except Exception as sig_err:
+            print(f"[TEMPORAL SIGNAL ERROR] hitl/decision: {sig_err}")
+
+    return {"status": "ok", "rfq_id": rfq_id, "approved": request.approved}
 
 
 if __name__ == "__main__":
