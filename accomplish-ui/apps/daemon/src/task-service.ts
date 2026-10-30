@@ -33,14 +33,8 @@ import { type TaskServiceEvents, type TaskServiceOptions } from './task-service-
 
 export type { TaskServiceEvents, TaskServiceOptions };
 
-// TEMPORARY: the real OpenCode/Ollama agent flow is disabled for free-form
-// chat -- only the 2 scripted BOM Q&A question shapes (see
-// _tryScriptedBomAnswer below) produce real output; everything else gets
-// this message instead of being handed to the LLM/agent pipeline. Remove
-// this constant and the branch that uses it in startTask() to re-enable
-// the normal agent flow.
-const COMING_SOON_MESSAGE =
-  "🚧 This capability is coming soon. For now, try asking things like \"How many FGs does RFQ-000167 contain?\" or \"Final conv price of MPN <part number>\".";
+const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/$/, '');
+const OLLAMA_MODEL    = process.env.OLLAMA_MODEL ?? 'qwen3:8b';
 
 export class TaskService extends EventEmitter {
   private taskManager: TaskManagerAPI;
@@ -236,8 +230,40 @@ export class TaskService extends EventEmitter {
       }
     }
 
-    // TEMPORARY: real agent flow disabled -- see COMING_SOON_MESSAGE above.
-    return this._completeWithScriptedAnswer(params, COMING_SOON_MESSAGE);
+    const ollamaAnswer = await this._tryOllamaAnswer(params.prompt);
+    return this._completeWithScriptedAnswer(params, ollamaAnswer ?? 'Ollama is not reachable — make sure it is running on port 11434.');
+  }
+
+  /** Direct Ollama chat — non-streaming, single-shot. Returns null if Ollama is down/errors. */
+  private async _tryOllamaAnswer(prompt: string): Promise<string | null> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000);
+      let res: Response;
+      try {
+        res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: OLLAMA_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+            stream: false,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!res.ok) {
+        log.warn(`[OllamaChat] HTTP ${res.status}`);
+        return null;
+      }
+      const data = (await res.json()) as { message?: { content?: string } };
+      return data.message?.content ?? null;
+    } catch (err) {
+      log.warn(`[OllamaChat] failed: ${err}`);
+      return null;
+    }
   }
 
   /**
@@ -512,6 +538,8 @@ export class TaskService extends EventEmitter {
           return this._completeFollowUp(existingTaskId, rfqChatAnswer.answer, rfqChatAnswer.citations);
         }
       }
+      const ollamaFollowUp = await this._tryOllamaAnswer(prompt);
+      return this._completeFollowUp(existingTaskId, ollamaFollowUp ?? 'Ollama is not reachable — make sure it is running on port 11434.');
     }
 
     const activeModel = this.storage.getActiveProviderModel();

@@ -420,6 +420,7 @@ SERVICES = [
             "ACCOMPLISH_ENABLE_RFQ_CHAT": "1",
             "PYTHON_BRIDGE_URL": "http://100.121.36.255:3110",
             "RFQ_MEMORY_CHAT_URL": "http://100.121.36.255:8108",
+            "CAM_HITL_ROUTER_URL": "http://127.0.0.1:5102",
             # Node's `pg` driver expects the `postgres://` scheme prefix (vs.
             # `postgresql://` used elsewhere in this repo) -- same underlying
             # credential, sourced from db.py's single canonical constant
@@ -443,8 +444,9 @@ SERVICES = [
         "port": 7233,  # Temporal gRPC frontend -- health-checked via TCP connect
         "health_path": None,
         "health_kind": "tcp",
+        "skip_port_precheck": True,  # 7233 is Temporal server, not the worker; don't block start
         "env": {
-            "CAM_USE_TEMPORAL": os.environ.get("CAM_USE_TEMPORAL", "false"),
+            "CAM_USE_TEMPORAL": os.environ.get("CAM_USE_TEMPORAL", "true"),
             "CAM_TEMPORAL_HOST": os.environ.get("CAM_TEMPORAL_HOST", "localhost:7233"),
             "CAM_FASTAPI_ROUTER_URL": os.environ.get("CAM_FASTAPI_ROUTER_URL", "http://localhost:5100"),
         },
@@ -533,6 +535,9 @@ def check_dependency(dep):
 
 def check_service_health(svc):
     """Returns (healthy: bool, detail: str) using the service's own declared health check."""
+    if svc["health_kind"] == "tcp":
+        ok = _tcp_open(svc["host"], svc["port"])
+        return ok, ("port open" if ok else "connection failed")
     url = f"http://{svc['host']}:{svc['port']}{svc['health_path']}"
     reached, status, detail = _http_get(url)
     if svc["health_kind"] == "http_2xx":
@@ -560,7 +565,7 @@ def start_service(svc, state):
         print(f"  [{svc['name']}] already running (pid {existing['pid']}) -- skipping")
         return
 
-    if _tcp_open(svc["host"], svc["port"], timeout=0.5):
+    if not svc.get("skip_port_precheck") and _tcp_open(svc["host"], svc["port"], timeout=0.5):
         print(f"  [{svc['name']}] WARNING: port {svc['port']} is already in use by something "
               f"this script didn't launch (no tracked PID) -- not starting a duplicate")
         return
@@ -599,14 +604,18 @@ def start_service(svc, state):
     env = {**os.environ, **svc["env"]} if svc.get("env") else None
 
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-    proc = subprocess.Popen(
-        argv,
-        cwd=svc["cwd"],
-        stdout=log_file,
-        stderr=subprocess.STDOUT,
-        creationflags=creationflags,
-        env=env,
-    )
+    try:
+        proc = subprocess.Popen(
+            argv,
+            cwd=svc["cwd"],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            creationflags=creationflags,
+            env=env,
+        )
+    except FileNotFoundError as exc:
+        print(f"  [{svc['name']}] SKIPPED -- executable not found: {exc}")
+        return
     state[svc["name"]] = {
         "pid": proc.pid,
         "started_at": _now(),

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ArrowClockwise, ChatCircleDots } from '@phosphor-icons/react';
+import { ArrowClockwise } from '@phosphor-icons/react';
 import { TaskInputBar } from '@/components/landing/TaskInputBar';
 import { springs } from '@/lib/animations';
 import { PlusMenu } from '@/components/landing/PlusMenu';
@@ -110,9 +110,9 @@ export function HomePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-muted"
+                className="mb-5"
               >
-                <ChatCircleDots className="h-5 w-5 text-muted-foreground" />
+                <img src="/assets/cam-logo.png" alt="Centum" className="h-16 w-auto object-contain" />
               </motion.div>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}

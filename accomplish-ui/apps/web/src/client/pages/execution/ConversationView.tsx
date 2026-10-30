@@ -39,7 +39,6 @@ interface ConversationViewProps {
   todosTaskId: string | null;
 }
 
-/** Renders the scrollable message list and todo sidebar for the execution page. */
 export function ConversationView(props: ConversationViewProps) {
   const { tCommon } = { tCommon: useTranslation('common').t };
   const {
@@ -69,15 +68,17 @@ export function ConversationView(props: ConversationViewProps) {
     todosTaskId,
   } = props;
 
+  const isRunning = currentTask.status === 'running';
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div
-        className="flex-1 overflow-y-auto px-6 py-6"
+        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
         ref={scrollContainerRef}
         onScroll={onScroll}
         data-testid="messages-scroll-container"
       >
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-3xl mx-auto space-y-3">
           {currentTask.messages
             .filter((m) => !(m.type === 'tool' && m.toolName?.toLowerCase() === 'bash'))
             .map((message, index, filteredMessages) => {
@@ -100,9 +101,9 @@ export function ConversationView(props: ConversationViewProps) {
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  shouldStream={isLastAssistantMessage && currentTask.status === 'running'}
+                  shouldStream={isLastAssistantMessage && isRunning}
                   isLastMessage={isLastMessage}
-                  isRunning={currentTask.status === 'running'}
+                  isRunning={isRunning}
                   showTaskActionButton={showContinue}
                   taskActionLabel={taskActionLabel}
                   taskActionPendingLabel={taskActionPendingLabel}
@@ -114,8 +115,30 @@ export function ConversationView(props: ConversationViewProps) {
               );
             })}
 
+          {/* Typing indicator while running */}
+          {isRunning && !currentTool && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex justify-start"
+            >
+              <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-3">
+                <span className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </span>
+              </div>
+            </motion.div>
+          )}
+
           <ToolProgress
-            isRunning={currentTask.status === 'running'}
+            isRunning={isRunning}
             hasPermissionRequest={!!permissionRequest}
             currentTool={currentTool}
             currentToolInput={currentToolInput}

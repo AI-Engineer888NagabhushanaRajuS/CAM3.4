@@ -25,13 +25,6 @@ function StatusBadge({ status }: { status: TaskStatus }) {
           </span>
         </span>
       );
-    case 'completed':
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600 shrink-0">
-          <CheckCircle className="h-3 w-3" />
-          {t('status.completed')}
-        </span>
-      );
     case 'failed':
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive shrink-0">
@@ -68,37 +61,28 @@ function StatusBadge({ status }: { status: TaskStatus }) {
         </span>
       );
     default:
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">
-          {status}
-        </span>
-      );
+      return null;
   }
 }
 
 export function ExecutionHeader({
-  prompt,
+  prompt: _prompt,
   status,
   rfqId,
 }: {
   prompt: string;
   status: TaskStatus;
-  /** RFQ this chat is scoped to (BuLLMQuote-SRIM RFQ chat feature) --
-   * rendered as a small indicator pill so the user always knows which RFQ
-   * a given conversation's follow-ups are pinned to, even if they've since
-   * navigated the left pane elsewhere (a conversation stays pinned to the
-   * RFQ it was started against — see task-service.ts's own resumeSession
-   * rfqId-resolution comment for why). */
   rfqId?: string;
 }) {
   const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
+  const showStatus = status === 'running' || status === 'queued' || status === 'waiting_permission' || status === 'pending';
 
   return (
     <>
-      <div className="flex-shrink-0 border-b border-border bg-card/50 px-6 py-4">
+      <div className="flex-shrink-0 border-b border-border bg-card/50 px-4 py-3">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <Button
               variant="ghost"
               size="icon"
@@ -108,17 +92,20 @@ export function ExecutionHeader({
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <h1 className="text-base font-medium text-foreground truncate min-w-0">{prompt}</h1>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Chat</p>
+              <p className="text-xs text-muted-foreground">Sourcing Assistant</p>
+            </div>
+            {showStatus && (
               <span data-testid="execution-status-badge">
                 <StatusBadge status={status} />
               </span>
-              {rfqId && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">
-                  {rfqId}
-                </span>
-              )}
-            </div>
+            )}
+            {rfqId && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">
+                {rfqId}
+              </span>
+            )}
           </div>
           {rfqId && !chatOpen && (
             <RFQChatButton rfqId={rfqId} onClick={() => setChatOpen(true)} />

@@ -13,24 +13,9 @@ const DEVICE_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    value: 'auto',
-    label: 'Auto',
-    description: 'Best available hardware',
-  },
-  {
-    value: 'cuda',
-    label: 'GPU',
-    description: 'CUDA / local GPU',
-  },
-  {
-    value: 'webgpu',
-    label: 'WebGPU',
-    description: 'Browser GPU (experimental)',
-  },
-  {
     value: 'cpu',
     label: 'CPU',
-    description: 'Fallback (slow, most compatible)',
+    description: 'Runs locally on your CPU',
   },
 ];
 
@@ -48,7 +33,7 @@ export function LocalModelRuntimeSelector({
         </p>
       </div>
 
-      <div className={cn('grid gap-2', compact ? 'grid-cols-2' : 'grid-cols-2 xl:grid-cols-4')}>
+      <div className="grid gap-2">
         {DEVICE_OPTIONS.map((option) => {
           const selected = option.value === devicePreference;
           return (
@@ -72,10 +57,6 @@ export function LocalModelRuntimeSelector({
         })}
       </div>
 
-      <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-        Multi-GPU selection (GPU 0 / GPU 1) is not supported yet - DigiBull uses automatic GPU
-        selection whenever a GPU mode is selected.
-      </p>
     </div>
   );
 }

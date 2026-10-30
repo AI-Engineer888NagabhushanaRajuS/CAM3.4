@@ -1,75 +1,125 @@
+"""Direct FastMCP tool calls via stateful HTTP sessions (no Bifrost/Jungle).
+
+FastMCP 3.x streamable-HTTP transport requires:
+  1. POST /mcp with method=initialize → server returns mcp-session-id header
+  2. POST /mcp with mcp-session-id header for all subsequent calls
+
+Sessions are cached per server URL so we only initialize once per process.
+"""
+
 import itertools
+import json
+import threading
 import requests
-from config import BIFROST_URL, BIFROST_ENDPOINT_SLUGS
+from config import get_mcp_url
 
-# Monotonically increasing request IDs — safe for concurrent calls.
 _request_id = itertools.count(1)
-
-# Bifrost has no MCP Jungle-style session/handshake concept at all --
-# confirmed empirically: a bare `tools/call` POST with no prior `initialize`
-# request already reaches the real tool and returns its real response.
-# create_session()/notifications-initialized handshake is therefore gone,
-# not just unused -- there is nothing on the Bifrost side to initialize.
+_sessions: dict[str, str] = {}   # url → session_id
+_sessions_lock = threading.Lock()
 
 
-def _endpoint_url(tool_name):
-    """tool_name is `<client>-<tool>` (Bifrost's own naming, stored verbatim
-    in system_skills_registry/quote_routing_profiles -- see the Bifrost
-    migration plan). Splitting on the FIRST '-' is safe/unambiguous: none of
-    the registered client names (intake, gerber_integration, distributor,
-    Production_Logic_DB, Production_FileMetedata_DB) contain a literal '-'
-    themselves, only '_'. endpoint_slug is looked up, not derived -- it's an
-    independently-registered value in Bifrost (e.g. Production_Logic_DB ->
-    production-postgres-db is not a mechanical transform of the client name).
-    """
-    client, _, _ = tool_name.partition("-")
-    endpoint_slug = BIFROST_ENDPOINT_SLUGS.get(client)
-    if not endpoint_slug:
-        raise ValueError(
-            f"No Bifrost endpoint_slug registered for client '{client}' "
-            f"(parsed from tool_name '{tool_name}'). Known clients: "
-            f"{sorted(BIFROST_ENDPOINT_SLUGS)}"
-        )
-    return f"{BIFROST_URL}/mcp/{endpoint_slug}"
-
-
-def list_tools(tool_name_prefix_client):
-    """Debug helper -- lists every tool registered under one Bifrost client
-    (e.g. 'intake', 'distributor'). Only used by this file's own __main__
-    block below."""
-    url = f"{BIFROST_URL}/mcp/{BIFROST_ENDPOINT_SLUGS[tool_name_prefix_client]}"
+def _get_session(url: str) -> str:
+    with _sessions_lock:
+        if url in _sessions:
+            return _sessions[url]
     payload = {
+        "jsonrpc": "2.0",
+        "id": next(_request_id),
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "cam-fastapi-router", "version": "3.4"},
+        },
+    }
+    resp = requests.post(
+        url, json=payload,
+        headers={"Accept": "application/json, text/event-stream"},
+        timeout=30, stream=True,
+    )
+    resp.raise_for_status()
+    session_id = resp.headers.get("mcp-session-id", "")
+    if not session_id:
+        raise RuntimeError(f"No mcp-session-id returned from {url}")
+    # Send notifications/initialized to complete handshake
+    requests.post(
+        url,
+        json={"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        headers={"Accept": "application/json, text/event-stream",
+                 "mcp-session-id": session_id},
+        timeout=10,
+    )
+    with _sessions_lock:
+        _sessions[url] = session_id
+    return session_id
+
+
+def _read_response(resp: requests.Response) -> dict:
+    content_type = resp.headers.get("Content-Type", "")
+    if "text/event-stream" in content_type:
+        result = None
+        for raw in resp.iter_lines():
+            if not raw:
+                continue
+            line = raw if isinstance(raw, str) else raw.decode()
+            if line.startswith("data: "):
+                data = line[6:].strip()
+                if data and data != "[DONE]":
+                    result = json.loads(data)
+        return result or {}
+    return resp.json()
+
+
+def _post(url: str, payload: dict) -> dict:
+    session_id = _get_session(url)
+    resp = requests.post(
+        url, json=payload,
+        headers={"Accept": "application/json, text/event-stream",
+                 "mcp-session-id": session_id},
+        timeout=300, stream=True,
+    )
+    if resp.status_code == 400 and "session" in resp.text.lower():
+        # Session expired — purge and retry once
+        with _sessions_lock:
+            _sessions.pop(url, None)
+        session_id = _get_session(url)
+        resp = requests.post(
+            url, json=payload,
+            headers={"Accept": "application/json, text/event-stream",
+                     "mcp-session-id": session_id},
+            timeout=300, stream=True,
+        )
+    resp.raise_for_status()
+    return _read_response(resp)
+
+
+def call_tool(tool_name: str, arguments: dict) -> dict:
+    url = get_mcp_url(tool_name)
+    # Server registers tools without the manifest prefix:
+    # "centum_intake__scan_local_file" → "scan_local_file"
+    server_name = tool_name.split("__", 1)[1] if "__" in tool_name else tool_name
+    return _post(url, {
+        "jsonrpc": "2.0",
+        "id": next(_request_id),
+        "method": "tools/call",
+        "params": {"name": server_name, "arguments": arguments},
+    })
+
+
+def list_tools(manifest_id: str) -> dict:
+    from config import MCP_URLS
+    url = MCP_URLS.get(manifest_id)
+    if not url:
+        raise ValueError(f"Unknown manifest_id '{manifest_id}'")
+    return _post(url, {
         "jsonrpc": "2.0",
         "id": next(_request_id),
         "method": "tools/list",
         "params": {},
-    }
-    response = requests.post(url, json=payload, timeout=30)
-    return response.json()
-
-
-def call_tool(tool_name, arguments):
-    payload = {
-        "jsonrpc": "2.0",
-        "id": next(_request_id),
-        "method": "tools/call",
-        "params": {
-            "name": tool_name,
-            "arguments": arguments,
-        }
-    }
-
-    # 30s was too short for LLM-backed tools (e.g. standardize_quote_win on a
-    # large file can take well over a minute) -- observed timing out mid-call
-    # in practice, silently losing the tool's result. 300s matches the
-    # generous timeout the Dify workflow's own HTTP nodes already use for the
-    # same calls.
-    response = requests.post(_endpoint_url(tool_name), json=payload, timeout=300)
-    return response.json()
+    })
 
 
 if __name__ == "__main__":
-    import json
-
-    print("\n=== AVAILABLE TOOLS (intake) ===")
-    print(json.dumps(list_tools("intake"), indent=2))
+    import sys
+    mid = sys.argv[1] if len(sys.argv) > 1 else "centum_intake"
+    print(json.dumps(list_tools(mid), indent=2))

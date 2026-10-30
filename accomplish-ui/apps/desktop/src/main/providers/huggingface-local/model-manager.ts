@@ -19,23 +19,28 @@ export { downloadModel, cancelDownload } from './model-downloader';
  */
 export const SUGGESTED_MODELS: HuggingFaceLocalModelInfo[] = [
   {
+    id: 'onnx-community/Qwen2.5-7B-Instruct-ONNX',
+    displayName: 'Qwen 2.5 7B Instruct (Recommended)',
+    downloaded: false,
+  },
+  {
+    id: 'onnx-community/Llama-3.2-3B-Instruct-ONNX',
+    displayName: 'Llama 3.2 3B Instruct (Fast)',
+    downloaded: false,
+  },
+  {
     id: 'onnx-community/Llama-3.2-1B-Instruct-ONNX',
-    displayName: 'Llama 3.2 1B Instruct (ONNX)',
+    displayName: 'Llama 3.2 1B Instruct (Lightweight)',
     downloaded: false,
   },
   {
     id: 'onnx-community/Phi-3.5-mini-instruct-onnx',
-    displayName: 'Phi-3.5 Mini Instruct (ONNX)',
+    displayName: 'Phi-3.5 Mini Instruct',
     downloaded: false,
   },
   {
     id: 'onnx-community/Qwen2.5-0.5B-Instruct',
-    displayName: 'Qwen2.5 0.5B Instruct (ONNX)',
-    downloaded: false,
-  },
-  {
-    id: 'Xenova/distilgpt2',
-    displayName: 'DistilGPT-2 (Tiny, for testing)',
+    displayName: 'Qwen2.5 0.5B Instruct (Tiny)',
     downloaded: false,
   },
 ];

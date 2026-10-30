@@ -1,25 +1,38 @@
-"""Single configuration point for tool_calling.py's connection to the Bifrost
-MCP gateway (replaces MCP Jungle for RFQ_Flow -- Standard_BOM_Flow still uses
-MCP Jungle directly, unmigrated, since its own scrub_mcp_server tools aren't
-registered in Bifrost yet). Bifrost's management API (client/tool listing,
-basic-auth-protected) is confirmed reachable at http://localhost:8010 this
-session; tool EXECUTION is a separate, unauthenticated, per-client endpoint
-at {BIFROST_URL}/mcp/{endpoint_slug} -- see tool_calling.py's own docstring
-for why (Bifrost is stateless, no MCP Jungle-style session handshake needed).
+"""Manifest-driven MCP server routing.
+
+Reads port assignments from manifests/*.json so there is one source of truth
+for every tool→server mapping (SPEC-003). No Bifrost/Jungle gateway needed —
+FastMCP 3.x servers accept direct HTTP tool calls at POST /mcp with
+Accept: application/json, text/event-stream.
 """
 
+import json
 import os
+import pathlib
 
-BIFROST_URL = os.environ.get("BIFROST_URL", "http://localhost:8010")
+# In Docker the env var points to each container's internal hostname.
+# Bare-metal default is the NetBird mesh IP where all MCP servers listen.
+MCP_HOST = os.environ.get("CAM_MCP_HOST", "100.121.36.255")
 
-# Bifrost's endpoint_slug is an independently-registered value, NOT a
-# derivable transform of the client name (e.g. "Production_Logic_DB" ->
-# "production-postgres-db" -- confirmed empirically via Bifrost's own
-# /api/mcp/clients, not guessed). Must be an explicit lookup table.
-BIFROST_ENDPOINT_SLUGS = {
-    "intake": "intake",
-    "gerber_integration": "gerber-integration",
-    "distributor": "distributor",
-    "Production_Logic_DB": "production-postgres-db",
-    "Production_FileMetedata_DB": "production-filemetedata-db",
-}
+_MANIFESTS_DIR = pathlib.Path(__file__).parent.parent / "manifests"
+
+# manifest_id → direct HTTP URL, e.g. "centum_intake" → "http://...:8002/mcp"
+MCP_URLS: dict[str, str] = {}
+for _mf in _MANIFESTS_DIR.glob("*.json"):
+    try:
+        _data = json.loads(_mf.read_text(encoding="utf-8"))
+        MCP_URLS[_data["id"]] = f"http://{MCP_HOST}:{_data['port']}/mcp"
+    except Exception:
+        pass
+
+
+def get_mcp_url(tool_name: str) -> str:
+    """Return the direct /mcp endpoint for a tool like 'centum_intake__scan_local_file'."""
+    manifest_id = tool_name.split("__")[0]
+    url = MCP_URLS.get(manifest_id)
+    if not url:
+        raise ValueError(
+            f"No MCP server for manifest '{manifest_id}' (tool '{tool_name}'). "
+            f"Known: {sorted(MCP_URLS)}"
+        )
+    return url

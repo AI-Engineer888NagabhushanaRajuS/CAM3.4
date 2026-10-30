@@ -9,7 +9,6 @@ import { ModelIndicator } from '../components/ui/ModelIndicator';
 import { SpinningIcon } from '../components/execution/SpinningIcon';
 import { MessageBubble } from '../components/execution/MessageList';
 import { DebugPanel } from '../components/execution/DebugPanel';
-import { ExecutionCompleteFooter } from './execution/ExecutionCompleteFooter';
 import { ExecutionHeader } from './execution/ExecutionHeader';
 import { BrowserInstallModal } from './execution/BrowserInstallModal';
 import { ConversationView } from './execution/ConversationView';
@@ -232,15 +231,7 @@ export default function ExecutionPage() {
           />
         )}
 
-        {['completed', 'interrupted', 'failed', 'cancelled'].includes(
-          s.currentTask?.status ?? '',
-        ) &&
-          !s.isConnectorAuthPause && (
-            <ExecutionCompleteFooter
-              taskId={s.currentTask.id}
-              onStartNewTask={() => s.navigate('/')}
-            />
-          )}
+        {/* Task Completed footer removed — follow-up input keeps the chat alive */}
 
         {s.debugModeEnabled && (
           <DebugPanel

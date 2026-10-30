@@ -344,6 +344,18 @@ function browserPickFiles(opts?: {
 const noop = () => () => {};
 const noopAsync = async () => null;
 
+// Ollama-backed local model layer (replaces Electron HuggingFace IPC in browser mode)
+const OLLAMA = 'http://localhost:11434';
+const OLLAMA_SUGGESTED = [
+  { id: 'qwen3:8b',      displayName: 'Qwen3 8B (Installed)', downloaded: false },
+  { id: 'llama3.2:3b',   displayName: 'Llama 3.2 3B',         downloaded: false },
+  { id: 'phi3.5:3.8b',   displayName: 'Phi-3.5 3.8B',         downloaded: false },
+  { id: 'qwen2.5:7b',    displayName: 'Qwen 2.5 7B',          downloaded: false },
+  { id: 'mistral:7b',    displayName: 'Mistral 7B',            downloaded: false },
+];
+type ProgressCb = (p: { modelId: string; status: string; progress: number; error?: string }) => void;
+const _hfListeners = new Set<ProgressCb>();
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (window as any).accomplish = new Proxy({} as Record<string, unknown>, {
   get(_t, prop: string | symbol) {
@@ -360,6 +372,26 @@ const noopAsync = async () => null;
         };
       };
     }
+
+    // Pre-RPC overrides — these must win before the RPC table lookup
+    if (key === 'getProviderSettings')
+      return async () => ({
+        connectedProviders: {
+          ollama: {
+            providerId: 'ollama',
+            connectionStatus: 'connected',
+            selectedModelId: 'qwen3:8b',
+            credentials: { type: 'ollama', baseUrl: 'http://localhost:11434' },
+            lastConnectedAt: new Date().toISOString(),
+            availableModels: [
+              { id: 'qwen3:8b', name: 'Qwen3 8B' },
+              { id: 'qwen3:4b', name: 'Qwen3 4B' },
+            ],
+          },
+        },
+        activeProviderId: 'ollama',
+        debugMode: false,
+      });
 
     if (key in RPC) return (...args: unknown[]) => rpc(RPC[key], args);
 
@@ -479,6 +511,87 @@ const noopAsync = async () => null;
     // Skills that require native OS (open in editor, show in folder) — not available in browser
     if (key === 'openSkillInEditor' || key === 'showSkillInFolder') return noopAsync;
     if (key === 'addSkillFromFolder') return noopAsync;
+
+    // HuggingFace local — backed by Ollama in browser mode
+    if (key === 'onHuggingFaceDownloadProgress')
+      return (cb: ProgressCb) => {
+        _hfListeners.add(cb);
+        return () => _hfListeners.delete(cb);
+      };
+    if (key === 'listHuggingFaceModels')
+      return async () => {
+        try {
+          const r = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(3000) });
+          if (!r.ok) throw new Error('offline');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const data = (await r.json()) as { models?: any[] };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cached = (data.models ?? []).map((m: any) => ({
+            id: m.name as string,
+            displayName: m.name as string,
+            sizeBytes: m.size as number,
+            downloaded: true,
+          }));
+          const cachedIds = new Set(cached.map((m) => m.id));
+          const suggested = OLLAMA_SUGGESTED.filter((m) => !cachedIds.has(m.id));
+          return { cached, suggested };
+        } catch {
+          return { cached: [], suggested: OLLAMA_SUGGESTED };
+        }
+      };
+    if (key === 'downloadHuggingFaceModel')
+      return async (modelId: string) => {
+        try {
+          const resp = await fetch(`${OLLAMA}/api/pull`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: modelId, stream: true }),
+          });
+          if (!resp.ok) return { success: false, error: `Ollama pull failed (${resp.status})` };
+          const reader = resp.body!.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const d = JSON.parse(line) as any;
+                if (d.total && d.completed) {
+                  const pct = Math.min(99, Math.round((d.completed / d.total) * 100));
+                  _hfListeners.forEach((cb) => cb({ modelId, status: 'downloading', progress: pct }));
+                }
+                if (d.status === 'success') {
+                  _hfListeners.forEach((cb) => cb({ modelId, status: 'complete', progress: 100 }));
+                }
+              } catch { /* malformed line */ }
+            }
+          }
+          return { success: true };
+        } catch (e) {
+          const error = e instanceof Error ? e.message : 'Pull failed';
+          _hfListeners.forEach((cb) => cb({ modelId, status: 'error', progress: 0, error }));
+          return { success: false, error };
+        }
+      };
+    if (key === 'startHuggingFaceServer') return async () => ({ success: true });
+    if (key === 'stopHuggingFaceServer') return async () => ({ success: true });
+    if (key === 'getHuggingFaceServerStatus')
+      return async () => {
+        try {
+          const r = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(2000) });
+          return r.ok
+            ? { running: true, port: 11434, loadedModel: null, isLoading: false }
+            : { running: false, port: null, loadedModel: null, isLoading: false };
+        } catch {
+          return { running: false, port: null, loadedModel: null, isLoading: false };
+        }
+      };
 
     // Analytics — OSS no-op
     if (key === 'analytics') return new Proxy({}, { get: () => noopAsync });
