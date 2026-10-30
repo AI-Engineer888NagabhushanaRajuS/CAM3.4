@@ -17,6 +17,8 @@ import type { SkillsService } from './skills-service.js';
 import { log } from './logger.js';
 import { matchTestLogin } from './test-login.js';
 import type { OpenAiOauthManager } from './opencode/auth-openai.js';
+import { retrieveRfqContext, rememberTurn } from './rfq-chat/rfq-chat-client.js';
+import { synthesizeAnswer, hasUsableContext } from './rfq-chat/rfq-chat-prompt.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
 
@@ -2363,28 +2365,40 @@ export class BrowserApiServer {
           });
           return;
         }
-        // ── CAM 3.4: RFQ assistant chat proxy ────────────────────────────────
-        // POST /api/rfq/:rfqId/chat → fastapi_router.py POST /rfq/:rfqId/chat
-        // Read-only: no mutations, no HITL approval. Proxied so the browser
-        // doesn't need to know the Python backend URL directly.
+        // ── CAM 3.4: RFQ assistant chat — daemon-side RAG pipeline ──────────
+        // Uses rfq-memory service for retrieval + Ollama for synthesis.
+        // rfq-chat-client.ts mints JWT scoped to rfqId; rfq-chat-prompt.ts
+        // calls Ollama with the retrieved context. Read-only: no mutations.
         const chatMatch = method === 'POST' && (url ?? '').match(/^\/api\/rfq\/([^/?]+)\/chat$/);
         if (chatMatch) {
           const rfqId = chatMatch[1];
-          const FASTAPI_ROUTER = (process.env.CAM_FASTAPI_ROUTER_URL ?? 'http://localhost:5100').replace(/\/$/, '');
           let body = '';
           req.on('data', (c: Buffer) => { body += c; });
           req.on('end', () => {
             void (async () => {
               try {
-                const upstream = await fetch(`${FASTAPI_ROUTER}/rfq/${rfqId}/chat`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body,
-                });
-                const data = await upstream.json();
-                res.writeHead(upstream.status, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(data));
+                const parsed = JSON.parse(body) as { messages?: Array<{ role: string; content: string }> };
+                const msgs = parsed.messages ?? [];
+                const question = [...msgs].reverse().find((m) => m.role === 'user')?.content ?? '';
+                if (!question) {
+                  res.writeHead(400, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'No user message found' }));
+                  return;
+                }
+                const sessionId = `rfq-chat-${rfqId}`;
+                const retrieval = await retrieveRfqContext({ rfqId, question, sessionId });
+                const chunks = retrieval?.chunks ?? [];
+                if (!hasUsableContext({ chunks })) {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ rfq_id: rfqId, message: 'No relevant context found for this RFQ.', citations: [] }));
+                  return;
+                }
+                const { answer, citations } = await synthesizeAnswer({ question, chunks, sessionRecall: retrieval?.sessionRecall ?? null });
+                if (answer) rememberTurn({ rfqId, sessionId, question, answer });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ rfq_id: rfqId, message: answer ?? 'Could not generate an answer from available context.', citations }));
               } catch (e) {
+                log.error(`[RFQChat] pipeline error: ${e}`);
                 res.writeHead(503, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: `Chat backend unreachable: ${e instanceof Error ? e.message : String(e)}` }));
               }
