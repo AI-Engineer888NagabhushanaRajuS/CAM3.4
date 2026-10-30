@@ -89,8 +89,10 @@ def test_sum_and_count_mismatch_is_false():
 
 def test_validate_reports_mcp_tool_registered():
     """centum_reporting__validate_reports must appear as a registered tool in mcp_server."""
+    import asyncio
     import mcp_server
-    tool_names = [t.name for t in mcp_server.mcp._tool_manager.list_tools()]
+    # fastmcp >=3: public async list_tools() (the private _tool_manager is gone)
+    tool_names = [t.name for t in asyncio.run(mcp_server.mcp.list_tools())]
     assert "validate_reports" in tool_names, (
         f"validate_reports not found in registered tools: {tool_names}"
     )

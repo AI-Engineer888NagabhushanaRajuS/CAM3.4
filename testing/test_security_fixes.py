@@ -62,8 +62,9 @@ def test_sql_injection_blocked_by_identifier_validator():
             pass
 
 
-def test_build_rfq_context_uses_parameterized_query(monkeypatch):
-    """_build_rfq_context must use ? placeholders, not f-string interpolation."""
+def test_fastapi_router_has_no_fstring_rfq_sql():
+    """SPEC-007/008: _build_rfq_context was removed with the Ollama chat path, and no
+    f-string SQL literal (rfq_lit) may remain in fastapi_router."""
     import inspect
     try:
         import fastapi_router as fr
@@ -71,10 +72,8 @@ def test_build_rfq_context_uses_parameterized_query(monkeypatch):
         import pytest
         pytest.skip(f"fastapi_router deps unavailable: {e}")
 
-    src = inspect.getsource(fr._build_rfq_context)
-    # Must not contain rfq_lit or any literal quote-wrapping construction
-    assert "rfq_lit" not in src, "f-string SQL literal variable rfq_lit must be removed"
-    assert "WHERE rfq_id = ?" in src, "Must use parameterized ? placeholder"
+    assert not hasattr(fr, "_build_rfq_context"), "removed in SPEC-008 (chat moved to rfq-memory)"
+    assert "rfq_lit" not in inspect.getsource(fr), "f-string SQL literal rfq_lit must not return"
 
 
 def test_hitl_decision_endpoint_registered():

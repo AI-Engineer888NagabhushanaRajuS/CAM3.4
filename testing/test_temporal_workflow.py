@@ -97,9 +97,13 @@ def test_temporal_workflow_calls_tools_in_sequence():
 
     called_tools = []
 
+    from temporalio import activity
+
+    @activity.defn(name="get_routing_sequence")
     async def mock_get_routing(rfq_id, profile_name):
         return mock_routing
 
+    @activity.defn(name="execute_tool")
     async def mock_execute_tool(rfq_id, tool_name, arguments):
         called_tools.append(tool_name)
         return mock_tool_result
@@ -126,7 +130,7 @@ def test_temporal_workflow_calls_tools_in_sequence():
             "centum_reporting__cbom",
         ]
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())
 
 
 def test_temporal_workflow_hitl_gate_blocks_until_signal():
@@ -149,9 +153,13 @@ def test_temporal_workflow_hitl_gate_blocks_until_signal():
 
     call_count = [0]
 
+    from temporalio import activity
+
+    @activity.defn(name="get_routing_sequence")
     async def mock_get_routing(rfq_id, profile_name):
         return mock_routing
 
+    @activity.defn(name="execute_tool")
     async def mock_execute_tool(rfq_id, tool_name, arguments):
         call_count[0] += 1
         if tool_name == "centum_reporting__resolve_final_selection":
@@ -179,4 +187,4 @@ def test_temporal_workflow_hitl_gate_blocks_until_signal():
         assert result["status"] == "completed"
         assert call_count[0] == 2  # both tools called
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())

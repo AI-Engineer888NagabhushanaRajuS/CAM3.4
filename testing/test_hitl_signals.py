@@ -56,7 +56,7 @@ def test_send_hitl_approve_calls_signal():
         pytest.skip(f"temporalio not installed: {e}")
 
     handle_mock = AsyncMock()
-    client_mock = AsyncMock()
+    client_mock = MagicMock()  # Client.get_workflow_handle is sync in the real SDK
     client_mock.get_workflow_handle.return_value = handle_mock
 
     async def run():
@@ -70,7 +70,7 @@ def test_send_hitl_approve_calls_signal():
         assert signal_payload.get("action") == "approve"
         assert signal_payload.get("gate") == "resolve_final_selection"
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())
 
 
 def test_send_hitl_reject_calls_signal_with_reject():
@@ -78,7 +78,7 @@ def test_send_hitl_reject_calls_signal_with_reject():
     import pytest
     try:
         import asyncio
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import AsyncMock, MagicMock, patch
     except ImportError as e:
         pytest.skip(str(e))
 
@@ -88,7 +88,7 @@ def test_send_hitl_reject_calls_signal_with_reject():
         pytest.skip(f"temporalio not installed: {e}")
 
     handle_mock = AsyncMock()
-    client_mock = AsyncMock()
+    client_mock = MagicMock()  # Client.get_workflow_handle is sync in the real SDK
     client_mock.get_workflow_handle.return_value = handle_mock
 
     async def run():
@@ -100,7 +100,7 @@ def test_send_hitl_reject_calls_signal_with_reject():
         assert signal_payload.get("action") == "reject"
         assert signal_payload.get("reason") == "wrong part number"
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())
 
 
 # ---------------------------------------------------------------------------
@@ -129,9 +129,13 @@ def test_workflow_resumes_after_hitl_approve():
     gate_called = []
     post_gate_called = []
 
+    from temporalio import activity
+
+    @activity.defn(name="get_routing_sequence")
     async def mock_get_routing(rfq_id, profile_name):
         return mock_routing
 
+    @activity.defn(name="execute_tool")
     async def mock_execute_tool(rfq_id, tool_name, arguments):
         if tool_name == "centum_reporting__resolve_final_selection":
             gate_called.append(tool_name)
@@ -163,7 +167,7 @@ def test_workflow_resumes_after_hitl_approve():
         assert gate_called == ["centum_reporting__resolve_final_selection"]
         assert post_gate_called == ["centum_reporting__generate_reports"]
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())
 
 
 def test_workflow_terminates_on_hitl_reject():
@@ -185,9 +189,13 @@ def test_workflow_terminates_on_hitl_reject():
         "skill_index": 0,
     }
 
+    from temporalio import activity
+
+    @activity.defn(name="get_routing_sequence")
     async def mock_get_routing(rfq_id, profile_name):
         return mock_routing
 
+    @activity.defn(name="execute_tool")
     async def mock_execute_tool(rfq_id, tool_name, arguments):
         return {"status": "hitl_gate", "hitl": 1, "hitl_required": True}
 
@@ -213,7 +221,7 @@ def test_workflow_terminates_on_hitl_reject():
 
         assert result["status"] == "rejected"
 
-    asyncio.get_event_loop().run_until_complete(run())
+    asyncio.run(run())
 
 
 # ---------------------------------------------------------------------------

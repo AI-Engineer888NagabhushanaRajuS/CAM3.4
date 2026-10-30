@@ -73,3 +73,46 @@ def rfq_id():
 @pytest.fixture
 def rfq_id_v2():
     return TEST_RFQ_ID_V2
+
+
+# --- per-module source dir isolation -------------------------------------------------
+# temporal_worker/, fastapi-router/ and the reporting package each ship a flat
+# `config.py` (plus client/workflow/...). In one pytest process the first import wins
+# in sys.modules, so later test modules got the wrong `config`. Give every test module
+# its own dir first on sys.path and a clean module cache.
+import os
+import sys
+
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_DIRS = {
+    "temporal_worker": os.path.join(_ROOT, "temporal_worker"),
+    "fastapi-router": os.path.join(_ROOT, "fastapi-router"),
+    "reporting": os.path.join(_ROOT, "mcp-tools", "reporting", "superset"),
+}
+_MODULE_DIR = {
+    "test_hitl_signals": "temporal_worker",
+    "test_temporal_workflow": "temporal_worker",
+    "test_shadow_run_parity": "fastapi-router",
+    "test_routing": "fastapi-router",
+    "test_rfq_chat": "fastapi-router",
+    "test_security_fixes": "fastapi-router",
+    "test_posthog_events": "reporting",
+    "test_report_validators": "reporting",
+    "test_reports": "reporting",
+}
+
+
+@pytest.fixture(autouse=True)
+def _isolate_source_dir(request):
+    key = _MODULE_DIR.get(request.module.__name__.rsplit(".", 1)[-1])
+    if key is None:
+        return
+    base = tuple(p + os.sep for p in _DIRS.values())
+    for name, mod in list(sys.modules.items()):
+        f = getattr(mod, "__file__", None)
+        if f and os.path.abspath(f).startswith(base):
+            del sys.modules[name]
+    for p in _DIRS.values():
+        while p in sys.path:
+            sys.path.remove(p)
+    sys.path.insert(0, _DIRS[key])
