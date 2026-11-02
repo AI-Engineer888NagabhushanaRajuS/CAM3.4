@@ -16,23 +16,52 @@ MCP_HOST = os.environ.get("CAM_MCP_HOST", "100.121.36.255")
 
 _MANIFESTS_DIR = pathlib.Path(__file__).parent.parent / "manifests"
 
-# manifest_id → direct HTTP URL, e.g. "centum_intake" → "http://...:8002/mcp"
-MCP_URLS: dict[str, str] = {}
-for _mf in _MANIFESTS_DIR.glob("*.json"):
+MCP_URLS: dict[str, str] = {}   # manifest_id → direct HTTP URL, e.g. "centum_intake" → "http://...:8002/mcp"
+TOOL_URLS: dict[str, str] = {}  # tool name → URL of the manifest that declares it
+
+
+def _signature():
+    """Cheap fingerprint of manifests/ (names + mtimes): lets a miss skip re-parsing when nothing changed."""
     try:
-        _data = json.loads(_mf.read_text(encoding="utf-8"))
-        MCP_URLS[_data["id"]] = f"http://{MCP_HOST}:{_data['port']}/mcp"
-    except Exception:
-        pass
+        return tuple(sorted((f.name, f.stat().st_mtime_ns) for f in _MANIFESTS_DIR.glob("*.json")))
+    except OSError:
+        return None
+
+
+def _load_manifests() -> None:
+    """(Re)build both maps. Swapped in whole so a concurrent reader never sees a half-built map."""
+    global MCP_URLS, TOOL_URLS, _SIG
+    _SIG = _signature()
+    mcp_urls, tool_urls = {}, {}
+    for mf in sorted(_MANIFESTS_DIR.glob("*.json")):
+        try:
+            data = json.loads(mf.read_text(encoding="utf-8"))
+            url = f"http://{MCP_HOST}:{data['port']}/mcp"
+            names = [tool["name"] for tool in data.get("tools", [])]
+        except Exception as e:  # skip the whole bad manifest, never half of it
+            print(f"[config] ignoring unreadable manifest {mf.name}: {e}")
+            continue
+        mcp_urls[data["id"]] = url
+        tool_urls.update(dict.fromkeys(names, url))
+    MCP_URLS, TOOL_URLS = mcp_urls, tool_urls
+
+
+_load_manifests()
 
 
 def get_mcp_url(tool_name: str) -> str:
-    """Return the direct /mcp endpoint for a tool like 'centum_intake__scan_local_file'."""
-    manifest_id = tool_name.split("__")[0]
-    url = MCP_URLS.get(manifest_id)
+    """Return the direct /mcp endpoint of the manifest that declares tool_name.
+
+    A manifest owns its tools: the name prefix is NOT the manifest id (the scrub
+    tools are `centum_intake__standardize_*` but live in manifest `centum_scrub_intake`).
+    A miss rescans manifests/ only if its contents changed, so a manifest imported after
+    startup needs no restart and a loop on an undeclared tool name does not re-parse every call.
+    """
+    if tool_name not in TOOL_URLS and _signature() != _SIG:
+        _load_manifests()
+    url = TOOL_URLS.get(tool_name)
     if not url:
         raise ValueError(
-            f"No MCP server for manifest '{manifest_id}' (tool '{tool_name}'). "
-            f"Known: {sorted(MCP_URLS)}"
+            f"No manifest declares tool '{tool_name}'. Known manifests: {sorted(MCP_URLS)}"
         )
     return url

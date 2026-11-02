@@ -42,3 +42,7 @@ accomplish-ui/**/node_modules/
 accomplish-ui/**/.next/
 accomplish-ui/**/dist/
 accomplish-ui/**/.turbo/
+
+# SPEC-013 registry-writer receipts (operational state, not source)
+manifests/_receipts/
+manifests/*.tmp
