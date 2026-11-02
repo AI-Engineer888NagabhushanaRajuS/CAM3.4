@@ -120,8 +120,8 @@ def test_workflow_resumes_after_hitl_approve():
 
     mock_routing = {
         "routing_sequence": [
-            {"tool_name": "centum_reporting__resolve_final_selection", "arguments": {}},
-            {"tool_name": "centum_reporting__generate_reports", "arguments": {}},
+            "centum_reporting__resolve_final_selection",
+            "centum_reporting__generate_reports",
         ],
         "skill_index": 0,
     }
@@ -183,8 +183,8 @@ def test_workflow_terminates_on_hitl_reject():
 
     mock_routing = {
         "routing_sequence": [
-            {"tool_name": "centum_reporting__resolve_final_selection", "arguments": {}},
-            {"tool_name": "centum_reporting__generate_reports", "arguments": {}},
+            "centum_reporting__resolve_final_selection",
+            "centum_reporting__generate_reports",
         ],
         "skill_index": 0,
     }

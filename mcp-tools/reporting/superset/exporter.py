@@ -74,6 +74,19 @@ def _build_cbom_raw_sheet(wb, cbom_df):
     return ws
 
 
+def _reference_cbom_sheet(bounds_by_sheet):
+    """The CBOM VL sheet whose data bounds the Sum & Count Detailed, A CLASS PARTS sheets
+    reference. Prefers VL-1; otherwise the lowest numbered volume; otherwise Proto (an RFQ
+    with prototype-only volumes). Hard-coding VL-1 raised KeyError for those RFQs."""
+    if "7.0 CBOM VL-1" in bounds_by_sheet:
+        return "7.0 CBOM VL-1"
+    numbered = sorted(
+        (name for name in bounds_by_sheet if name.startswith("7.0 CBOM VL-")),
+        key=lambda name: int(name.rsplit("-", 1)[1]),
+    )
+    return numbered[0] if numbered else "7.0 CBOM Proto"
+
+
 def export_excel(rfq_id):
     """Reads only -- never writes to any persisted cbom/report table (per the "export
     must not regenerate data" requirement; TEMP VIEWs computed fresh in-session, e.g. for
@@ -198,8 +211,9 @@ def export_excel(rfq_id):
     )
     worksheet_names.append("Sum & Count")
 
+    reference_sheet = _reference_cbom_sheet(cbom_bounds_by_sheet)
     build_sum_and_count_detailed_sheet(
-        wb, sum_and_count_detail_rows, cbom_bounds=cbom_bounds_by_sheet["7.0 CBOM VL-1"], include_proto=has_proto,
+        wb, sum_and_count_detail_rows, cbom_bounds=cbom_bounds_by_sheet[reference_sheet], include_proto=has_proto,
     )
     worksheet_names.append("Sum & Count Detailed")
 
@@ -211,7 +225,7 @@ def export_excel(rfq_id):
 
     build_aclass_parts_sheet(
         wb, aclass_parts(mappings.to_aclass_parts_payload(scrub_df, quote_df, cbom_df)),
-        cbom_bounds=cbom_bounds_by_sheet["7.0 CBOM VL-1"],
+        cbom_bounds=cbom_bounds_by_sheet[reference_sheet],
     )
     worksheet_names.append("A CLASS PARTS")
 
@@ -271,13 +285,22 @@ def export_excel(rfq_id):
                 "references -- this would have silently truncated its SUMPRODUCT ranges."
             )
 
+    numbered_volumes = {int(v) for v in detected_volumes if str(v).lower() != "proto"}
     for v in detected_volumes:
         v_typed = "proto" if str(v).lower() == "proto" else int(v)
         cbom_sheet_name = "7.0 CBOM Proto" if v_typed == "proto" else f"7.0 CBOM VL-{v_typed}"
         ex_inv_sheet_name = "Ex Inv VL-proto" if v_typed == "proto" else f"Ex Inv VL-{v_typed}"
+        # Volume 1's previous sheet is PROTO; volume n's is n-1. Only exists if it was detected.
+        if v_typed == "proto":
+            previous_exists = False
+        elif v_typed == 1:
+            previous_exists = has_proto
+        else:
+            previous_exists = (v_typed - 1) in numbered_volumes
         build_ex_inv_vl_sheet(
             wb, excess_inventory, v_typed, cbom_bounds=cbom_bounds_by_sheet[cbom_sheet_name],
             has_proto=has_proto, expected_row_count=ex_inv_row_counts[ex_inv_sheet_name],
+            previous_sheet_exists=previous_exists,
         )
         worksheet_names.append(ex_inv_sheet_name)
 

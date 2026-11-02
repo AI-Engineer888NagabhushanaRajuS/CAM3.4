@@ -78,8 +78,8 @@ def _post(url: str, payload: dict) -> dict:
                  "mcp-session-id": session_id},
         timeout=300, stream=True,
     )
-    if resp.status_code == 400 and "session" in resp.text.lower():
-        # Session expired — purge and retry once
+    if resp.status_code == 404 or (resp.status_code == 400 and "session" in resp.text.lower()):
+        # Session expired or the server restarted (a 404 for a cached id). Purge and retry once.
         with _sessions_lock:
             _sessions.pop(url, None)
         session_id = _get_session(url)

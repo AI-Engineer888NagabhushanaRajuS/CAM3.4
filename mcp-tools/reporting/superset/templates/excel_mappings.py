@@ -247,7 +247,13 @@ def to_bom_matrix_payload(cbom_df, scrub_df):
     data = cbom_df[cbom_df["is_data"] == True]  # noqa: E712
 
     structural_fg_cpns = _effective_structural_fg_cpns(cbom_df, scrub_df)
-    data = data[~data.apply(lambda r: (r["fg"], r["cpn"]) in structural_fg_cpns, axis=1)]
+    # Mask built from a list, not DataFrame.apply(axis=1): apply on an empty frame returns a
+    # column-less result, and the later groupby("cpn") then raised KeyError.
+    keep = pd.Series(
+        [(f, c) not in structural_fg_cpns for f, c in zip(data["fg"], data["cpn"])],
+        index=data.index, dtype=bool,
+    )
+    data = data[keep]
 
     fg_part_qty = fg_part_qty_sums(scrub_df)
     fg_cpn_mpn = _fg_cpn_representative_mpn(scrub_df)
@@ -465,6 +471,20 @@ def to_missing_notes_payload(cbom_df, scrub_df, selected_quote_df, has_proto=Fal
 # Lead Time (FG Wise) / Lead Time Consolidated
 # ------------------------------------------------------------------
 
+def _first_lead_time_volume_rows(cbom_df):
+    """Data rows of the one volume whose lead time is used: PROTO when present, else the
+    lowest numbered volume that exists (not a hard-coded "1", which emptied the section for
+    an RFQ that starts at volume 2)."""
+    data_rows = cbom_df[cbom_df["is_data"] == True]  # noqa: E712
+    volumes = data_rows["volume_no"].astype(str)
+    if (volumes.str.lower() == "proto").any():
+        return data_rows[volumes.str.lower() == "proto"]
+    numbered = pd.to_numeric(volumes, errors="coerce").dropna()
+    if numbered.empty:
+        return data_rows.iloc[0:0]
+    return data_rows[pd.to_numeric(volumes, errors="coerce") == numbered.min()]
+
+
 def to_lead_time_fg_payload(cbom_df):
     """cbom is the source of truth (not raw scrub_bom_items/quote_win): sourcing from
     those directly used to pull in each FG's own assembly-header row (level='0', cpn=fg's
@@ -482,7 +502,7 @@ def to_lead_time_fg_payload(cbom_df):
     uses ONE lead time per CPN, so any volume beyond the first available one is moot.
     """
     volume_no_str = cbom_df["volume_no"].astype(str)
-    data = cbom_df[(cbom_df["is_data"] == True) & (volume_no_str.isin(["proto", "1"]))]  # noqa: E712
+    data = _first_lead_time_volume_rows(cbom_df)
     bom_details = [{"CPN": r["cpn"], "FG": r["fg"]} for r in _records(data[["cpn", "fg"]])]
     rfqs = [
         {
@@ -498,7 +518,7 @@ def to_lead_time_consolidated_payload(cbom_df):
     """Same cbom-sourced fix and PROTO handling as to_lead_time_fg_payload() -- see its
     docstring."""
     volume_no_str = cbom_df["volume_no"].astype(str)
-    data = cbom_df[(cbom_df["is_data"] == True) & (volume_no_str.isin(["proto", "1"]))]  # noqa: E712
+    data = _first_lead_time_volume_rows(cbom_df)
     bom_details = [{"CPN": r["cpn"]} for r in _records(data[["cpn"]])]
     rfqs = [
         {
@@ -1033,7 +1053,7 @@ def to_cbom_tree_payload(cbom_df, scrub_df, project_name):
     # live $I*$K formula for every real data row, so the static Python value here is
     # already inert for is_data rows and must stay exactly as before.
     multiplier_per_assembly = _fg_assembly_hierarchy_multiplier(scrub_df)
-    structural_fg_cpns = set(zip(scrub_df["fg"], scrub_df["assembly"])) if "assembly" in scrub_df.columns else set()
+    structural_fg_cpns = _effective_structural_fg_cpns(cbom_df, scrub_df)
 
     # Ext Price / Ext Part Vol Price (Assembly Summary block, Part 5 correction): the
     # reference workbook's own per-FG summary formulas are

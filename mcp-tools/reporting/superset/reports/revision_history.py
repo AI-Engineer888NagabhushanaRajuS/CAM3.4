@@ -159,10 +159,14 @@ def revision_history_rows(payload):
             "currency": row.get("currency"),
         }
 
+    # Highest numbered volume, not the number of volumes: a CPN that only has volume 2 must
+    # still get its V2 columns (a count gave 1 and dropped V2).
     max_volume = 0
     for revisions in rfqs_data.values():
         for volumes in revisions.values():
-            max_volume = max(max_volume, len(volumes))
+            for vol_no in volumes:
+                if str(vol_no).isdigit():
+                    max_volume = max(max_volume, int(vol_no))
 
     sub_headers = ["S. No", "Revision", "Assembly", "CPN", "Description", "Commodity", "Manufacturer", "MPN", "EAU"]
     for v in range(1, max_volume + 1):
@@ -425,7 +429,10 @@ def build_revision_history_sheet(wb, rows, cbom_bounds_by_volume, ex_inv_row_cou
 
     idx = {name: i for i, name in enumerate(sub_headers)}
     assembly_col, cpn_col = idx["Assembly"] + 1, idx["CPN"] + 1
-    ref_volume = 1 if max_volume >= 1 else None
+    # The reference volume is the lowest numbered volume that has CBOM bounds (not a hard-coded 1).
+    volume_numbers = [int(m.group(1)) for h in rows[1] for m in [re.match(r"^V(\d+) New System QTY$", str(h))] if m]
+    available_volumes = [v for v in volume_numbers if v in cbom_bounds_by_volume]
+    ref_volume = min(available_volumes) if available_volumes else None
 
     for r in range(3, last_row + 1):
         asm_cell = f"{get_column_letter(assembly_col)}{r}"
@@ -444,6 +451,10 @@ def build_revision_history_sheet(wb, rows, cbom_bounds_by_volume, ex_inv_row_cou
             new_sys_col = idx[f"V{v} New System Price in $"] + 1
             old_sys_col = idx[f"V{v} OLD System Price in $"] + 1
 
+            # A volume with no CBOM/Ex Inv sheet (e.g. V1 for an RFQ that starts at volume 2) has
+            # nothing to reference: its formula cells stay blank rather than pointing at a missing sheet.
+            if v not in cbom_bounds_by_volume or f"Ex Inv VL-{v}" not in ex_inv_row_counts:
+                continue
             ex_inv_last_row = ex_inv_row_counts[f"Ex Inv VL-{v}"]
             cbom_bounds = cbom_bounds_by_volume[v]
             new_qty_formula = _qty_eau_formula(v, cpn_cell, ex_inv_last_row)

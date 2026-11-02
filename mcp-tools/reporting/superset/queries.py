@@ -70,7 +70,7 @@ def _normalize_mpn_sql(column):
     trimmed = f"TRIM({column})"
     return (
         f"CASE WHEN REGEXP_MATCHES({trimmed}, '^[0-9]+$') "
-        f"THEN CAST(TRY_CAST({trimmed} AS BIGINT) AS VARCHAR) "
+        f"THEN REGEXP_REPLACE({trimmed}, '^0+([0-9])', '\\1') "  # strip leading zeros, any length (no BIGINT cast: >19 digits became NULL)
         f"ELSE UPPER({trimmed}) END"
     )
 

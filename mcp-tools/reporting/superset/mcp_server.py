@@ -47,7 +47,7 @@ from logging_utils import logger
 # (duck_db_api.py) and hitl_router also open these same files, so this MCP
 # server's own tool calls must take the same lock they do.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR)))
-_FASTMCP_ROUTER_DIR = os.path.join(_REPO_ROOT, "fastmcp-router")
+_FASTMCP_ROUTER_DIR = os.path.join(_REPO_ROOT, "fastapi-router")
 if _FASTMCP_ROUTER_DIR not in sys.path:
     sys.path.append(_FASTMCP_ROUTER_DIR)
 import db

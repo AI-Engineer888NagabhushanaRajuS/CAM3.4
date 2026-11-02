@@ -29,10 +29,10 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 # ModuleNotFoundError at import time (confirmed: crashed reporting_mcp_server
 # on startup).
 _PROJECT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastmcp-router"
+    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastapi-router"
 )
 if _PROJECT_DIR not in sys.path:
-    sys.path.insert(0, _PROJECT_DIR)
+    sys.path.append(_PROJECT_DIR)  # append: this folder's own config.py must win the name lookup
 
 from db import get_logic_connection  # noqa: E402  (path setup above must run first)
 
@@ -106,12 +106,16 @@ def convert_currency(amount, from_currency, to_currency=None):
     """Generalized version of the 6 duplicated per-report `_convert_currency()`
     helpers -- `to_currency` now defaults to get_default_quote_currency() instead
     of each call site's hardcoded "USD" literal. Falls back to the raw amount
-    unconverted if either currency isn't in the active rate table, same as before.
+    raises if either currency isn't in the active rate table: an unconverted amount reported
+    as if it were in the target currency is a silent wrong number (SPEC-017 default).
     """
     if to_currency is None:
         to_currency = get_default_quote_currency()
     rates = get_currency_rates()
     if from_currency not in rates or to_currency not in rates:
-        return amount
+        raise ValueError(
+            f"no active conversion rate for {from_currency!r} -> {to_currency!r}; "
+            "refusing to report an unconverted amount"
+        )
     usd_amount = amount / rates[from_currency]
     return usd_amount * rates[to_currency]

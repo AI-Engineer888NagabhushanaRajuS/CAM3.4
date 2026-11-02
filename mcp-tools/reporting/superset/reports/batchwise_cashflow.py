@@ -139,7 +139,10 @@ def build_batchwise_cashflow_sheet(wb, payload, ex_inv_row_counts, include_proto
         style_range(total_row, _TOTAL_FILL, _TOTAL_FONT)
         for col in range(2, len(header) + 1):
             letter = chr(ord("A") + col - 1)
-            cell = ws.cell(row=total_row, column=col, value=f"=SUM({letter}{data_start}:{letter}{data_end})")
+            # An empty section has no data rows: SUM(B{h+1}:B{h}) would be a reversed range that
+            # covers the total cell itself (circular in Excel). Total is 0 then.
+            total_value = f"=SUM({letter}{data_start}:{letter}{data_end})" if suppliers else 0
+            cell = ws.cell(row=total_row, column=col, value=total_value)
             cell.number_format = _CURRENCY_FORMAT
 
         write_row([None])  # blank spacer — no fill/border

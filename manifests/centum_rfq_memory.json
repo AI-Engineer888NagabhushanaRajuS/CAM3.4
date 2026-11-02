@@ -6,7 +6,7 @@
   "description": "Cognee-backed versioned memory service for RFQ context: ingest RFQ documents, query semantic memory for part history, track citation lineage across versions.",
   "mcp_server": "mcp-tools/rfq-memory/memory_service.py",
   "fastmcp_name": "rfq-memory",
-  "port": 8008,
+  "port": 8108,
   "routing_profile": "Standard_BOM_Flow",
   "tools": [],
   "planned_tools": [

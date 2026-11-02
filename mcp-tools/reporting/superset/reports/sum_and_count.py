@@ -58,7 +58,9 @@ def sum_and_count(payload):
         scrub_sum = sum(_to_float(item["Quantity"]) for item in group_items)
         scrub_count = len(group_items)
 
-        has_proto = any(rfq.get("cpn") in scrub_cpns for rfq in rfqs)
+        has_proto = any(
+            str(rfq.get("volume_no")).lower() == "proto" and rfq.get("cpn") in scrub_cpns for rfq in rfqs
+        )
         proto_sum = scrub_sum if has_proto else 0
         proto_count = scrub_count if has_proto else 0
 

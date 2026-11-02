@@ -22,6 +22,7 @@ x-python-env: &python-env
   JWT_SECRET: ${JWT_SECRET:?set a real secret}
   REPORTING_DATABASE_DIR: /app/database
   CENTUM_INPUT_DB: /app/database/input_db.duckdb
+  REPORTING_INPUT_DB: /app/database/input_db.duckdb
   # Temporal connection for services that use CAM_USE_TEMPORAL=true
   CAM_TEMPORAL_HOST: temporal:7233
   CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
@@ -41,8 +42,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: postgres
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./database/pg_dump_seed:/docker-entrypoint-initdb.d/seed:ro
+      # postgres:18+ expects the volume at /var/lib/postgresql (major-version subdirectories).
+      - postgres-data:/var/lib/postgresql
+      # Init scripts run only from the top level of this folder (not subfolders).
+      - ./database/pg_dump_seed:/docker-entrypoint-initdb.d:ro
     ports:
       - "15432:5432"
     healthcheck:
@@ -61,7 +64,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB: postgresql
+      # auto-setup 1.24 accepts postgres12/postgres12_pgx (not 'postgresql').
+      DB: postgres12
       DB_PORT: 5432
       POSTGRES_USER: centum
       POSTGRES_PWD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -70,7 +74,8 @@ services:
       - "7233:7233"    # gRPC frontend
       - "8233:8233"    # HTTP API
     healthcheck:
-      test: ["CMD", "tctl", "cluster", "health"]
+      # The server listens on the container address, not 127.0.0.1; tctl must dial that address.
+      test: ["CMD-SHELL", "tctl --address $(hostname -i):7233 cluster health"]
       interval: 10s
       timeout: 10s
       retries: 15
@@ -103,7 +108,14 @@ services:
       context: .
       dockerfile: docker/python-service.Dockerfile
       args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: fastapi_router.py }
-    environment: *python-env
+    environment:
+      <<: *python-env
+      # D6: each MCP server is its own container; route each manifest to its service name.
+      CAM_MCP_HOST_CENTUM_REPORTING: reporting-mcp-server
+      CAM_MCP_HOST_CENTUM_INTAKE: intake-mcp-server
+      CAM_MCP_HOST_CENTUM_DISTRIBUTOR_PRICING: distributor-pricing-mcp-server
+      CAM_MCP_HOST_CENTUM_GERBER_INTEGRATION: gerber-integration-mcp-server
+      CAM_MCP_HOST_CENTUM_SCRUB_INTAKE: scrub-intake-mcp-server
     ports: ["15100:5100"]
 
   hitl-router:
@@ -159,8 +171,14 @@ services:
       context: .
       dockerfile: docker/python-service.Dockerfile
       args: { SERVICE_DIR: mcp-tools/distributor-pricing, ENTRYPOINT: mcp_server.py }
-    environment: *python-env
-    env_file: [mcp-tools/distributor-pricing/.env]
+    environment:
+      <<: *python-env
+      # shared/ (highlight_style) lives in mcp-tools/shared, one level above this service.
+      PYTHONPATH: /app/mcp-tools
+    # Optional: the file is git-ignored (it holds secrets). Compose must not fail on a fresh checkout.
+    env_file:
+      - path: mcp-tools/distributor-pricing/.env
+        required: false
     ports: ["18003:8003"]
 
   gerber-integration-mcp-server:

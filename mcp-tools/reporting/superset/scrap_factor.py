@@ -46,10 +46,10 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 # identical note: db.py now lives in fastmcp-router/, a sibling directory
 # three levels up from this file, not its immediate parent.
 _PROJECT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastmcp-router"
+    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastapi-router"
 )
 if _PROJECT_DIR not in sys.path:
-    sys.path.insert(0, _PROJECT_DIR)
+    sys.path.append(_PROJECT_DIR)  # append: this folder's own config.py must win the name lookup
 
 from db import get_logic_connection  # noqa: E402  (path setup above must run first)
 

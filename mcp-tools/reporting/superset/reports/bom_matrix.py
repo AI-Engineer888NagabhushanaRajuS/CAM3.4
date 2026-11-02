@@ -178,6 +178,11 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
     ws = wb.create_sheet(title="BOM MATRIX")
     if not rows:
         return ws
+    # No volume entries (a proto-only BOM, or every FG with only its root row): there are no
+    # per-volume price columns to build, so there is nothing to lay out. Returned empty rather
+    # than indexing into volume_keys[0] / fg_price_cols that do not exist.
+    if not any(row.get("EAU Volumes") for row in rows):
+        return ws
 
     fg_keys = sorted({fg for row in rows for fg in row.get("FG Counts", {})})
     # "VL-proto" sorts first (matches Summary's own proto-first volume-column ordering);

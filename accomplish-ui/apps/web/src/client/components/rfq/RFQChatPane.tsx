@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import {
   useExternalStoreRuntime,
   AssistantRuntimeProvider,
-  ThreadPrimitive,
   type ThreadMessageLike,
   type AppendMessage,
 } from '@assistant-ui/react';
@@ -129,7 +128,6 @@ function useRFQChatRuntime(rfqId: string) {
       content: [{ type: 'text', text: m.content }],
     }),
     onNew,
-    suggestions: RFQ_SUGGESTIONS.map((s) => ({ prompt: s.prompt, title: s.title })),
   });
 
   return { runtime, messages, isRunning };
@@ -219,13 +217,11 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [messages, isRunning]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text || isRunning) return;
-    setInput('');
+  const send = (text: string) => {
     void runtime.thread.append({
       parentId: null,
       role: 'user',
@@ -233,8 +229,15 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
     });
   };
 
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || isRunning) return;
+    setInput('');
+    send(text);
+  };
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex h-[580px] w-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+    <div className="fixed bottom-4 right-4 z-50 flex h-[min(580px,calc(100vh-2rem))] h-[min(580px,calc(100dvh-2rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
 
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-4 py-3 backdrop-blur-sm">
@@ -256,7 +259,7 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
 
       {/* ── Messages ── */}
       <ScrollArea className="flex-1 px-4 py-3">
-        <div className="space-y-3">
+        <div className="space-y-3" role="log" aria-live="polite" aria-relevant="additions">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
@@ -267,7 +270,7 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+                      className="h-1.5 w-1.5 animate-bounce motion-reduce:animate-none rounded-full bg-muted-foreground"
                       style={{ animationDelay: `${i * 0.15}s` }}
                     />
                   ))}
@@ -282,19 +285,15 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
       {/* ── KT-derived suggestion chips (always visible) ── */}
       <div className="flex shrink-0 gap-1.5 overflow-x-auto border-t border-border px-4 py-2 scrollbar-none">
         {RFQ_SUGGESTIONS.map((s) => (
-          <ThreadPrimitive.Suggestion
+          <button
             key={s.title}
-            prompt={s.prompt}
-            send
-            asChild
+            type="button"
+            disabled={isRunning}
+            onClick={() => send(s.prompt)}
+            className="shrink-0 min-h-[24px] rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
           >
-            <button
-              disabled={isRunning}
-              className="shrink-0 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-            >
-              {s.title}
-            </button>
-          </ThreadPrimitive.Suggestion>
+            {s.title}
+          </button>
         ))}
       </div>
 
@@ -303,8 +302,9 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          aria-label="Ask about this RFQ"
           placeholder="Ask about this RFQ…"
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && handleSend()}
           disabled={isRunning}
           className="flex-1 rounded-xl text-sm"
         />

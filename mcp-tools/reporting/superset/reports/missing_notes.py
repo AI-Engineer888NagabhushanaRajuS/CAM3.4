@@ -239,9 +239,11 @@ def _section_price_validity(rfq_base, bom_mfr_by_cpn_mpn, as_of):
         if not (today <= expiry_dt <= end):
             continue
         rid = r.get("id")
-        if rid in seen_ids:
-            continue
-        seen_ids.add(rid)
+        # Only a real, repeated id is a duplicate. Rows without an id must not all collapse into one.
+        if rid is not None:
+            if rid in seen_ids:
+                continue
+            seen_ids.add(rid)
         rows.append(_mk_row(r, bom_mfr_by_cpn_mpn))
     return rows
 

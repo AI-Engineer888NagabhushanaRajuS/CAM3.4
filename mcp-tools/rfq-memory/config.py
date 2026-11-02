@@ -24,9 +24,9 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 _THIS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _THIS_DIR.parent.parent  # BuLLMQuote-SRIM
-_FASTMCP_ROUTER_DIR = _REPO_ROOT / "fastmcp-router"
+_FASTMCP_ROUTER_DIR = _REPO_ROOT / "fastapi-router"
 
-sys.path.insert(0, str(_FASTMCP_ROUTER_DIR))
+sys.path.append(str(_FASTMCP_ROUTER_DIR))  # append: do not shadow this folder's own config
 
 import db  # noqa: E402  (fastmcp-router/db.py -- Postgres + version helpers)
 import auth  # noqa: E402  (fastmcp-router/auth.py -- JWT scheme, reused unmodified)

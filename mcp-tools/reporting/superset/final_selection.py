@@ -30,10 +30,10 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 # identical note: db.py now lives in fastmcp-router/, a sibling directory
 # three levels up from this file, not its immediate parent.
 _PROJECT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastmcp-router"
+    os.path.dirname(os.path.dirname(os.path.dirname(_THIS_DIR))), "fastapi-router"
 )
 if _PROJECT_DIR not in sys.path:
-    sys.path.insert(0, _PROJECT_DIR)
+    sys.path.append(_PROJECT_DIR)  # append: this folder's own config.py must win the name lookup
 
 from psycopg2.extras import execute_values
 
@@ -95,6 +95,39 @@ def ensure_conflicts_table(pg_conn):
             )
 
 
+def build_pending_conflicts(rfq_id, rows, columns, resolved_item_ids):
+    """Insert tuples for the conflict rows still needing a human decision. Rows whose cbom
+    item already has a resolved conflict (resolved_item_ids) are skipped, so a re-run never
+    re-opens a decision a reviewer already made."""
+    out = []
+    for row in rows:
+        record = dict(zip(columns, row))
+        cbom_item_id = str(record["cbom_item_id"])
+        if cbom_item_id in resolved_item_ids:
+            continue
+        available_sources = {}
+        for source in ("costing", "erp", "qw"):
+            if (
+                record.get(f"price_conv_{source}") is not None
+                or record.get(f"mfg_name_{source}") is not None
+                or record.get(f"unit_of_measure_{source}") is not None
+            ):
+                available_sources[source] = {
+                    field: record.get(f"{field}_{source}")
+                    for field in SOURCE_FIELDS
+                }
+        out.append((
+            str(uuid.uuid4()),
+            rfq_id,
+            cbom_item_id,
+            str(record["bom_item_id"]) if record["bom_item_id"] is not None else None,
+            record["volume_no"],
+            record["cpn"],
+            json.dumps(available_sources, default=str),
+        ))
+    return out
+
+
 def resolve_final_selection(con, rfq_id):
     """con is an open DuckDB connection (database.connect()). Auto-resolves
     single-source rows directly into cbom.duckdb's final_* (+ recomputes the
@@ -110,32 +143,17 @@ def resolve_final_selection(con, rfq_id):
     conflict_rows = con.execute(queries.final_selection_conflict_query_sql(rfq_lit)).fetchall()
     columns = [d[0] for d in con.description]
 
-    conflicts_to_insert = []
-    for row in conflict_rows:
-        record = dict(zip(columns, row))
-        available_sources = {}
-        for source in ("costing", "erp", "qw"):
-            if (
-                record.get(f"price_conv_{source}") is not None
-                or record.get(f"mfg_name_{source}") is not None
-                or record.get(f"unit_of_measure_{source}") is not None
-            ):
-                available_sources[source] = {
-                    field: record.get(f"{field}_{source}")
-                    for field in SOURCE_FIELDS
-                }
-        conflicts_to_insert.append((
-            str(uuid.uuid4()),
-            rfq_id,
-            str(record["cbom_item_id"]),
-            str(record["bom_item_id"]) if record["bom_item_id"] is not None else None,
-            record["volume_no"],
-            record["cpn"],
-            json.dumps(available_sources, default=str),
-        ))
-
     with get_logic_connection() as pg_conn:
         ensure_conflicts_table(pg_conn)
+        with pg_conn.cursor() as cur:
+            # The conflict query does not look at final_*, so a re-run would return rows a
+            # human already decided. Their resolved conflicts are kept; they are not re-opened.
+            cur.execute(
+                "SELECT cbom_item_id FROM final_selection_conflicts WHERE rfq_id = %s AND resolved_source IS NOT NULL",
+                (rfq_id,)
+            )
+            resolved_item_ids = {str(r[0]) for r in cur.fetchall()}
+        conflicts_to_insert = build_pending_conflicts(rfq_id, conflict_rows, columns, resolved_item_ids)
         with pg_conn.cursor() as cur:
             # resolve_final_selection is idempotent/re-runnable (same as
             # cbom/enrich_* before it) -- clear this rfq_id's stale

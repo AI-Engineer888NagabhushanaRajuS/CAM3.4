@@ -18,7 +18,12 @@ async def get_routing_sequence(rfq_id: str, profile_name: str) -> dict:
     async with httpx.AsyncClient() as client:
         resp = await client.get(url, timeout=30.0)
         resp.raise_for_status()
-        return resp.json()
+        body = resp.json()
+        # The router reports lookup failures as HTTP 200 + {"error": ...}. Raise here so the
+        # workflow never mistakes a failed lookup for an empty, successful routing sequence.
+        if "error" in body:
+            raise RuntimeError(f"routing-sequence lookup failed for {rfq_id}/{profile_name}: {body['error']}")
+        return body
 
 
 @activity.defn

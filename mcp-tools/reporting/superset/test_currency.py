@@ -106,9 +106,11 @@ class CurrencyTests(unittest.TestCase):
             result = currency.convert_currency(100, "EUR", "INR")
         self.assertAlmostEqual(result, (100 / 0.93) * 83.5)
 
-    def test_convert_currency_unknown_currency_passes_through_unconverted(self):
+    def test_convert_currency_unknown_currency_raises_instead_of_passing_through(self):
+        # SPEC-017 default: an unknown currency must not be reported as if it were USD.
         with _mock_logic_connection([("USD", "1.0")]):
-            self.assertEqual(currency.convert_currency(100, "XYZ", "USD"), 100)
+            with self.assertRaises(ValueError):
+                currency.convert_currency(100, "XYZ", "USD")
 
     def test_convert_currency_defaults_target_to_default_quote_currency(self):
         # convert_currency(to_currency=None) resolves get_default_quote_currency()

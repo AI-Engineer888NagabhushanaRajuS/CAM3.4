@@ -48,6 +48,15 @@ def fgcounts_from_volume_rows(volume_rows):
     return out
 
 
+def _vol_num(volume_no):
+    """Numeric volume for ordering and matching. "proto" (and any non-numeric label) is 0,
+    below every numbered volume, so a prototype row can never be taken as the last volume."""
+    try:
+        return int(volume_no)
+    except (TypeError, ValueError):
+        return 0
+
+
 def price_control(payload):
     """Port of PriceControlController::processPriceControl().
 
@@ -59,7 +68,7 @@ def price_control(payload):
     fgcounts = payload.get("fgcounts", [])
     bom_data = payload.get("bom_data", [])
 
-    vols = [int(r["volume_no"]) for r in rfqs if r.get("volume_no")]
+    vols = [_vol_num(r["volume_no"]) for r in rfqs if r.get("volume_no")]
     last_volume = max(vols) if vols else None
 
     if not last_volume or last_volume <= 0:
@@ -72,7 +81,7 @@ def price_control(payload):
     # FGCount::where(...)->groupBy('fg') then ->first() per group -> first occurrence per fg.
     fg_count_by_fg = {}
     for r in fgcounts:
-        if int(r.get("volume_no") or 0) == last_volume:
+        if _vol_num(r.get("volume_no")) == last_volume:
             fg_count_by_fg.setdefault(r.get("fg"), r)
 
     # BomData grouped by FG||Assembly||CPN -> each group's rows (only CPN matters here).
@@ -86,7 +95,7 @@ def price_control(payload):
     # RFQ::where(...)->keyBy('cpn') -> LAST occurrence wins for duplicate cpns.
     rfq_by_cpn = {}
     for r in rfqs:
-        if int(r.get("volume_no") or 0) == last_volume:
+        if _vol_num(r.get("volume_no")) == last_volume:
             rfq_by_cpn[r.get("cpn")] = r
 
     buckets = {
@@ -110,7 +119,8 @@ def price_control(payload):
             continue
 
         price_control_raw = str(rfq.get("price_control") or "").strip()
-        bucket = "Customer" if price_control_raw.lower() == "customer" else "Centum"
+        # CNP and CUSTOMER are one bucket, matching the sheet's CNP row (SUMPRODUCT over both).
+        bucket = "Customer" if price_control_raw.lower() in ("customer", "cnp") else "Centum"
 
         fg_count_row = fg_count_by_fg.get(fg)
         vol_qty = float(fg_count_row.get("count") or 0) if fg_count_row else 0.0

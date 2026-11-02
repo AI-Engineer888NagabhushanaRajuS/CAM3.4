@@ -92,8 +92,10 @@ def _get_numeric(val):
 
 
 def _find_volume(volumes, volume):
+    # Compare as strings: a volume may arrive as 1 or "1" (and "proto" as a label), and an
+    # exact-type comparison silently found nothing.
     for v in volumes or []:
-        if v.get("volume") == volume:
+        if str(v.get("volume")) == str(volume):
             return v
     return None
 
@@ -203,7 +205,8 @@ def ex_inv_vl_rows(json_data, volume):
     return rows
 
 
-def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, expected_row_count=None):
+def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, expected_row_count=None,
+                          previous_sheet_exists=True):
     """Port of ExcessInventoryVolumeSheetExcelFormula: writes and styles an 'Ex Inv VL-n' sheet.
 
     wb: an openpyxl.Workbook to append the sheet to.
@@ -277,7 +280,8 @@ def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, ex
     for r in range(data_start_row, last_data_row + 1):
         ws.cell(row=r, column=11).number_format = "0%"  # column K
 
-    if suffix != "P" and (suffix != "1" or has_proto):
+    # The delta columns reference the previous volume's sheet; skip them when that sheet is absent.
+    if suffix != "P" and previous_sheet_exists and (suffix != "1" or has_proto):
         # Quirk preserved as-is for suffix != "1": that branch always pointed at
         # 'Ex Inv VL-proto' regardless of whether it existed. For suffix == "1" this
         # is now gated on has_proto (see docstring) instead of always assuming it does.

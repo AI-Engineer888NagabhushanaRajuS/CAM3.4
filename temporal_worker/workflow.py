@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import ApplicationError
 
 with workflow.unsafe.imports_passed_through():
     import activities
@@ -45,9 +46,10 @@ class RFQWorkflow:
         start_index = routing.get("skill_index", 0)
 
         results = []
-        for step in sequence[start_index:]:
-            tool_name = step["tool_name"]
-            tool_args = step.get("arguments", {})
+        # D2 fix (SPEC-015): routing_sequence is a list of tool-name strings.
+        # Arguments are the Dify body's {"rfq_id": rfq} (HTTP Request 2), same for every tool.
+        tool_args = {"rfq_id": rfq_id}
+        for tool_name in sequence[start_index:]:
 
             # 2. Call the tool via fastapi_router (unchanged contract)
             result = await workflow.execute_activity(
@@ -60,6 +62,13 @@ class RFQWorkflow:
                     maximum_interval=timedelta(seconds=30),
                 ),
             )
+
+            # A tool failure comes back as HTTP 200 with status "failed" (fastapi_router). Fail the run
+            # here; otherwise the workflow completes with every remaining step silently skipped.
+            if result.get("status") == "failed":
+                raise ApplicationError(
+                    f"{tool_name} failed: {result.get('error')}", non_retryable=True
+                )
 
             # 3. HITL gate: block until human sends human_decision signal
             if result.get("hitl_required") or result.get("hitl") == 1:

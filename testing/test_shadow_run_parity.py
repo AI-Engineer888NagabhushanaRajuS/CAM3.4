@@ -42,7 +42,8 @@ DIFY_PROFILE = "RFQ_Flow"  # the profile the Dify YAML requests (HTTP Request 1)
 
 
 def dify_reference_trace(routing, skill_index, rfq_id, hitl_tool):
-    """Calls the Dify DMR flow makes, in order, per the YAML.
+    """Calls the Dify DMR flow makes, in order. HAND-TRANSCRIBED from the YAML (not parsed):
+    re-check against Dify_DMR_RFQ_Flow.yml if that file changes.
 
     Code 1 slices routing[skill_index:]. Iteration posts /tool/execute per item with
     body {tool_name, arguments: {rfq_id}}. Code 4 reads `hitl`. IF/ELSE on true posts
@@ -67,7 +68,6 @@ def _temporal_calls_until_hitl(recorded, hitl_tool):
     return calls
 
 
-@pytest.mark.xfail(strict=True, reason="D2: workflow.py does step['tool_name'] on a string; fixed in SPEC-015")
 def test_offline_trace_parity_dify_vs_temporal():
     """Same RFQ, same routing: Dify and Temporal make the same tool calls, in the same order,
     up to the HITL gate. After the gate, Dify halts and Temporal waits for a signal."""
@@ -109,18 +109,19 @@ def test_offline_trace_parity_dify_vs_temporal():
                 await handle.signal(wf.RFQWorkflow.human_decision, {"action": "reject"})
                 return await handle.result()
 
-    # Short timeout: with D2 the workflow task fails and Temporal retries it forever,
-    # so the xfail reason is that timeout (the TypeError is in the worker log).
+    # Bounded timeout so a stuck workflow task fails the test fast instead of hanging CI.
     result = asyncio.run(asyncio.wait_for(run(), timeout=30))
 
     dify = dify_reference_trace(FIXTURE_ROUTING, 0, "CE-PARITY-1", HITL_TOOL)
+    dify_execute = [c for c in dify if c[0] == "POST /tool/execute"]
     temporal = _temporal_calls_until_hitl(recorded, HITL_TOOL)
-    assert [c[:2] for c in temporal] == [c[:2] for c in dify[:-1]], "tool-call order diverges from Dify"
-    assert all(a == {"rfq_id": "CE-PARITY-1"} for _, _, a in dify[:-1] if a is not None)
+    assert len(dify_execute) == 3, "fixture must exercise calls before and at the HITL gate"
+    assert dify[-1] == ("POST trigger-hitl", HITL_TOOL, None), "Dify must halt right after trigger-hitl"
+    # Compare names AND arguments on the Temporal side: the workflow's args are what must match.
+    assert temporal == dify_execute, "tool calls (name + args) diverge from the Dify reference"
     assert result["status"] == "rejected" and result["step"] == HITL_TOOL
 
 
-@pytest.mark.xfail(strict=True, reason="D1: /pipeline/routing-sequence calls call_tool, not db; fixed in SPEC-015")
 def test_routing_sequence_reads_db_not_gateway(monkeypatch):
     """The endpoint must return the DB routing sequence even when the MCP gateway is down."""
     fr_dir = os.path.join(os.path.dirname(__file__), "..", "fastapi-router")
@@ -136,10 +137,10 @@ def test_routing_sequence_reads_db_not_gateway(monkeypatch):
     def gateway_down(*args, **kwargs):
         raise ConnectionError("gateway down")
 
-    import db
+    # Patch where the endpoint looks names up (fastapi_router imports them by name).
     monkeypatch.setattr(fr, "call_tool", gateway_down)
-    monkeypatch.setattr(db, "get_routing_sequence", lambda profile_name: FIXTURE_ROUTING)
-    monkeypatch.setattr(db, "get_current_skill_index", lambda rfq_id: 0, raising=False)
+    monkeypatch.setattr(fr, "db_get_routing_sequence", lambda profile_name: FIXTURE_ROUTING)
+    monkeypatch.setattr(fr, "get_current_skill_index", lambda rfq_id: 0)
 
     resp = TestClient(fr.app).get(f"/pipeline/routing-sequence/CE-PARITY-1/{DIFY_PROFILE}")
     assert resp.status_code == 200, resp.text
@@ -172,10 +173,15 @@ def test_temporal_status_endpoint_returns_expected_fields():
 @live_only
 def test_api_status_agrees_with_active_version():
     """Live: the status endpoint's `postgres_stage` equals get_active_version().
-    NOTE (D3): the endpoint sets postgres_stage from get_active_version, so the field
-    holds a version number, not a stage. The name is wrong; logged for SPEC-015."""
+    LIMITATION: the endpoint sets postgres_stage from this same call, so this only proves the
+    endpoint reports what the DB says. It cannot catch stage divergence. The field also holds
+    a version, not a stage (D3, logged for SPEC-015). Real stage parity needs the D3 fix."""
     import httpx
     from db import get_active_version
 
+    try:
+        expected = get_active_version(SHADOW_RFQ_ID)
+    except Exception as e:
+        pytest.skip(f"DB unavailable for the live stage check: {e}")
     api_value = httpx.get(f"{FASTAPI_ROUTER_URL}/rfq/{SHADOW_RFQ_ID}/status", timeout=10).json().get("postgres_stage")
-    assert api_value == get_active_version(SHADOW_RFQ_ID)
+    assert api_value == expected

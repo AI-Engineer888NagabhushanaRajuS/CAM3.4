@@ -66,7 +66,7 @@ TARGET_METADATA_TOOL = "postgres_metadata__execute_sql"
 
 def _validate_id(value: str) -> str:
     """Reject IDs that contain SQL-unsafe characters before interpolation."""
-    if not re.match(r'^[A-Za-z0-9_\-]+$', value):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', value):
         raise ValueError(f"Invalid ID format: {value!r}")
     return value
 

@@ -77,9 +77,16 @@ def aclass_parts(payload):
 
     suppliers_by_id = {s.get("id"): s for s in suppliers}
 
+    # Each CPN once: a part that appears under several assemblies must not inflate the total,
+    # or the shares over the rows would not total 100%.
     total_ext_price = 0.0
+    counted_cpns = set()
     for item in scrub_items:
-        rfq_entry = rfq_l1_by_cpn.get(item.get("CPN"))
+        cpn = item.get("CPN")
+        if cpn in counted_cpns:
+            continue
+        counted_cpns.add(cpn)
+        rfq_entry = rfq_l1_by_cpn.get(cpn)
         if rfq_entry and _is_numeric(rfq_entry.get("vol_pricing")) and _is_numeric(rfq_entry.get("total_part_qty")):
             total_ext_price += float(rfq_entry["vol_pricing"]) * float(rfq_entry["total_part_qty"])
 
@@ -129,11 +136,16 @@ def aclass_parts(payload):
         moq = _coalesce(rfq_entry, "vol_moq", 1)
         part_qty_num = float(part_qty) if _is_numeric(part_qty) else 0.0
         moq_num = float(moq) if _is_numeric(moq) else 0.0
-        moq_turns = part_qty_num / moq_num if moq_num > 0 and part_qty_num > 0 else 0.0
+        # MOQ turns = Ext Vol / MOQ, as the sheet's own formula (=Ext Vol / MOQ) computes it.
+        vol_qty_num = float(vol_qty) if _is_numeric(vol_qty) else 0.0
+        moq_turns = vol_qty_num / moq_num if moq_num > 0 and vol_qty_num > 0 else 0.0
         avg_moq_turn_days = moq_turns * vol_price_num if moq_turns > 0 and vol_price_num > 0 else 0.0
 
         lead_times = rfq_entry.get("lead_times") if rfq_entry else None
-        lead_time_str = f"{float(lead_times):,.2f}" if lead_times else "-"
+        if _is_numeric(lead_times):
+            lead_time_str = f"{float(lead_times):,.2f}"
+        else:  # a range or text such as "4-6 weeks" is shown as entered, not coerced
+            lead_time_str = str(lead_times).strip() if lead_times else "-"
 
         row = {
             "Part Number": cpn,

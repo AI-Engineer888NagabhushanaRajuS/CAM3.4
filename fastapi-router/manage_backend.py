@@ -465,7 +465,8 @@ EXTERNAL_DEPENDENCIES = [
     # go through Bifrost instead. Its containers are still running,
     # untouched, since Standard_BOM_Flow still points at it (unmigrated --
     # see the top-of-file MIGRATION NOTE on scrub_mcp_server).
-    {"name": "bifrost_gateway", "kind": "http_2xx", "url": "http://localhost:8010/health"},
+    # Bifrost is not checked: 3.4 calls tool servers directly (HANDOFF §1, locked decision 4).
+    # D8: the old :8010 entry made `status` report ISSUES with nothing down.
 ]
 
 

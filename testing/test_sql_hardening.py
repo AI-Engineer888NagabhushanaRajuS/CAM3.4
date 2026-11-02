@@ -18,6 +18,7 @@ HOSTILE_IDS = [
     "CE-1\x00null",
     "../etc/passwd",
     "CE-1'",
+    "CE-1\n",  # trailing newline: re.match with $ accepted it; fullmatch rejects it
 ]
 
 
@@ -34,6 +35,7 @@ def _extract_validate_id(relpath):
     "mcp-tools/intake/mcp_server.py",
     "mcp-tools/gerber-integration/mcp_server.py",
     "mcp-tools/scrub-intake/scrub_mcp_server.py",
+    "mcp-tools/distributor-pricing/mcp_server.py",
 ])
 def test_mcp_validate_id_rejects_hostile_rfq_id(relpath):
     validate_id = _extract_validate_id(relpath)

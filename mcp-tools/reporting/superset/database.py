@@ -10,7 +10,11 @@ import schema
 
 
 def _column_type(con, table, column):
-    for row in con.execute(f"DESCRIBE {table}").fetchall():
+    try:
+        rows = con.execute(f"DESCRIBE {table}").fetchall()
+    except duckdb.CatalogException:
+        return None  # table not created yet (fresh database): no column type to read
+    for row in rows:
         if row[0] == column:
             return row[1]
     return None
@@ -39,11 +43,19 @@ def _rebuild_table_with_new_ddl(con, table, create_ddl):
     else:
         old_bare = f"{table}__pre_proto_migration"
         old_qualified = old_bare
-    con.execute(f"DROP TABLE IF EXISTS {old_qualified}")
-    con.execute(f"ALTER TABLE {table} RENAME TO {old_bare}")
-    con.execute(create_ddl)
-    con.execute(f"INSERT INTO {table} SELECT * FROM {old_qualified}")
-    con.execute(f"DROP TABLE {old_qualified}")
+    # One transaction: a failure part-way must roll the rename back, never strand the rows in
+    # the renamed-aside table (the next connect() would no longer see the old type to recover).
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute(f"DROP TABLE IF EXISTS {old_qualified}")
+        con.execute(f"ALTER TABLE {table} RENAME TO {old_bare}")
+        con.execute(create_ddl)
+        con.execute(f"INSERT INTO {table} SELECT * FROM {old_qualified}")
+        con.execute(f"DROP TABLE {old_qualified}")
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
 
 
 def connect():

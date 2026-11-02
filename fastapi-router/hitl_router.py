@@ -219,6 +219,28 @@ def get_summary(rfq_id: str, token: dict = Depends(auth.verify_token)):
     }
 
 
+def _signal_resolve_approved(rfq_id: str):
+    """Tell the workflow parked at resolve_final_selection that the gate passed.
+
+    Returns True/False once a signal was attempted, None when Temporal is off. A failed
+    signal is non-fatal here: rfq_process_stage has already advanced.
+    """
+    if os.environ.get("CAM_USE_TEMPORAL", "true").lower() != "true":
+        return None
+    import asyncio as _asyncio
+    import pathlib as _pathlib
+    sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+    try:
+        import client as temporal_client
+        workflow_id = temporal_client.get_workflow_id(rfq_id)
+        _asyncio.run(temporal_client.send_hitl_signal(workflow_id, {"action": "approve"}))
+        print(f"[TEMPORAL SIGNAL] sent human_decision approve to workflow {workflow_id!r}")
+        return True
+    except Exception as sig_err:
+        print(f"[TEMPORAL SIGNAL ERROR] {sig_err}")
+        return False
+
+
 @app.post("/api/rfq/{rfq_id}/final-selection")
 def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = Depends(auth.verify_token)):
     """Batch/incremental resolution submission -- a reviewer can submit any subset of
@@ -261,6 +283,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
             "resolved_count": 0,
             "remaining": 0,
             "fully_approved": True,
+            "signal_delivered": _signal_resolve_approved(rfq_id),
         }
 
     resolved_rows = []
@@ -337,6 +360,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
             print(f"[MEMORY INGEST ERROR] {e}")
 
     fully_approved = False
+    signal_delivered = None  # None = no signal attempted (gate not yet passed)
     if remaining == 0:
         try:
             new_stage = _advance_past_resolve_final_selection(rfq_id)
@@ -345,20 +369,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
             print(f"[FINAL-SELECTION ERROR] advance failed: {e}")
             raise
         fully_approved = True
-
-        # CAM 3.4: send Temporal signal when workflow is waiting at this HITL gate
-        if os.environ.get("CAM_USE_TEMPORAL", "true").lower() == "true":
-            import asyncio as _asyncio
-            import pathlib as _pathlib
-            sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
-            try:
-                import client as temporal_client
-                workflow_id = temporal_client.get_workflow_id(rfq_id)
-                _asyncio.run(temporal_client.send_hitl_signal(workflow_id, {"action": "approve"}))
-                print(f"[TEMPORAL SIGNAL] sent human_decision approve to workflow {workflow_id!r}")
-            except Exception as sig_err:
-                # Signal failure is non-fatal: rfq_process_stage already advanced above.
-                print(f"[TEMPORAL SIGNAL ERROR] {sig_err}")
+        signal_delivered = _signal_resolve_approved(rfq_id)
     else:
         print(f"[FINAL-SELECTION] not advancing -- {remaining} conflict(s) still unresolved")
 
@@ -368,6 +379,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
         "resolved_count": len(resolved_rows),
         "remaining": remaining,
         "fully_approved": fully_approved,
+        "signal_delivered": signal_delivered,
     }
 
 
@@ -594,6 +606,7 @@ def submit_alternates(rfq_id: str, request: ResolveAlternatesBatchRequest, token
         print(f"[MEMORY INGEST ERROR] {e}")
 
     fully_approved = False
+    signal_delivered = None  # None = no signal attempted (gate not yet passed)
     if remaining == 0:
         new_stage = _advance_past_detect_alternates(rfq_id)
         fully_approved = True
@@ -610,9 +623,11 @@ def submit_alternates(rfq_id: str, request: ResolveAlternatesBatchRequest, token
                     "resolved_count": len(request.selections),
                 }))
                 print(f"[TEMPORAL SIGNAL] sent human_decision approve (detect_alternates) for rfq_id={rfq_id!r}")
+                signal_delivered = True
             except Exception as sig_err:
                 # Signal failure is non-fatal: rfq_process_stage already advanced above.
                 print(f"[TEMPORAL SIGNAL ERROR] {sig_err}")
+                signal_delivered = False
 
     return {
         "status": "success",
@@ -620,6 +635,7 @@ def submit_alternates(rfq_id: str, request: ResolveAlternatesBatchRequest, token
         "resolved_count": len(request.selections),
         "remaining": remaining,
         "fully_approved": fully_approved,
+        "signal_delivered": signal_delivered,
     }
 
 
@@ -647,6 +663,8 @@ def hitl_decision(rfq_id: str, request: HITLDecisionRequest):
             print(f"[TEMPORAL SIGNAL] hitl/decision approved={request.approved} for rfq_id={rfq_id!r}")
         except Exception as sig_err:
             print(f"[TEMPORAL SIGNAL ERROR] hitl/decision: {sig_err}")
+            # The decision never reached the workflow: report it, do not answer "ok".
+            raise HTTPException(status_code=502, detail=f"HITL decision not delivered to the workflow: {sig_err}")
 
     return {"status": "ok", "rfq_id": rfq_id, "approved": request.approved}
 

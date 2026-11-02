@@ -36,7 +36,8 @@ def _load_manifests() -> None:
     for mf in sorted(_MANIFESTS_DIR.glob("*.json")):
         try:
             data = json.loads(mf.read_text(encoding="utf-8"))
-            url = f"http://{MCP_HOST}:{data['port']}/mcp"
+            host = os.environ.get(f"CAM_MCP_HOST_{data['id'].upper()}", MCP_HOST)  # D6: per-server host in compose
+            url = f"http://{host}:{data['port']}/mcp"
             names = [tool["name"] for tool in data.get("tools", [])]
         except Exception as e:  # skip the whole bad manifest, never half of it
             print(f"[config] ignoring unreadable manifest {mf.name}: {e}")

@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import traceback
 
@@ -22,7 +23,7 @@ mcp = FastMCP("DistributorPricing")
 
 def _validate_id(value: str) -> str:
     """Reject IDs that contain SQL-unsafe characters before interpolation."""
-    if not re.match(r'^[A-Za-z0-9_\-]+$', value):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', value):
         raise ValueError(f"Invalid ID format: {value!r}")
     return value
 
@@ -183,4 +184,4 @@ def apply_alternatives(rfq_id) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="100.121.36.255", port=8003)
+    mcp.run(transport="http", host=os.environ.get("CAM_BIND_HOST", "0.0.0.0"), port=8003)

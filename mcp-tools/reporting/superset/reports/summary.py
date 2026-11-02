@@ -168,10 +168,10 @@ def summary(payload):
         }
         rfq_by_cpn_rev.setdefault(rev, {}).setdefault(cpn, []).append(entry)
         if vol_no is not None:
-            rfq_by_cpn_vol[f"{cpn}|{vol_no}"] = entry
+            rfq_by_cpn_vol[f"{rev}|{cpn}|{vol_no}"] = entry
             volume_nos_set.add(vol_no)
         else:
-            rfq_by_cpn_vol[f"{cpn}|proto"] = entry
+            rfq_by_cpn_vol[f"{rev}|{cpn}|proto"] = entry
 
     volume_nos = sorted(volume_nos_set)
 
@@ -206,7 +206,7 @@ def _compute_revision(rev, rfq_by_cpn_rev, by_cpn, inv_by_cpn, part_qty_by_key, 
         inventory_stock = inv_by_cpn.get(cpn, 0.0)
 
         for vol in ["proto"] + list(volume_nos):
-            lookup_key = f"{cpn}|proto" if vol == "proto" else f"{cpn}|{vol}"
+            lookup_key = f"{rev}|{cpn}|proto" if vol == "proto" else f"{rev}|{cpn}|{vol}"
             rfq = rfq_by_cpn_vol.get(lookup_key)
             if not rfq:
                 continue
@@ -443,12 +443,15 @@ def build_summary_sheet(wb, revisions, cbom_row_counts, include_proto=True, now=
     sheet_data.append(row3)
 
     if json_data and json_data[0].get("assemblies"):
-        for index, asm_block in enumerate(json_data[0]["assemblies"]):
+        for asm_block in json_data[0]["assemblies"]:
             row = ["", "", asm_block["Assembly"]]
             for rev_block in json_data:
-                asms = rev_block.get("assemblies", [])
-                volumes = asms[index]["volumes"] if index < len(asms) else []
-                for vol in volumes:
+                # Match by assembly name within each revision: revisions do not share assembly
+                # membership or order, so a positional index showed another FG's numbers.
+                by_name = {a["Assembly"]: a for a in rev_block.get("assemblies", [])}
+                volumes = (by_name.get(asm_block["Assembly"]) or {}).get("volumes", [])
+                for i in range(len(rev_block["totals"])):
+                    vol = volumes[i] if i < len(volumes) else {}
                     row.append(vol.get("vol_qty", ""))
                     row.append(vol.get("cbom_cost", ""))
             sheet_data.append(row)
@@ -494,6 +497,10 @@ def build_summary_sheet(wb, revisions, cbom_row_counts, include_proto=True, now=
     start_col_index = 4
     for rev_block in json_data:
         vol_span = len(rev_block["totals"]) * 2
+        # A block with no volumes left (e.g. proto-only with include_proto=False) spans zero
+        # columns; merging it would invert the range (end 3 < start 4) and abort the export.
+        if vol_span == 0:
+            continue
         end_col_index = start_col_index + vol_span - 1
         ws.merge_cells(start_row=2, start_column=start_col_index, end_row=2, end_column=end_col_index)
         _style_range(ws, start_col_index, 2, end_col_index, 2, fill=_fill("2F5496"),

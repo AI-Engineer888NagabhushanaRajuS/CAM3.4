@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import os
 import random
 import json
@@ -63,11 +64,15 @@ ALLOWED_FILE_TYPES = {
 def get_db_connection():
     return psycopg2.connect(DB_CONFIG)
 
+# Triggers now run in worker threads (see start_dify_workflow); the schema check is check-then-ALTER.
+_GUARD_SCHEMA_LOCK = threading.Lock()
+
+
 def trigger_dify_workflow_internal(rfq_id: str):
     """Triggers workflow and logs the attempt to DB.
 
     When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify.
-    When USE_TEMPORAL=false (default): calls Dify as before.
+    When USE_TEMPORAL=false: calls Dify as before (the default is true; see CAM_USE_TEMPORAL).
 
     Guarded by db.try_start_pipeline_run() -- both callers of this function
     (a brand-new upload, and GET /api/dify/start/{rfq_id}'s HITL-resume
@@ -77,7 +82,8 @@ def trigger_dify_workflow_internal(rfq_id: str):
     function's own docstring in db.py for the full reasoning and its stated
     limitations.
     """
-    db.ensure_processing_guard_schema()
+    with _GUARD_SCHEMA_LOCK:
+        db.ensure_processing_guard_schema()
     if not db.try_start_pipeline_run(rfq_id):
         print(f"[DIFY API SKIPPED]: {rfq_id} already has a pipeline run triggered recently -- rejecting duplicate trigger")
         return "ALREADY_PROCESSING", {
@@ -93,7 +99,9 @@ def trigger_dify_workflow_internal(rfq_id: str):
         try:
             import sys as _sys
             import pathlib as _pathlib
-            _sys.path.insert(0, str(_pathlib.Path(__file__).parent.parent / "temporal_worker"))
+            _worker_dir = str(_pathlib.Path(__file__).parent.parent / "temporal_worker")
+            if _worker_dir not in _sys.path:
+                _sys.path.insert(0, _worker_dir)
             import client as temporal_client
             workflow_id = asyncio.run(temporal_client.start_rfq_workflow(rfq_id))
             print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} started for {rfq_id}")
@@ -257,7 +265,8 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
     if not rfq_id:
         raise HTTPException(status_code=400, detail="rfq_id cannot be empty.")
 
-    dify_status, response_summary = trigger_dify_workflow_internal(rfq_id)
+    # Off the event loop: the trigger calls asyncio.run() (Temporal) and blocks on requests (Dify).
+    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id)
 
     return {
         "success": dify_status in ["TRIGGERED", "SUCCESS"],
@@ -359,7 +368,8 @@ async def upload_rfq_file(
             saved_paths["GERBER_ZIP"] = await process_file_upload(rfq_id, gerber_file, "GERBER_ZIP", version=new_version)
 
         # Trigger Dify workflow
-        dify_status, _ = trigger_dify_workflow_internal(rfq_id)
+        # Off the event loop: see start_dify_workflow.
+        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id)
 
         return {
             "success": True,

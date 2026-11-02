@@ -34,7 +34,7 @@ TARGET_METADATA_TOOL = "Production_FileMetedata_DB-execute_sql"
 
 def _validate_id(value: str) -> str:
     """Reject IDs that contain SQL-unsafe characters before interpolation."""
-    if not re.match(r'^[A-Za-z0-9_\-]+$', value):
+    if not re.fullmatch(r'[A-Za-z0-9_\-]+', value):
         raise ValueError(f"Invalid ID format: {value!r}")
     return value
 
@@ -238,7 +238,7 @@ def scan_local_file(rfq_id) -> str:
                     scan_status = '{scan_status}',
                     execution_logs = '{escaped_logs_str}'::jsonb,
                     processed_at = CURRENT_TIMESTAMP
-                WHERE file_id = '{file_id}';
+                WHERE file_id = '{file_id}' AND rfq_id = '{rfq_id_str}';
                 """
 
                 call_tool(
@@ -441,4 +441,4 @@ def import_bom(rfq_id) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="100.121.36.255", port=8002)
+    mcp.run(transport="http", host=os.environ.get("CAM_BIND_HOST", "0.0.0.0"), port=8002)

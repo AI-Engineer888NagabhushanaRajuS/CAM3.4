@@ -5,7 +5,6 @@ import re
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
-import ast
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import httpx
@@ -15,6 +14,8 @@ from datetime import datetime
 # Import your native core functions directly from your script
 from tool_calling import call_tool
 from db import (
+    get_routing_sequence as db_get_routing_sequence,
+    get_current_skill_index,
     increment_skill_index,
     get_skill_by_code,
     get_active_version,
@@ -153,72 +154,11 @@ def get_routing_sequence(rfq_id: str, profile_name: str):
     except ValueError as e:
         return {"error": str(e)}
 
-    # Points at BuLLMQuote's own logic_db_2/file_metadata_db_2 -- registered
-    # in Bifrost as the Production_Logic_DB/Production_FileMetedata_DB MCP
-    # clients (replacing MCP Jungle's postgres_logic_2/postgres_metadata_2),
-    # each backed by `postgres-mcp` with
-    # DATABASE_URI=...@host.docker.internal:5432/... The un-suffixed
-    # originals (postgres_logic/postgres_metadata) still point at CAM's
-    # shared logic_db/file_metadata_db; do not repoint those.
-    LOGIC_TOOL = "Production_Logic_DB-execute_sql"
-    METADATA_TOOL = "Production_FileMetedata_DB-execute_sql"
-
     try:
-        # Get routing sequence from logic_db
-        routing_result = call_tool(
-            tool_name=LOGIC_TOOL,
-            arguments={
-                "sql": f"""
-                    SELECT routing_sequence
-                    FROM quote_routing_profiles
-                    WHERE profile_name = '{profile_name}';
-                """
-            }
-        )
-
-        if "result" not in routing_result:
-            # The gateway/MCP server can reject the call outright (e.g. a dead
-            # transport to the backing postgres-mcp server) instead of ever
-            # producing a "result" -- indexing straight into ["result"] then
-            # raises an opaque KeyError that hides the real reason. Surfacing
-            # the actual JSON-RPC error here is what the caller (Dify) and
-            # whoever's debugging a stuck RFQ actually needs to see.
-            raise RuntimeError(f"{LOGIC_TOOL} call failed: {routing_result.get('error', routing_result)}")
-
-        routing_text = routing_result["result"]["content"][0]["text"]
-        routing_rows = ast.literal_eval(routing_text)
-
-        if not routing_rows:
-            return {
-                "error": f"Profile '{profile_name}' not found"
-            }
-
-        routing_sequence = routing_rows[0]["routing_sequence"]
-
-        # Get current stage from file_metadata_db
-        stage_result = call_tool(
-            tool_name=METADATA_TOOL,
-            arguments={
-                "sql": f"""
-                    SELECT rfq_process_stage
-                    FROM rfq_process_tracking
-                    WHERE rfq_id = '{rfq_id}';
-                """
-            }
-        )
-
-        if "result" not in stage_result:
-            raise RuntimeError(f"{METADATA_TOOL} call failed: {stage_result.get('error', stage_result)}")
-
-        stage_text = stage_result["result"]["content"][0]["text"]
-        stage_rows = ast.literal_eval(stage_text)
-
-        if not stage_rows:
-            return {
-                "error": f"RFQ '{rfq_id}' not found"
-            }
-
-        skill_index = stage_rows[0]["rfq_process_stage"]
+        # D1 fix (SPEC-015): read the routing profile and stage straight from Postgres.
+        # The gateway call (call_tool to Production_Logic_DB) was unroutable.
+        routing_sequence = db_get_routing_sequence(profile_name)
+        skill_index = get_current_skill_index(rfq_id)
 
         return {
             "routing_sequence": routing_sequence,

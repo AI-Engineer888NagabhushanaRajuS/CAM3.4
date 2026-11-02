@@ -45,7 +45,8 @@ def sum_and_count_detail(payload):
     for item in items:
         assembly = item.get("Assembly")
         cpn = item.get("CPN")
-        if not assembly or not cpn:
+        # Same rule as sum_and_count.py: a row without a quantity is not part of the BOM sum.
+        if not assembly or not cpn or item.get("Quantity") is None:
             continue
         cpn_groups = assembly_groups.setdefault(assembly, {})
         cpn_groups.setdefault(cpn, []).append(item)
@@ -61,8 +62,8 @@ def sum_and_count_detail(payload):
     rows = []
     for assembly, cpn_groups in assembly_groups.items():
         for cpn, group_items in cpn_groups.items():
-            first = group_items[0]
-            qty = _to_float(first["Quantity"]) if first.get("Quantity") is not None else 0.0
+            # A repeated CPN under one assembly sums every row, as the summary does.
+            qty = sum(_to_float(item["Quantity"]) for item in group_items)
             count = len(group_items)
 
             row = {
