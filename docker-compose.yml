@@ -15,10 +15,10 @@ x-python-common: &python-common
     - ./database:/app/database
 
 x-python-env: &python-env
-  LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/logic_db_2
-  FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/file_metadata_db_2
-  STAGING_LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_logic_db_2
-  STAGING_FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_file_metadata_db_2
+  LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/logic_db_2
+  FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/file_metadata_db_2
+  STAGING_LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/staging_logic_db_2
+  STAGING_FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/staging_file_metadata_db_2
   JWT_SECRET: ${JWT_SECRET:?set a real secret}
   REPORTING_DATABASE_DIR: /app/database
   CENTUM_INPUT_DB: /app/database/input_db.duckdb
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: centum
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -64,7 +64,7 @@ services:
       DB: postgresql
       DB_PORT: 5432
       POSTGRES_USER: centum
-      POSTGRES_PWD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_SEEDS: postgres
     ports:
       - "7233:7233"    # gRPC frontend

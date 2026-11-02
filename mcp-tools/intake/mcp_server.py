@@ -228,14 +228,17 @@ def scan_local_file(rfq_id) -> str:
                     f.get("logs", {})
                 ).replace("'", "''")
 
+                file_type = str(f["file_type"]).replace("'", "''")
+                scan_status = str(f["scan_status"]).replace("'", "''")
+                file_id = str(f["file_id"]).replace("'", "''")
                 update_sql = f"""
                 UPDATE rfq_file_telemetry
                 SET
-                    file_type = '{f["file_type"]}',
-                    scan_status = '{f["scan_status"]}',
+                    file_type = '{file_type}',
+                    scan_status = '{scan_status}',
                     execution_logs = '{escaped_logs_str}'::jsonb,
                     processed_at = CURRENT_TIMESTAMP
-                WHERE file_id = '{f["file_id"]}';
+                WHERE file_id = '{file_id}';
                 """
 
                 call_tool(
