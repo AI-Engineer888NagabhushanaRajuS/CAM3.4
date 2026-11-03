@@ -151,7 +151,9 @@ def scan_local_file(rfq_id) -> str:
 
         try:
             result = subprocess.run(
-                ["C:\\Program Files\\ClamAV\\clamscan.exe", "--no-summary", normalized_path],
+                # 3.3 ran clamscan.exe from this Windows path; a Linux container sets CLAMSCAN_PATH.
+                [os.environ.get("CLAMSCAN_PATH", "C:\\Program Files\\ClamAV\\clamscan.exe"),
+                 "--no-summary", normalized_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -209,14 +211,13 @@ def scan_local_file(rfq_id) -> str:
     print(f"\n=== CONNECTING TO METADATA DB VIA: {TARGET_METADATA_TOOL} ===")
 
     try:
+        # The old INSERT ... ON CONFLICT (rfq_id) cannot match the versioned table (PK rfq_id+version,
+        # partial unique index), so it raised and the per-file UPDATEs below never ran. The row already
+        # exists (upload_server creates it), and fastapi_router owns rfq_process_stage, so only the flag.
         parent_sql = f"""
-        INSERT INTO rfq_process_tracking (rfq_id, rfq_process_stage, hitl_required, triggered_by)
-        VALUES ('{rfq_id_str}', 1, {sql_hitl_value}, 'SYSTEM_API')
-        ON CONFLICT (rfq_id) DO UPDATE SET
-            rfq_process_stage = EXCLUDED.rfq_process_stage,
-            hitl_required = EXCLUDED.hitl_required,
-            triggered_by = EXCLUDED.triggered_by,
-            updated_at = CURRENT_TIMESTAMP;
+        UPDATE rfq_process_tracking
+        SET hitl_required = {sql_hitl_value}, updated_at = CURRENT_TIMESTAMP
+        WHERE rfq_id = '{rfq_id_str}' AND is_active;
         """
         call_tool(tool_name=TARGET_METADATA_TOOL, arguments={"sql": parent_sql})
 

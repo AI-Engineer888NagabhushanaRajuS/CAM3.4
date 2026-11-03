@@ -6,5 +6,6 @@ carried over.
 """
 import os
 
-# Same file the reporting engine reads as its input database (REPORTING_INPUT_DB).
-DB_PATH = os.environ.get("REPORTING_INPUT_DB", "/app/database/input_db.duckdb")
+# 3.3: shared.db_config.DB_PATH, one bom_storage.duckdb used by intake, distributor-pricing and
+# gerber-integration (not the reporting engine's input_db.duckdb, which has no processed_bom_items).
+DB_PATH = os.environ.get("BOM_STORAGE_DB", "/app/database/bom_storage.duckdb")

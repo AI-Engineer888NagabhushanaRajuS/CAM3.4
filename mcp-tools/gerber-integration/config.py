@@ -5,5 +5,6 @@ constants. 3.4 routes tools directly and does not bring Bifrost back (SPEC-015).
 """
 import os
 
-# Same input database the reporting engine reads (REPORTING_INPUT_DB).
-DB_PATH = os.environ.get("REPORTING_INPUT_DB", "/app/database/input_db.duckdb")
+# 3.3 shared.db_config.DB_PATH: the bom_storage.duckdb intake writes (gerber_geometry/gerber_checklist
+# live there too). Not run end to end in 3.4.
+DB_PATH = os.environ.get("BOM_STORAGE_DB", "/app/database/bom_storage.duckdb")

@@ -19,6 +19,16 @@ RUN apt-get update \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --default-timeout=300 --retries 5 -r /app/requirements.txt
 
+# Malware scanner for the intake service only (scan_local_file runs clamscan; set CLAMSCAN_PATH=clamscan).
+# freshclam bakes the signature database in at build time; a long-lived deployment must refresh it.
+ARG INSTALL_CLAMAV=false
+RUN if [ "$INSTALL_CLAMAV" = "true" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends clamav \
+        && freshclam \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 COPY . /app
 
 WORKDIR /app/${SERVICE_DIR}

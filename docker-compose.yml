@@ -13,6 +13,10 @@ x-python-common: &python-common
       condition: service_healthy
   volumes:
     - ./database:/app/database
+    # upload_server saves uploads here and records the absolute path; every tool container reads
+    # that same path, so they must all see one volume at one location (WORKDIR of upload-server
+    # is /app/fastapi-router, so its staged/inbox is this path).
+    - inbox:/app/fastapi-router/staged/inbox
 
 x-python-env: &python-env
   LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/logic_db_2
@@ -23,6 +27,8 @@ x-python-env: &python-env
   REPORTING_DATABASE_DIR: /app/database
   CENTUM_INPUT_DB: /app/database/input_db.duckdb
   REPORTING_INPUT_DB: /app/database/input_db.duckdb
+  # intake, distributor-pricing and gerber-integration share this one file (3.3 shared.db_config.DB_PATH).
+  BOM_STORAGE_DB: /app/database/bom_storage.duckdb
   # Temporal connection for services that use CAM_USE_TEMPORAL=true
   CAM_TEMPORAL_HOST: temporal:7233
   CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
@@ -161,8 +167,10 @@ services:
     build:
       context: .
       dockerfile: docker/python-service.Dockerfile
-      args: { SERVICE_DIR: mcp-tools/intake, ENTRYPOINT: mcp_server.py }
-    environment: *python-env
+      args: { SERVICE_DIR: mcp-tools/intake, ENTRYPOINT: mcp_server.py, INSTALL_CLAMAV: "true" }
+    environment:
+      <<: *python-env
+      CLAMSCAN_PATH: clamscan
     ports: ["18002:8002"]
 
   distributor-pricing-mcp-server:
@@ -215,3 +223,4 @@ services:
 
 volumes:
   postgres-data:
+  inbox:

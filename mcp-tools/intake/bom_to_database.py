@@ -49,6 +49,32 @@ def _ensure_structure_table(conn):
         conn.execute("ALTER TABLE bom_structure_items ADD COLUMN volume DOUBLE")
 
 
+def _ensure_processed_table(conn):
+    # 3.3 created this table with a setup script outside the repo (SRIM-DB-SETUP); a fresh 3.4
+    # deployment has no such step, so it is created here, same idempotent pattern as above.
+    # Columns are those of the 3.3 table (Reference database/Bom_storage seed), including the
+    # distributor columns enrichment.py fills in later.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS processed_bom_items (
+            bom_item_id UUID DEFAULT gen_random_uuid(), rfq_id VARCHAR, file_name VARCHAR,
+            parent_fg VARCHAR, fg VARCHAR, cpn VARCHAR, description VARCHAR, mfr VARCHAR, mpn VARCHAR,
+            commodity VARCHAR, bom_qty DOUBLE, volume DOUBLE, required_qty DOUBLE, uom VARCHAR,
+            ce_remarks VARCHAR, item_num INTEGER, part_type VARCHAR, ltb_date DATE, common_aml VARCHAR,
+            change_remarks VARCHAR, exported_at TIMESTAMP, imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            digikey_part_number VARCHAR, digikey_stock DOUBLE, digikey_lifecycle_status VARCHAR,
+            digikey_datasheet_url VARCHAR, digikey_moq DOUBLE, digikey_spq DOUBLE,
+            digikey_lead_time VARCHAR, digikey_unit_price DOUBLE, digikey_currency VARCHAR,
+            element14_part_number VARCHAR, element14_stock DOUBLE, element14_inventory_status VARCHAR,
+            element14_datasheet_url VARCHAR, element14_rohs VARCHAR, element14_moq DOUBLE,
+            element14_spq DOUBLE, element14_lead_time VARCHAR, element14_unit_price DOUBLE,
+            element14_currency VARCHAR, mouser_part_number VARCHAR, mouser_stock DOUBLE,
+            mouser_lifecycle_status VARCHAR, mouser_datasheet_url VARCHAR, mouser_product_url VARCHAR,
+            mouser_moq DOUBLE, mouser_spq DOUBLE, mouser_lead_time VARCHAR, mouser_unit_price DOUBLE,
+            mouser_currency VARCHAR
+        )
+    """)
+
+
 def process_bom_structure_to_database(rfq_id, bom_file, expanded_df):
 
     df = expanded_df.copy()
@@ -155,6 +181,8 @@ def process_bom_to_database(rfq_id, bom_file, consolidated_df):
             df[col] = None
 
     with duckdb.connect(DB_PATH) as conn:
+        _ensure_processed_table(conn)
+
         existing_count = conn.execute(
             """
             SELECT COUNT(*)
