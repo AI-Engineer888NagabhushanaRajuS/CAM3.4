@@ -873,6 +873,15 @@ def to_batchwise_cashflow_payload(ex_inv_report_df):
 # CBOM tree (7.0 CBOM VL-{n}) + Ex Inv VL (excess_inventory)
 # ------------------------------------------------------------------
 
+def _with_blank_mpn(scrub_df):
+    """MPN is nullable in scrub_bom (no NOT NULL). pandas groupby drops NaN keys, and a NaN
+    picked by first() cannot be looked up in a dict (NaN != NaN), so a part with no MPN lost
+    its quantity. Key a missing MPN as '' everywhere these sums are built and read."""
+    if "mpn" not in scrub_df.columns:
+        return scrub_df
+    return scrub_df.assign(mpn=scrub_df["mpn"].fillna(""))
+
+
 def fg_part_qty_sums(scrub_df):
     """FG Part Qty: for each (FG, Part Number), the SUM across every DISTINCT sub-assembly
     containing that CPN of that sub-assembly's own local quantity (fg_assembly_part_qty_sums(),
@@ -909,6 +918,7 @@ def fg_part_qty_sums(scrub_df):
     the intentionally LOCAL, non-rolled-up quantity (CBOM VL's "Part Qty" column I);
     only the cross-assembly FG total gets the multiplier applied here.
     """
+    scrub_df = _with_blank_mpn(scrub_df)
     if "assembly" not in scrub_df.columns:
         # No assembly dimension available (e.g. a minimal synthetic DataFrame) -- fall
         # back to the simple grouped sum; cross-assembly logic isn't meaningful here.
@@ -930,7 +940,7 @@ def fg_part_qty_sums(scrub_df):
         fg_cpn_totals[(fg, cpn)] = fg_cpn_totals.get((fg, cpn), 0) + qty * multiplier
 
     result = {}
-    for fg, cpn, mpn in scrub_df.groupby(["fg", "cpn", "mpn"]).groups.keys():
+    for fg, cpn, mpn in _with_blank_mpn(scrub_df).groupby(["fg", "cpn", "mpn"]).groups.keys():
         result[(fg, cpn, mpn)] = fg_cpn_totals.get((fg, cpn), 0)
     return result
 
@@ -966,7 +976,7 @@ def fg_assembly_part_qty_sums(scrub_df):
     """
     if "assembly" not in scrub_df.columns:
         return {}
-    deduped = scrub_df.drop_duplicates(subset=["fg", "assembly", "cpn", "mpn"])
+    deduped = _with_blank_mpn(scrub_df).drop_duplicates(subset=["fg", "assembly", "cpn", "mpn"])
     return deduped.groupby(["fg", "assembly", "cpn", "mpn"])["quantity"].sum().to_dict()
 
 
@@ -980,7 +990,7 @@ def _fg_cpn_representative_mpn(scrub_df):
     _fg_assembly_cpn_representative_mpn() below for that, which must NOT use this FG-wide
     pick, since a given sub-assembly may not even list this MPN at all).
     """
-    return scrub_df.groupby(["fg", "cpn"])["mpn"].first().to_dict()
+    return _with_blank_mpn(scrub_df).groupby(["fg", "cpn"])["mpn"].first().to_dict()
 
 
 def _fg_assembly_cpn_representative_mpn(scrub_df):
@@ -992,7 +1002,7 @@ def _fg_assembly_cpn_representative_mpn(scrub_df):
     single FG-wide representative MPN can silently fail to match THIS assembly's own rows at
     all, returning 0 instead of this assembly's real local quantity.
     """
-    return scrub_df.groupby(["fg", "assembly", "cpn"])["mpn"].first().to_dict()
+    return _with_blank_mpn(scrub_df).groupby(["fg", "assembly", "cpn"])["mpn"].first().to_dict()
 
 
 def _cpn_representative_bom_item_id(scrub_df):
