@@ -260,15 +260,18 @@ def verify_registration(conn, profile, names):
 # --- gateway (Jungle) --------------------------------------------------------
 
 def jungle_register_argv(manifest, registry_url, host):
-    """The 3.3 registration command (Reference infra/mcp-jungle/register-centum-servers.sh).
+    """The Jungle registration command (3.3: Reference infra/mcp-jungle/register-centum-servers.sh).
 
     Jungle names a server by the tool prefix (`<server>__<tool>`), not by the manifest id.
+    Version difference: the 3.3 script also passes `--transport streamable_http`; the Jungle build
+    installed here (ghcr.io/mcpjungle/mcpjungle:latest-stdio) has no such flag and treats --url as
+    streamable HTTP, so it is omitted. Verified by registering scrub + reporting against that build.
     """
     prefixes = {t["name"].split("__", 1)[0] for t in manifest["tools"]}
     if len(prefixes) != 1:
         raise ValueError(f"Jungle needs one server name per server; manifest has prefixes {sorted(prefixes)}")
     return ["mcpjungle", "--registry", registry_url, "register", "--name", prefixes.pop(),
-            "--transport", "streamable_http", "--url", f"http://{host}:{manifest['port']}/mcp"]
+            "--url", f"http://{host}:{manifest['port']}/mcp"]
 
 
 # --- CLI ----------------------------------------------------------------------

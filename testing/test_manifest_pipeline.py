@@ -149,8 +149,10 @@ def test_store_created_unchanged_updated(im, tmp_path):
 
 def test_jungle_argv_uses_tool_prefix_not_manifest_id(im):
     argv = im.jungle_register_argv(_manifest("centum_scrub_intake"), "http://reg:8080", "10.0.0.5")
+    # The installed Jungle (ghcr.io/mcpjungle/mcpjungle:latest-stdio) rejects --transport ("unknown
+    # flag"); --url already means streamable HTTP. The 3.3 script passes it, so that Jungle was older.
     assert argv == ["mcpjungle", "--registry", "http://reg:8080", "register", "--name", "centum_intake",
-                    "--transport", "streamable_http", "--url", "http://10.0.0.5:8004/mcp"]
+                    "--url", "http://10.0.0.5:8004/mcp"]
 
 
 def test_jungle_argv_refuses_mixed_prefixes(im):
