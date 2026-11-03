@@ -23,7 +23,7 @@ Finish the remaining CAM 3.4 work end to end, including a real user-driven brows
 2. Inspect `git status --short`, branch, recent commits, Compose project labels, live listeners, and ignored-file rules. Do not expose `.env` values. Before any service restart/build, identify the already-running Compose project and exact override files; don't accidentally create a second project or use another project's ports/volumes.
 3. Run a focused baseline test and then the full suite before final commit: `python -m pytest -q -p no:cacheprovider` from `CAM-Source`. Record fresh output; repair pre-existing failures only if in current scope.
 4. Maintain this file's **Current State** section below as the single persistent goal ledger. Update only after a milestone has evidence or a blocker is proved. Each update records status, evidence path/command, next action, and retry budget remaining. Don't append speculative progress or rewrite the acceptance rules. At startup and after context loss, reread this section and continue at the first incomplete gate.
-5. Keep `SPECS/progress.json`, the relevant SPEC, and the ledger consistent; never mark complete from intent. Preserve commits already on the branch. Before finalizing, code-review every source diff and commit the complete authorized task in small, coherent commits with clear messages. The user requested local `master`: after committing and verifying the authorized changes on the current feature branch, create `master` at that exact commit and check it out only after the worktree is clean. Leave both local refs pointing at the same verified commit; do not push or rewrite history.
+5. Keep `SPECS/progress.json`, the relevant SPEC, and the ledger consistent; never mark complete from intent. Preserve commits already on the branch. The local `master` branch is established and checked out, synchronized with `feat/cam34-verification` at the source/docs commits recorded in Current State. Continue on the current branch; do not recreate or switch branches with a dirty worktree. Future commits are local only; do not push or rewrite history.
 
 ## Work order
 
@@ -74,11 +74,11 @@ Mark the overall goal complete only when all applicable items are evidence-backe
 
 ## Current State (mutable evidence ledger)
 
-Last updated: 2026-11-03 during audit and validation.
+Last updated: 2026-11-03 after local commits and master setup.
 
 | Work item | Status | Evidence / known state | Next action |
 |---|---|---|---|
-| Source audit/docs | Ready for review | `docs/CAM-3.4-MEGA-GUIDE.md`; this prompt; leaf ownership inventory and live/source boundaries documented | check docs after final commit |
+| Source audit/docs | Committed | `docs/CAM-3.4-MEGA-GUIDE.md` and this prompt; commits `60c80e5` and `522eafd` | continue to remaining flow work |
 | Existing source changes | Tests partly passed | backend `200 passed, 4 skipped`; web typecheck passed; web unit `371 passed`; web integration `57 failed, 96 passed` with missing daemon callback mock and stale brand assertions | isolate/fix integration failures relevant to current CAM UI, then rerun affected tests |
 | Live DB registry | Blocked/unverified | earlier browser console reported `system_skills_registry` missing; cause/DB target not yet proven | inspect live schema read-only and profile rows |
 | Full browser E2E | Not passed | earlier session proved login/reachability, not full UI flow; earlier handoff reports partial run to final-selection gate | run complete flow using fresh RFQ |
@@ -86,7 +86,7 @@ Last updated: 2026-11-03 during audit and validation.
 | RFQ memory/chat | Blocked | prior runtime note says service/key unavailable; no successful chat proof | verify env presence without printing value; otherwise record provider boundary |
 | NetBird management | Degraded/reported | management container had empty URL validator error; local mesh IP worked from same machine | inspect only if needed for access; do not touch unrelated platform config |
 | SPEC-018 recalculation | Proposed | formula parity/oracle must come first; see guide and SPEC-018 | keep isolated; design + parity first |
-| Branch/commit | Authorized, not yet done | current branch `feat/cam34-verification`; no existing `master`/`main`; user asked to commit all authorized CAM changes and establish master | review/stage only listed CAM changes; commit on feature; create/check out local `master` at same commit; do not push |
+| Branch/commit | Complete for this handoff | `master` is checked out; `master` and `feat/cam34-verification` point to the same committed source/docs tip; worktree was clean after branch creation; no push performed | continue the CAM goal on current branch |
 
 At every checkpoint, replace only the relevant row with current dated evidence and add newly discovered blockers. When resuming after compaction, read the guide and this table, inspect git status, then continue with the first incomplete item. Do not restart completed stages unless new evidence invalidates them.
 
