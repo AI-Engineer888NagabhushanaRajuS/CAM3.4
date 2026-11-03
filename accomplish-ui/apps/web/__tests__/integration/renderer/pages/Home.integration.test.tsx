@@ -91,27 +91,17 @@ vi.mock('@/stores/taskStore', () => ({
 
 // Mock framer-motion for simpler testing
 vi.mock('framer-motion', () => ({
-  motion: {
-    h1: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-      <h1 {...props}>{children}</h1>
-    ),
-    div: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
-      <div {...props}>{children}</div>
-    ),
-    button: ({
-      children,
-      onClick,
-      ...props
-    }: {
-      children: React.ReactNode;
-      onClick?: () => void;
-      [key: string]: unknown;
-    }) => (
-      <button onClick={onClick} {...props}>
-        {children}
-      </button>
-    ),
-  },
+  motion: new Proxy(
+    {},
+    {
+      get:
+        (_, tag: string) =>
+        ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => {
+          const Tag = tag as any;
+          return <Tag {...props}>{children}</Tag>;
+        },
+    },
+  ),
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

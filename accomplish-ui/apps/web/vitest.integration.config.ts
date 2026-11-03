@@ -1,12 +1,29 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Intercept static asset imports at resolve time so test environments don't
+// try to open /assets/... as real filesystem paths (they don't exist in tests).
+const staticAssetMock: Plugin = {
+  name: 'static-asset-mock',
+  enforce: 'pre',
+  resolveId(id: string) {
+    if (/\.(svg|png|jpg|jpeg|gif|ico|webp)(\?.*)?$/.test(id)) {
+      return '\0virtual:static-asset';
+    }
+  },
+  load(id: string) {
+    if (id === '\0virtual:static-asset') {
+      return 'export default ""';
+    }
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), staticAssetMock],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/client'),
