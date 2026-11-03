@@ -90,7 +90,6 @@ export function useSettingsDialog({
   const handleSelectProvider = useCallback(
     async (providerId: ProviderId) => {
       setSelectedProvider(providerId);
-      setCloseWarning(false);
       setShowModelError(false);
       const provider = settings?.connectedProviders?.[providerId];
       if (provider && isProviderReady(provider)) {

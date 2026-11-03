@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { Customer, Project } from '@/lib/accomplish';
+import { getAccomplish, type Customer, type Project } from '@/lib/accomplish';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('ProjectTrackingPanel');
@@ -30,12 +30,12 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
   const [error, setError] = useState<string | null>(null);
 
   const reloadCustomers = useCallback(async () => {
-    const { customers: next } = await window.accomplish.listCustomers();
+    const { customers: next } = await getAccomplish().listCustomers();
     setCustomers(next);
   }, []);
 
   const reloadProjects = useCallback(async () => {
-    const { projects: next } = await window.accomplish.listProjects({});
+    const { projects: next } = await getAccomplish().listProjects({});
     setAllProjects(next);
   }, []);
 
@@ -65,7 +65,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
 
   const addCustomer = useCallback(
     (name: string) => runMutation(async () => {
-      await window.accomplish.createCustomer({ customerName: name });
+      await getAccomplish().createCustomer({ customerName: name });
       await reloadCustomers();
     }),
     [runMutation, reloadCustomers],
@@ -73,7 +73,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
 
   const editCustomer = useCallback(
     (id: string, name: string) => runMutation(async () => {
-      await window.accomplish.updateCustomer({ customerId: id, customerName: name });
+      await getAccomplish().updateCustomer({ customerId: id, customerName: name });
       await reloadCustomers();
     }),
     [runMutation, reloadCustomers],
@@ -81,7 +81,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
 
   const deleteCustomer = useCallback(
     (id: string) => runMutation(async () => {
-      await window.accomplish.deleteCustomer({ customerId: id });
+      await getAccomplish().deleteCustomer({ customerId: id });
       await reloadCustomers();
       if (selectedCustomerId === id) { setSelectedCustomerId(null); }
     }),
@@ -91,7 +91,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
   const addProject = useCallback(
     (name: string) => runMutation(async () => {
       if (!selectedCustomerId) { throw new Error('Select a customer first'); }
-      await window.accomplish.createProject({ customerId: selectedCustomerId, projectName: name });
+      await getAccomplish().createProject({ customerId: selectedCustomerId, projectName: name });
       await reloadProjects();
     }),
     [runMutation, reloadProjects, selectedCustomerId],
@@ -99,7 +99,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
 
   const editProject = useCallback(
     (id: string, name: string) => runMutation(async () => {
-      await window.accomplish.updateProject({ projectId: id, projectName: name });
+      await getAccomplish().updateProject({ projectId: id, projectName: name });
       await reloadProjects();
     }),
     [runMutation, reloadProjects],
@@ -107,7 +107,7 @@ export function useProjectTrackingPanel(): UseProjectTrackingPanelResult {
 
   const deleteProject = useCallback(
     (id: string) => runMutation(async () => {
-      await window.accomplish.deleteProject({ projectId: id });
+      await getAccomplish().deleteProject({ projectId: id });
       await reloadProjects();
     }),
     [runMutation, reloadProjects],

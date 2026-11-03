@@ -640,6 +640,11 @@ export function App() {
     if (event.stepStatus === 'failed') { return; }
 
     const mappedStage = MACRO_CATEGORY_TO_STAGE[event.macroCategory];
+    // Reaching any stage past intake means the BOM step is over; the intake
+    // panel must stop showing "Standardizing BOM" (it only learns this here).
+    if (mappedStage && mappedStage !== 'intake') {
+      setIntakeProgress((prev) => (prev.bomStatus === 'done' ? prev : { ...prev, bomStatus: 'done' }));
+    }
     if (mappedStage) {
       // The "reports are ready" banner (below) renders as soon as this
       // stage is reached, but its download buttons depend on exportStatus,
@@ -1093,7 +1098,10 @@ export function App() {
       {/* ─── GLOBAL HEADER ────────────────────────────────────────────────── */}
       <header className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <img src="/assets/bullmquote-logo.png" alt="BuLLMQuote" className="h-6 w-auto object-contain" />
+          {/* Centum logo is white-on-transparent, so it sits on a dark chip to stay visible on the light header. */}
+          <span className="inline-flex items-center rounded-md bg-[#1f1f1f] px-3 py-1.5">
+            <img src="/assets/centum-logo.png" alt="Centum" className="h-5 w-auto object-contain" />
+          </span>
           {/* Only once real processing has actually started -- either rfqProgressLog
               has its first entry (a live SSE skill-progress event or a resumed
               history), or the user has actually dispatched the BOM/Volume upload

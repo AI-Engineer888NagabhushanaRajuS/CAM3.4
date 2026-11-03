@@ -209,10 +209,11 @@ interface PaneInnerProps {
   messages: RFQMessage[];
   isRunning: boolean;
   runtime: ReturnType<typeof useExternalStoreRuntime<RFQMessage>>;
-  onClose: () => void;
+  onClose?: () => void;
+  inline: boolean;
 }
 
-function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerProps) {
+function PaneInner({ rfqId, messages, isRunning, runtime, onClose, inline }: PaneInnerProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -236,8 +237,12 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
     send(text);
   };
 
+  const rootClass = inline
+    ? 'flex h-full min-h-0 w-full flex-col overflow-hidden bg-background'
+    : 'fixed bottom-4 right-4 z-50 flex h-[min(580px,calc(100vh-2rem))] h-[min(580px,calc(100dvh-2rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl';
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex h-[min(580px,calc(100vh-2rem))] h-[min(580px,calc(100dvh-2rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+    <div className={rootClass}>
 
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-4 py-3 backdrop-blur-sm">
@@ -248,13 +253,15 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
             {rfqId}
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Close chat"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close chat"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* ── Messages ── */}
@@ -326,13 +333,15 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
 interface RFQChatPaneProps {
   rfqId: string;
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  /** Render in the page's middle column instead of the floating corner pane. */
+  inline?: boolean;
 }
 
-export function RFQChatPane({ rfqId, isOpen, onClose }: RFQChatPaneProps) {
+export function RFQChatPane({ rfqId, isOpen, onClose, inline = false }: RFQChatPaneProps) {
   const { runtime, messages, isRunning } = useRFQChatRuntime(rfqId);
 
-  if (!isOpen) return null;
+  if (!isOpen && !inline) return null;
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -342,6 +351,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose }: RFQChatPaneProps) {
         isRunning={isRunning}
         runtime={runtime}
         onClose={onClose}
+        inline={inline}
       />
     </AssistantRuntimeProvider>
   );

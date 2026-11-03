@@ -157,7 +157,7 @@ export function useExecutionActions(s: CoreState) {
   }, [accomplish, s, navigate]);
 
   const handleOpenSpeechSettings = useCallback(() => {
-    s.setSettingsInitialTab('voice');
+    s.setSettingsInitialTab('providers');
     s.setShowSettingsDialog(true);
   }, [s]);
   const handleOpenModelSettings = useCallback(() => {

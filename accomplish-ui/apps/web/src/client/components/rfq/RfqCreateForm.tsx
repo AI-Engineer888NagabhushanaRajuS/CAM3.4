@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect, type SelectItem } from '@/components/ui/searchable-select';
 import { logger } from '@/lib/logger';
+import { getAccomplish } from '@/lib/accomplish';
 
 interface RfqCreateFormProps {
   onCreated: (rfqId: string) => void;
@@ -28,8 +29,8 @@ export function RfqCreateForm({ onCreated, onCancel }: RfqCreateFormProps) {
   useEffect(() => {
     setCustomersLoading(true);
     Promise.all([
-      window.accomplish.listCustomers(),
-      window.accomplish.getNextRfqId(),
+      getAccomplish().listCustomers(),
+      getAccomplish().getNextRfqId(),
     ])
       .then(([{ customers: list }, { rfqId: suggested }]) => {
         setCustomers(list.map((c) => ({ id: c.customer_id, name: c.customer_name })));
@@ -46,7 +47,7 @@ export function RfqCreateForm({ onCreated, onCancel }: RfqCreateFormProps) {
     if (!customerId) { setProjects([]); setProjectId(null); return; }
     setProjectsLoading(true);
     setProjectId(null);
-    window.accomplish.listProjects({ customerId })
+    getAccomplish().listProjects({ customerId })
       .then(({ projects: list }) => {
         setProjects(list.map((p) => ({ id: p.project_id, name: p.project_name })));
       })
@@ -60,7 +61,7 @@ export function RfqCreateForm({ onCreated, onCancel }: RfqCreateFormProps) {
   useEffect(() => {
     if (!rfqId.trim()) { setRfqIdMessage(null); return; }
     let cancelled = false;
-    window.accomplish.checkRfqExists({ rfqId: rfqId.trim() })
+    getAccomplish().checkRfqExists({ rfqId: rfqId.trim() })
       .then(({ exists }) => {
         if (!cancelled) { setRfqIdMessage(exists ? 'This RFQ ID already exists — choose a different one.' : null); }
       })
@@ -73,7 +74,7 @@ export function RfqCreateForm({ onCreated, onCancel }: RfqCreateFormProps) {
     setCreating(true);
     setCreateError(null);
     try {
-      await window.accomplish.createRfq({ rfqId: rfqId.trim(), customerId, projectId });
+      await getAccomplish().createRfq({ rfqId: rfqId.trim(), customerId, projectId });
       onCreated(rfqId.trim());
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err));

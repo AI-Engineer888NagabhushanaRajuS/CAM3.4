@@ -1,5 +1,6 @@
 import { SpinnerGap, CheckCircle, Warning, FileText } from '@phosphor-icons/react';
 import type { WorkflowStageId } from '../../App';
+import { Button } from '../ui/button';
 
 export type UploadStepStatus = 'pending' | 'uploading' | 'processing' | 'done' | 'error';
 
@@ -54,16 +55,12 @@ function stepLabel(status: UploadStepStatus, verb: string, errorMessage: string 
  * modals and the awaitUploads hitl:request event -- this component only
  * renders it.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function RfqIntakeProgressPanel({ progress, currentWorkflowStage: _currentWorkflowStage, onRequestErpUpload: _onRequestErpUpload }: RfqIntakeProgressPanelProps) {
+export function RfqIntakeProgressPanel({ progress, currentWorkflowStage: _currentWorkflowStage, onRequestErpUpload }: RfqIntakeProgressPanelProps) {
   if (progress.bomStatus === 'pending') { return null; }
 
-  // QuoteWin/Costing Sheet progress + the "upload next" prompt intentionally
-  // removed from this panel -- RFQ_Flow (this project's only active pipeline)
-  // uploads BOM + Volume together up front; there is no separate QuoteWin/
-  // Costing Sheet step to progress-track here. currentWorkflowStage/
-  // onRequestErpUpload are kept as props (Standard_BOM_Flow's own upload
-  // modal still uses them elsewhere) but no longer read by this panel.
+  // Standard_BOM_Flow needs a QuoteWin file before standardize_quote_win can run,
+  // and that step follows the BOM gate, so offer the upload while processing too
+  // (see RfqErpQuoteWinUploadModal; it resumes the run itself).
   return (
     <div className="mb-4 rounded-lg border border-border/70 bg-background/60 p-3 space-y-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Intake Progress</p>
@@ -76,6 +73,12 @@ export function RfqIntakeProgressPanel({ progress, currentWorkflowStage: _curren
           {stepLabel(progress.bomStatus, 'Standardizing BOM', progress.errorMessage)}
         </span>
       </div>
+
+      {(progress.bomStatus === 'processing' || progress.bomStatus === 'done') && (
+        <Button size="sm" className="w-full" onClick={onRequestErpUpload}>
+          Upload QuoteWin / Costing Sheet
+        </Button>
+      )}
     </div>
   );
 }
