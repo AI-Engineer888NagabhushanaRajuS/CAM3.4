@@ -92,7 +92,7 @@
   --secondary-foreground: 216 21% 27%; /* #364152 */
 
   --muted: 210 33% 96%; /* #EEF2F6 */
-  --muted-foreground: 215 12% 47%; /* #697586 — Berry grey-500, text.secondary */
+  --muted-foreground: 215 12% 44%; /* #636E7E — Berry grey-500 darkened to AA (4.5:1) on --muted and muted/60 surfaces */
 
   --accent: 210 33% 96%; /* #EEF2F6 */
   --accent-foreground: 219 36% 11%; /* #121926 — Berry grey-900, text.dark */

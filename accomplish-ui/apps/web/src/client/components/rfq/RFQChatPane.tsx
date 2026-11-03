@@ -138,7 +138,7 @@ function useRFQChatRuntime(rfqId: string) {
 function CitationChip({ citation }: { citation: MessageCitation }) {
   const Icon = SOURCE_ICON[citation.sourceType] ?? FileText;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-foreground/80">
       <Icon className="h-2.5 w-2.5 shrink-0" />
       {citation.label}
     </span>
@@ -244,7 +244,7 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
         <div className="flex items-center gap-2">
           <ChatCircle className="h-4 w-4 text-primary" weight="fill" />
           <span className="text-sm font-semibold text-foreground">RFQ Assistant</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground/80">
             {rfqId}
           </span>
         </div>
@@ -290,7 +290,7 @@ function PaneInner({ rfqId, messages, isRunning, runtime, onClose }: PaneInnerPr
             type="button"
             disabled={isRunning}
             onClick={() => send(s.prompt)}
-            className="shrink-0 min-h-[24px] rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+            className="shrink-0 min-h-[24px] rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
           >
             {s.title}
           </button>
