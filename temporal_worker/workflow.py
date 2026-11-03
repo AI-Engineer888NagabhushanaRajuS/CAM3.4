@@ -18,11 +18,18 @@ with workflow.unsafe.imports_passed_through():
 class RFQWorkflow:
     def __init__(self):
         self._hitl_decision = None
+        self._awaiting_tool = None
 
     @workflow.signal
     def human_decision(self, decision: dict):
         """Signal sent by hitl_router when a human approves or rejects a HITL gate."""
         self._hitl_decision = decision
+
+    @workflow.query
+    def hitl_state(self) -> dict:
+        """Is the run parked at a human gate? The UI's "continue" call signals a run only when this says
+        it is waiting, so a stray click can never pre-approve a later gate."""
+        return {"awaiting": self._awaiting_tool is not None, "tool": self._awaiting_tool}
 
     @workflow.run
     async def run(self, rfq_id: str, profile_name: str) -> dict:
@@ -51,6 +58,11 @@ class RFQWorkflow:
         tool_args = {"rfq_id": rfq_id}
         for tool_name in sequence[start_index:]:
 
+            # A decision that arrived while nobody was waiting for one must not pre-approve this step's
+            # gate. (A decision sent while THIS tool is still running, before it asks for one, is kept:
+            # the UI may answer the moment it is told a review is needed.)
+            self._hitl_decision = None
+
             # 2. Call the tool via fastapi_router (unchanged contract)
             result = await workflow.execute_activity(
                 activities.execute_tool,
@@ -72,9 +84,11 @@ class RFQWorkflow:
 
             # 3. HITL gate: block until human sends human_decision signal
             if result.get("hitl_required") or result.get("hitl") == 1:
+                self._awaiting_tool = tool_name
                 await workflow.wait_condition(
                     lambda: self._hitl_decision is not None
                 )
+                self._awaiting_tool = None
                 decision = self._hitl_decision
                 self._hitl_decision = None  # reset for next gate
 

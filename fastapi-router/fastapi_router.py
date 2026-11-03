@@ -106,6 +106,12 @@ def _validate_sql_identifier(value: str, field_name: str) -> str:
         )
     return value
 
+def _daemon_url(path):
+    """The daemon (SSE hub for the web UI) is not part of this service: CAM_DAEMON_URL says where it
+    listens (compose sets host.docker.internal:9334). This used to be a hard-coded mesh IP."""
+    return os.environ.get("CAM_DAEMON_URL", "http://127.0.0.1:9334").rstrip("/") + path
+
+
 def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_category_name, step_status, error=None):
     payload = {
         "rfqId": rfq_id,
@@ -118,11 +124,14 @@ def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_
     }
     if error is not None:
         payload["error"] = error
-    httpx.post(
-    "http://100.121.36.255:9334/api/internal/emit-skill-progress",
-    json=payload,
-    timeout=5,
-    )
+    httpx.post(_daemon_url("/api/internal/emit-skill-progress"), json=payload, timeout=5)
+
+
+def notify_hitl_required(rfq_id, stage):
+    """A tool stopped at a human gate. The UI opens its review screen only on the daemon's `hitl:request`
+    SSE event; the Dify DMR sent it (HTTP Request 3, same body), the Temporal path never did."""
+    httpx.post(_daemon_url("/api/internal/trigger-hitl"),
+               json={"rfqId": rfq_id, "stage": stage, "hitlType": "approval"}, timeout=5)
 
 def _notify_execute_failure(rfq_id, tool_name, error_message):
     """Best-effort UI notification for any /tool/execute failure path -- a
@@ -465,6 +474,10 @@ def execute_tool(request: ToolExecuteRequest):
                             f"RFQ={effective_rfq_id} tool={request.tool_name} -- "
                             f"awaiting human review"
                         )
+                        try:
+                            notify_hitl_required(effective_rfq_id, request.tool_name)
+                        except Exception as e:
+                            print(f"[SSE ERROR] (hitl request) {e}")
                         # This skill's own execution genuinely finished (it's
                         # the PIPELINE that's paused pending human review, not
                         # this tool call) -- without a "completed" notification

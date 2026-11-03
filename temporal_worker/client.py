@@ -4,7 +4,9 @@ by hitl_router.py to send HITL decision signals.
 import importlib.util
 import os
 
-from temporalio.client import Client
+from temporalio.client import Client, WorkflowExecutionStatus
+from temporalio.common import WorkflowIDConflictPolicy
+from temporalio.service import RPCError, RPCStatusCode
 
 # fastapi-router has its own config.py. hitl_router.py loads that one first, so a bare
 # `import config` here would return it. Load this folder's config.py by path instead.
@@ -19,9 +21,9 @@ from workflow import RFQWorkflow  # noqa: E402
 async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> str:
     """Start an RFQ workflow and return the workflow ID.
 
-    The workflow ID is per RFQ, not per version. If a run for this RFQ is still running,
-    Temporal raises WorkflowAlreadyStartedError: the caller must treat that as a failed
-    trigger, never as a new run (returning the old ID would hide a new version).
+    The workflow ID is per RFQ, not per version, and a new upload IS a new version: it supersedes a run
+    still alive for this RFQ (typically one parked at the scrub gate), which is terminated. Failing the
+    trigger instead left that run behind and made every later upload of the RFQ fail.
     """
     client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
     handle = await client.start_workflow(
@@ -29,8 +31,32 @@ async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow
         args=[rfq_id, profile_name],
         id=get_workflow_id(rfq_id),
         task_queue=config.TASK_QUEUE,
+        id_conflict_policy=WorkflowIDConflictPolicy.TERMINATE_EXISTING,
     )
     return handle.id
+
+
+async def resume_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> tuple:
+    """The UI's "continue" (GET /api/dify/start): returns (workflow_id, outcome).
+
+    RESUMED - the run was parked at a human gate; it is told to carry on.
+    RUNNING - the run is mid-step; nothing is sent (a decision stored now would pre-approve the NEXT gate).
+    STARTED - no live run (never started, finished, or terminated): start one; it resumes at skill_index.
+    """
+    client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+    handle = client.get_workflow_handle(get_workflow_id(rfq_id))
+    try:
+        running = (await handle.describe()).status == WorkflowExecutionStatus.RUNNING
+    except RPCError as e:
+        if e.status != RPCStatusCode.NOT_FOUND:
+            raise
+        running = False
+    if not running:
+        return await start_rfq_workflow(rfq_id, profile_name), "STARTED"
+    if (await handle.query(RFQWorkflow.hitl_state))["awaiting"]:
+        await handle.signal(RFQWorkflow.human_decision, {"action": "approve", "via": "resume"})
+        return handle.id, "RESUMED"
+    return handle.id, "RUNNING"
 
 
 async def send_hitl_signal(workflow_id: str, decision: dict):

@@ -180,6 +180,14 @@ def test_temporal_workflow_hitl_gate_blocks_until_signal():
                     id="test-workflow-hitl",
                     task_queue="test-queue-hitl",
                 )
+                # hitl_router signals only after a human acts, i.e. once the gate was reached. (A decision
+                # sent before that is discarded on purpose: it cannot pre-approve a gate.)
+                for _ in range(200):
+                    if (await handle.query(wf.RFQWorkflow.hitl_state))["awaiting"]:
+                        break
+                    await asyncio.sleep(0.1)
+                else:
+                    raise AssertionError("the run never reached the HITL gate")
                 # Send approve signal (simulates hitl_router.py)
                 await handle.signal(wf.RFQWorkflow.human_decision, {"action": "approve"})
                 result = await handle.result()
@@ -218,11 +226,12 @@ def test_routing_sequence_error_body_raises_not_empty_success():
             asyncio.run(act.get_routing_sequence("CE-X", "RFQ_Flow"))
 
 
-def test_start_rfq_workflow_refuses_to_mask_a_running_run(monkeypatch):
-    """The workflow ID is per RFQ. A second start while a run is still running must raise,
-    not return the old ID: a new upload version must never be reported as triggered."""
+def test_start_rfq_workflow_supersedes_a_running_run_instead_of_masking_it(monkeypatch):
+    """The workflow ID is per RFQ and a new upload is a new version. A second start while a run is
+    still alive (parked at HITL) must terminate it and start a NEW run: it used to raise, which left
+    the old run behind and made every later upload of the RFQ fail. (Fuller cases: test_temporal_resume.)"""
     import asyncio
-    from temporalio.exceptions import WorkflowAlreadyStartedError
+    from temporalio.client import WorkflowExecutionStatus
     from temporalio.testing import WorkflowEnvironment
     import client as tc
 
@@ -235,8 +244,12 @@ def test_start_rfq_workflow_refuses_to_mask_a_running_run(monkeypatch):
             # No worker is started, so the workflow stays RUNNING, like a run parked at HITL.
             first = await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
             assert first == "rfq-CE-IDEM-1"
-            with pytest.raises(WorkflowAlreadyStartedError):
-                await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
+            old_run = (await env.client.get_workflow_handle(first).describe()).run_id
+            second = await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
+            assert second == first
+            assert (await env.client.get_workflow_handle(second).describe()).run_id != old_run
+            old = await env.client.get_workflow_handle(first, run_id=old_run).describe()
+            assert old.status == WorkflowExecutionStatus.TERMINATED
 
     asyncio.run(run())
 

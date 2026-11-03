@@ -68,10 +68,12 @@ def get_db_connection():
 _GUARD_SCHEMA_LOCK = threading.Lock()
 
 
-def trigger_dify_workflow_internal(rfq_id: str):
+def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False):
     """Triggers workflow and logs the attempt to DB.
 
-    When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify.
+    When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify. `resume` is the UI's
+    "continue" (GET /api/dify/start): the run parked at a human gate is told to carry on instead of a
+    second run being started; an upload (resume=False) starts a run for the new version.
     When USE_TEMPORAL=false: calls Dify as before (the default is true; see CAM_USE_TEMPORAL).
 
     Guarded by db.try_start_pipeline_run() -- both callers of this function
@@ -103,10 +105,14 @@ def trigger_dify_workflow_internal(rfq_id: str):
             if _worker_dir not in _sys.path:
                 _sys.path.insert(0, _worker_dir)
             import client as temporal_client
-            workflow_id = asyncio.run(temporal_client.start_rfq_workflow(rfq_id))
-            print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} started for {rfq_id}")
+            if resume:
+                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id))
+            else:
+                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id)), "STARTED"
+            print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} {outcome} for {rfq_id}")
             dify_status = "TRIGGERED"
-            dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id}
+            dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id,
+                                     "outcome": outcome}
         except Exception as temporal_err:
             print(f"[TEMPORAL EXCEPTION]: {temporal_err}")
             dify_status = "CONNECTION_REFUSED"
@@ -266,7 +272,7 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
         raise HTTPException(status_code=400, detail="rfq_id cannot be empty.")
 
     # Off the event loop: the trigger calls asyncio.run() (Temporal) and blocks on requests (Dify).
-    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id)
+    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True)
 
     return {
         "success": dify_status in ["TRIGGERED", "SUCCESS"],

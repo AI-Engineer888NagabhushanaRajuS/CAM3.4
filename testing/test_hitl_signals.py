@@ -157,6 +157,13 @@ def test_workflow_resumes_after_hitl_approve():
                     id="test-hitl-resume",
                     task_queue="test-hitl-resume",
                 )
+                # The run ignores a decision sent before it reaches the gate (see workflow.py), so wait for it.
+                for _ in range(200):
+                    if (await handle.query(wf.RFQWorkflow.hitl_state))["awaiting"]:
+                        break
+                    await asyncio.sleep(0.1)
+                else:
+                    raise AssertionError("the run never reached the HITL gate")
                 await handle.signal(wf.RFQWorkflow.human_decision, {
                     "action": "approve",
                     "gate": "resolve_final_selection",
@@ -213,6 +220,13 @@ def test_workflow_terminates_on_hitl_reject():
                     id="test-hitl-reject",
                     task_queue="test-hitl-reject",
                 )
+                # The run ignores a decision sent before it reaches the gate (see workflow.py), so wait for it.
+                for _ in range(200):
+                    if (await handle.query(wf.RFQWorkflow.hitl_state))["awaiting"]:
+                        break
+                    await asyncio.sleep(0.1)
+                else:
+                    raise AssertionError("the run never reached the HITL gate")
                 await handle.signal(wf.RFQWorkflow.human_decision, {
                     "action": "reject",
                     "reason": "wrong supplier",
