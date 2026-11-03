@@ -278,6 +278,14 @@ export class BrowserApiServer {
         updated_at TIMESTAMP DEFAULT now()
       )
     `);
+    // Tables created before currency_name existed are skipped by CREATE TABLE IF NOT EXISTS, so add the
+    // column here (nullable: the old rows have none) and name the seeded rows below.
+    await pgPool.query(`ALTER TABLE currency_conversion_rates ADD COLUMN IF NOT EXISTS currency_name VARCHAR`);
+    await pgPool.query(`
+      UPDATE currency_conversion_rates SET currency_name = v.name
+      FROM (VALUES ('USD', 'US Dollar'), ('INR', 'Indian Rupee'), ('EUR', 'Euro')) AS v(code, name)
+      WHERE currency_conversion_rates.currency_code = v.code AND currency_conversion_rates.currency_name IS NULL
+    `);
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS currency_settings (
         id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),

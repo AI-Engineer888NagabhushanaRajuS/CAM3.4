@@ -579,7 +579,7 @@ def download_cbom_only_export(rfq_id: str):
 # neither of which version-scope their inserts).
 # ============================================================
 
-BOM_STORAGE_DB_PATH = r"C:\SRIM-DB-SETUP\Databases\bom_storage.duckdb"
+BOM_STORAGE_DB_PATH = os.environ.get("BOM_STORAGE_DB", r"C:\SRIM-DB-SETUP\Databases\bom_storage.duckdb")
 _DETECT_ALTERNATES_TOOL = "distributor__detect_alternates"
 
 # (our column prefix, display name shown in the Suppliers column)

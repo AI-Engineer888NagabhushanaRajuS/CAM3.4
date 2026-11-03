@@ -396,7 +396,7 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
 # state regardless of which flow/profile an rfq_id is running.
 # ============================================================
 
-BOM_STORAGE_DB_PATH = r"C:\SRIM-DB-SETUP\Databases\bom_storage.duckdb"
+BOM_STORAGE_DB_PATH = os.environ.get("BOM_STORAGE_DB", r"C:\SRIM-DB-SETUP\Databases\bom_storage.duckdb")
 _DETECT_ALTERNATES_TOOL = "distributor__detect_alternates"
 
 

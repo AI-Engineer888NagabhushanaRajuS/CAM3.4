@@ -122,7 +122,26 @@ services:
       CAM_MCP_HOST_CENTUM_DISTRIBUTOR_PRICING: distributor-pricing-mcp-server
       CAM_MCP_HOST_CENTUM_GERBER_INTEGRATION: gerber-integration-mcp-server
       CAM_MCP_HOST_CENTUM_SCRUB_INTAKE: scrub-intake-mcp-server
+      # The daemon runs on the host (SSE hub for the UI); progress and HITL pushes go there.
+      CAM_DAEMON_URL: http://host.docker.internal:9334
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["15100:5100"]
+
+  # Python Bridge (duck_db_api.py): the UI's auth token, BOM edits, previews, exports and downloads.
+  python-bridge:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: duck_db_api.py }
+    environment:
+      <<: *python-env
+      REPORTING_EXPORTS_DIR: /app/exports
+    volumes:
+      - ./database:/app/database
+      - inbox:/app/fastapi-router/staged/inbox
+      - exports:/app/exports
+    ports: ["13110:3110"]
 
   hitl-router:
     <<: *python-common
@@ -159,7 +178,13 @@ services:
       context: .
       dockerfile: docker/python-service.Dockerfile
       args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py }
-    environment: *python-env
+    environment:
+      <<: *python-env
+      REPORTING_EXPORTS_DIR: /app/exports
+    volumes:
+      - ./database:/app/database
+      - inbox:/app/fastapi-router/staged/inbox
+      - exports:/app/exports
     ports: ["18105:8105"]
 
   intake-mcp-server:
@@ -224,3 +249,4 @@ services:
 volumes:
   postgres-data:
   inbox:
+  exports:
