@@ -149,3 +149,19 @@ def test_process_bom_to_database_creates_the_table_it_writes(tmp_path):
     assert out == {"status": "success", "rows_inserted": 1}
     with duckdb.connect(b2d.DB_PATH) as conn:
         assert conn.execute("SELECT COUNT(*) FROM processed_bom_items WHERE rfq_id = 'RFQ-T'").fetchone()[0] == 1
+
+
+def test_process_bom_import_is_idempotent_for_the_same_rfq(tmp_path):
+    cfg = _load("intake_config_under_test", os.path.join(INTAKE, "config.py"))
+    b2d = _load("intake_bom_to_database_under_test", os.path.join(INTAKE, "bom_to_database.py"), {"config": cfg})
+    b2d.DB_PATH = str(tmp_path / "bom_storage.duckdb")
+    df = pd.DataFrame([{
+        "fg": "F1", "cpn": "C-1", "description": "cap", "mfr": "M", "mpn": "P-1", "commodity": "cap",
+        "bom_qty": 2.0, "volume": 10.0, "required_qty": 20.0, "uom": "EA",
+    }])
+    first = b2d.process_bom_to_database("RFQ-T", str(tmp_path / "bom.xlsx"), df)
+    second = b2d.process_bom_to_database("RFQ-T", str(tmp_path / "bom.xlsx"), df)
+    assert first == {"status": "success", "rows_inserted": 1}
+    assert second == {"status": "success", "rows_inserted": 0, "already_exists": True, "existing_rows": 1}
+    with duckdb.connect(b2d.DB_PATH) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM processed_bom_items WHERE rfq_id = 'RFQ-T'").fetchone()[0] == 1

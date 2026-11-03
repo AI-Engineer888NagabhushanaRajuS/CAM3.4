@@ -44,6 +44,12 @@ _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 _PROFILE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 # system_skills_registry NOT NULL columns without a default (Reference docs/Database/logic-database.md)
 _REGISTRY_FIELDS = ("skill_code", "skill_index", "macro_category_name")
+# Progress events carry this number; the UI maps it to a stage (App.tsx MACRO_CATEGORY_TO_STAGE).
+# Manifests name the stage only, so the number is derived here. NULL made every event malformed.
+_MACRO_NUMBER = {
+    "intake": 1, "extraction": 2, "pricing": 3, "erpDataSync": 4, "risk": 5,
+    "pricingConsolidation": 6, "priceDecision": 7, "quoteReadiness": 8, "reportingAnalytics": 9,
+}
 
 
 # --- validate ---------------------------------------------------------------
@@ -188,7 +194,8 @@ def register_tools(conn, profile, tools, apply=False, receipt_dir=RECEIPTS_DIR):
                         "INSERT INTO system_skills_registry (skill_code, skill_index, skill_name, macro_category_name, "
                         "mcp_tool_name, macro_category, requires_llm) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                         (t["skill_code"], idx, skill_name, t["macro_category_name"], name,
-                         t.get("macro_category"), bool(t.get("requires_llm", False))))
+                         t.get("macro_category") or _MACRO_NUMBER[t["macro_category_name"]],
+                         bool(t.get("requires_llm", False))))
                     added_registry.append(name)
                 if name not in seq:
                     seq.append(name)

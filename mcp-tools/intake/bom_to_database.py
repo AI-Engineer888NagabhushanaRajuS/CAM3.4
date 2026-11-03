@@ -103,11 +103,11 @@ def process_bom_structure_to_database(rfq_id, bom_file, expanded_df):
         ).fetchone()[0]
 
         if existing_count > 0:
-
             return {
-                "status": "failed",
-                "error": f"RFQ ID {rfq_id} already exists in bom_structure_items",
-                "existing_rows": existing_count
+                "status": "success",
+                "rows_inserted": 0,
+                "already_exists": True,
+                "existing_rows": existing_count,
             }
 
         conn.register("temp_structure_df", df)
@@ -193,11 +193,11 @@ def process_bom_to_database(rfq_id, bom_file, consolidated_df):
         ).fetchone()[0]
 
         if existing_count > 0:
-
             return {
-                "status": "failed",
-                "error": f"RFQ ID {rfq_id} already exists in database",
-                "existing_rows": existing_count
+                "status": "success",
+                "rows_inserted": 0,
+                "already_exists": True,
+                "existing_rows": existing_count,
             }
 
         conn.register("temp_df", df)

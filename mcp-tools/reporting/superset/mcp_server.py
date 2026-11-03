@@ -51,6 +51,7 @@ _FASTMCP_ROUTER_DIR = os.path.join(_REPO_ROOT, "fastapi-router")
 if _FASTMCP_ROUTER_DIR not in sys.path:
     sys.path.append(_FASTMCP_ROUTER_DIR)
 import db
+import currency
 
 mcp = FastMCP("cbom-reporting")
 
@@ -61,6 +62,7 @@ def cbom(rfq_id: str) -> dict:
     input tables. Does not touch the 16 downstream reports. Returns row counts,
     execution time, and any warnings.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_cbom(rfq_id)
@@ -75,6 +77,7 @@ def enrich_erp(rfq_id: str) -> dict:
     data. Requires the `cbom` tool to have already run for this rfq_id. Independent of
     `enrich_costing_sheet` -- either order, or either skipped.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_erp_enrichment(rfq_id)
@@ -89,6 +92,7 @@ def enrich_costing_sheet(rfq_id: str) -> dict:
     costing_sheet data. Requires the `cbom` tool to have already run for this rfq_id.
     Independent of `enrich_erp` -- either order, or either skipped.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_costing_enrichment(rfq_id)
@@ -110,6 +114,7 @@ def resolve_final_selection(rfq_id: str) -> dict:
     advance the routing sequence past this skill until every pending conflict for
     this rfq_id is resolved.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_resolve_final_selection(rfq_id)
@@ -124,6 +129,7 @@ def generate_reports(rfq_id: str) -> dict:
     currently exists (does not regenerate CBOM -- call the `cbom` tool first). Returns
     row counts, execution time, and any warnings/issues.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_pipeline(rfq_id)
@@ -139,6 +145,7 @@ def validate_reports(rfq_id: str) -> dict:
     passed/failed counts and per-table check details. Call after generate_reports to
     confirm data quality without needing to export to Excel first.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return reporting_pipeline.run_validate_reports(rfq_id)
@@ -153,6 +160,7 @@ def export_reports(rfq_id: str) -> dict:
     consolidated Excel workbook. Does not regenerate any data -- reads whatever is
     currently stored for that rfq_id.
     """
+    currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
             return exporter.export_excel(rfq_id)

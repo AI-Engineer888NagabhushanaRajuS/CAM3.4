@@ -84,9 +84,13 @@ def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False):
     function's own docstring in db.py for the full reasoning and its stated
     limitations.
     """
+    # A resume never starts a second run while one is alive: resume_rfq_workflow only signals a
+    # parked run, and does nothing for a running one. So the duplicate-trigger guard (which the
+    # upload's own run just armed) must not reject "continue". ponytail: two continue clicks racing
+    # with no live run could both start; add a lock there if that ever shows up.
     with _GUARD_SCHEMA_LOCK:
         db.ensure_processing_guard_schema()
-    if not db.try_start_pipeline_run(rfq_id):
+    if not resume and not db.try_start_pipeline_run(rfq_id):
         print(f"[DIFY API SKIPPED]: {rfq_id} already has a pipeline run triggered recently -- rejecting duplicate trigger")
         return "ALREADY_PROCESSING", {
             "status": "REJECTED",

@@ -1,0 +1,12 @@
+# Build context for docker/python-service.Dockerfile (repo root). The Python services never
+# need the Electron/web UI, JS dependencies, git history, tests or docs.
+.git
+accomplish-ui
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/service_logs
+**/*.log
+testing
+docs

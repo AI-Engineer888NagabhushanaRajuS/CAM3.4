@@ -58,9 +58,10 @@ function stepLabel(status: UploadStepStatus, verb: string, errorMessage: string 
 export function RfqIntakeProgressPanel({ progress, currentWorkflowStage: _currentWorkflowStage, onRequestErpUpload }: RfqIntakeProgressPanelProps) {
   if (progress.bomStatus === 'pending') { return null; }
 
-  // Standard_BOM_Flow needs a QuoteWin file before standardize_quote_win can run,
-  // and that step follows the BOM gate, so offer the upload while processing too
-  // (see RfqErpQuoteWinUploadModal; it resumes the run itself).
+  // Standard_BOM_Flow needs a QuoteWin file before standardize_quote_win can run, and
+  // that step comes after the BOM gate. Offer the upload only once the gate is waiting
+  // ('done' is set by the awaitUploads HITL event): a resume sent while the run is still
+  // mid-step is ignored by the backend, which then parks with nothing to wake it.
   return (
     <div className="mb-4 rounded-lg border border-border/70 bg-background/60 p-3 space-y-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Intake Progress</p>
@@ -74,7 +75,7 @@ export function RfqIntakeProgressPanel({ progress, currentWorkflowStage: _curren
         </span>
       </div>
 
-      {(progress.bomStatus === 'processing' || progress.bomStatus === 'done') && (
+      {progress.bomStatus === 'done' && (
         <Button size="sm" className="w-full" onClick={onRequestErpUpload}>
           Upload QuoteWin / Costing Sheet
         </Button>

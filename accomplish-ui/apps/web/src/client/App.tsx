@@ -95,7 +95,9 @@ const WORKFLOW_STAGES = [
     id: 'pricing', mainHeading: 'Get online pricing', name: 'Distributor Pricing', icon: Tag, color: 'amber', tag: 'PRICE',
     subSkills: [{ label: 'Fetch Prices', action: 'jump' }],
   },
-  { id: 'erpDataSync', mainHeading: 'ERP & Quoting tools', name: 'ERP & QuoteWin Data Sync', icon: Briefcase, color: 'cyan', tag: 'SYNC', comingSoon: true, subSkills: [] },
+  // No longer comingSoon -- Standard_BOM_Flow runs enrich_erp and enrich_costing_sheet
+  // (macro_category 4), so this stage has real backend progress to show.
+  { id: 'erpDataSync', mainHeading: 'ERP & Quoting tools', name: 'ERP & QuoteWin Data Sync', icon: Briefcase, color: 'cyan', tag: 'SYNC', subSkills: [] },
   { id: 'risk', mainHeading: 'Analyze feasibility & Risks', name: 'Feasibility & Risk Assessment', icon: ShieldWarning, color: 'purple', tag: 'RISK', comingSoon: true, subSkills: [] },
   {
     id: 'pricingConsolidation', mainHeading: 'Consolidate Pricing Sources', name: 'Pricing Source Consolidation & Validation', icon: Stack, color: 'indigo', tag: 'VALIDATE',
