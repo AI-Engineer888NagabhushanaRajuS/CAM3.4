@@ -68,7 +68,7 @@ def get_db_connection():
 _GUARD_SCHEMA_LOCK = threading.Lock()
 
 
-def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False):
+def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: str | None = None):
     """Triggers workflow and logs the attempt to DB.
 
     When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify. `resume` is the UI's
@@ -112,7 +112,7 @@ def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False):
             if resume:
                 workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id))
             else:
-                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id)), "STARTED"
+                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id, profile)), "STARTED"
             print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} {outcome} for {rfq_id}")
             dify_status = "TRIGGERED"
             dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id,
@@ -297,6 +297,8 @@ async def upload_rfq_file(
     # platform.
     gerber_file: Optional[UploadFile] = File(None),
     rfq_id: str = Form(...),
+    # Optional routing profile for this run; omitted = CAM_DEFAULT_PROFILE (Standard_BOM_Flow unless set).
+    profile: Optional[str] = Form(None),
     token: dict = Depends(auth.verify_token_form),
 ):
     conn = None
@@ -379,7 +381,7 @@ async def upload_rfq_file(
 
         # Trigger Dify workflow
         # Off the event loop: see start_dify_workflow.
-        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id)
+        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, False, profile)
 
         return {
             "success": True,

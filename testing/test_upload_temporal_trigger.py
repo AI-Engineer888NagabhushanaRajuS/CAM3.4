@@ -28,8 +28,8 @@ def _load_upload_server(monkeypatch):
 
     calls = []
 
-    async def start_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", client=None):
-        calls.append(("start", rfq_id))
+    async def start_rfq_workflow(rfq_id, profile_name=None, client=None):
+        calls.append(("start", rfq_id, profile_name))
         return f"rfq-{rfq_id}"
 
     async def resume_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", client=None):
@@ -58,4 +58,12 @@ def test_an_upload_starts_a_run_it_does_not_resume_one(monkeypatch):
     us = _load_upload_server(monkeypatch)
     status, summary = us.trigger_dify_workflow_internal("CE-UP-1")
     assert status == "TRIGGERED" and summary["outcome"] == "STARTED", summary
-    assert us.calls == [("start", "CE-UP-1")]
+    assert us.calls == [("start", "CE-UP-1", None)]
+
+
+def test_an_upload_can_pick_its_routing_profile(monkeypatch):
+    # Per-upload profile (RFQ_Flow vs Standard_BOM_Flow); None means the configured default.
+    us = _load_upload_server(monkeypatch)
+    status, summary = us.trigger_dify_workflow_internal("CE-PROF-1", profile="RFQ_Flow")
+    assert status == "TRIGGERED" and summary["outcome"] == "STARTED", summary
+    assert us.calls == [("start", "CE-PROF-1", "RFQ_Flow")]

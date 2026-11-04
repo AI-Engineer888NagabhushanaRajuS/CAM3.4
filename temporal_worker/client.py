@@ -18,7 +18,7 @@ _config_spec.loader.exec_module(config)
 from workflow import RFQWorkflow  # noqa: E402
 
 
-async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> str:
+async def start_rfq_workflow(rfq_id: str, profile_name: str | None = None) -> str:
     """Start an RFQ workflow and return the workflow ID.
 
     The workflow ID is per RFQ, not per version, and a new upload IS a new version: it supersedes a run
@@ -26,6 +26,7 @@ async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow
     trigger instead left that run behind and made every later upload of the RFQ fail.
     """
     client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+    profile_name = profile_name or config.DEFAULT_PROFILE
     handle = await client.start_workflow(
         RFQWorkflow.run,
         args=[rfq_id, profile_name],
@@ -36,7 +37,7 @@ async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow
     return handle.id
 
 
-async def resume_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> tuple:
+async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None) -> tuple:
     """The UI's "continue" (GET /api/dify/start): returns (workflow_id, outcome).
 
     RESUMED - the run was parked at a human gate; it is told to carry on.
