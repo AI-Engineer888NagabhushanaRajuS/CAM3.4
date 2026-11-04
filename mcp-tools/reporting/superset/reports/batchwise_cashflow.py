@@ -155,7 +155,7 @@ def build_batchwise_cashflow_sheet(wb, payload, ex_inv_row_counts, include_proto
                 f"=SUMIF('Ex Inv VL-proto'!$AE$5:$AE${proto_last_row},$A{r},"
                 f"'Ex Inv VL-proto'!$AD$5:$AD${proto_last_row})"
             )
-            yield 3, f'=$B{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
+            yield 3, f'=$B{r}*IFERROR(_xlfn.NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
 
         write_section(
             "Payment term details for proto",
@@ -174,8 +174,8 @@ def build_batchwise_cashflow_sheet(wb, payload, ex_inv_row_counts, include_proto
                 f"=SUMIF('{sheet_name}'!$AE$5:$AE${ex_inv_last_row},$A{r},"
                 f"'{sheet_name}'!$AD$5:$AD${ex_inv_last_row})"
             )
-            yield 4, f'=$B{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
-            yield 5, f'=$C{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
+            yield 4, f'=$B{r}*IFERROR(_xlfn.NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
+            yield 5, f'=$C{r}*IFERROR(_xlfn.NUMBERVALUE(LEFT($A{r},FIND(" ",$A{r}))),0)'
 
         write_section(
             f"Payment term details for VL-{volume}",
@@ -247,11 +247,11 @@ def _demo():
     assert ws.title == "Batchwise Cashflow"
     assert ws["A3"].value == "Standard"
     assert ws["B3"].value == "=SUMIF('Ex Inv VL-proto'!$AE$5:$AE$300,$A3,'Ex Inv VL-proto'!$AD$5:$AD$300)"
-    assert ws["C3"].value == '=$B3*IFERROR(NUMBERVALUE(LEFT($A3,FIND(" ",$A3))),0)'
+    assert ws["C3"].value == '=$B3*IFERROR(_xlfn.NUMBERVALUE(LEFT($A3,FIND(" ",$A3))),0)'
     assert ws["B5"].value == "=SUM(B3:B4)"  # Grand Total for proto (2 suppliers -> rows 3-4)
     assert ws["A9"].value == "Standard"  # first VL-1 supplier row
     assert ws["B9"].value == "=SUMIF('Ex Inv VL-1'!$AE$5:$AE$200,$A9,'Ex Inv VL-1'!$Z$5:$Z$200)"
-    assert ws["E9"].value == '=$C9*IFERROR(NUMBERVALUE(LEFT($A9,FIND(" ",$A9))),0)'
+    assert ws["E9"].value == '=$C9*IFERROR(_xlfn.NUMBERVALUE(LEFT($A9,FIND(" ",$A9))),0)'
     assert ws["B11"].value == "=SUM(B9:B10)"  # Grand Total for VL-1 (2 suppliers -> rows 9-10)
     assert ws["A1"].fill.fgColor.rgb.endswith("2F5496")
     assert ws["A5"].fill.fgColor.rgb.endswith("FFD966")
