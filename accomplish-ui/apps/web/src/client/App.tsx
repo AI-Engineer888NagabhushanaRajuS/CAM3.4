@@ -884,13 +884,19 @@ export function App() {
     navigate('/login', { replace: true, state: { loggedOut: true } });
   }, [navigate, setCustomRfqId]);
 
+  // The run is finished once its last skill (export_reports) completed. Stages this routing profile never
+  // runs are then 'skipped' rather than 'waiting' forever.
+  const runCompleted = rfqProgressLog.some(
+    (entry) => /export_?reports$/i.test(entry.skillCode) && entry.stepStatus === 'completed',
+  );
+
   // Per-stage status label (Left Pane) -- derived entirely from the existing
   // rfqProgressLog SSE data, no new state or backend calls. A stage is
   // 'failed' if any of its logged skills failed (failures never advance the
   // pipeline -- see applyRfqSkillProgress -- so they stay visible in place),
   // 'running' if it's the live stage AND has real activity, 'completed' if
   // every logged skill for it finished, else 'waiting'.
-  const getStageStatus = useCallback((stageId: WorkflowStageId): 'completed' | 'running' | 'waiting' | 'failed' => {
+  const getStageStatus = useCallback((stageId: WorkflowStageId): 'completed' | 'running' | 'waiting' | 'failed' | 'skipped' => {
     const stageEntries = rfqProgressLog.filter((entry) => MACRO_CATEGORY_TO_STAGE[entry.macroCategory] === stageId);
     if (stageEntries.some((entry) => entry.stepStatus === 'failed')) { return 'failed'; }
     // Being the "current" stage isn't enough on its own -- intake starts out
@@ -902,8 +908,9 @@ export function App() {
       || (stageId === 'intake' && (intakeProgress.bomStatus === 'uploading' || intakeProgress.bomStatus === 'processing'));
     if (stageId === currentWorkflowStage && hasStarted) { return 'running'; }
     if (stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'completed')) { return 'completed'; }
+    if (stageEntries.length === 0 && runCompleted) { return 'skipped'; }
     return 'waiting';
-  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus]);
+  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus, runCompleted]);
 
   // RFQ-level status (header pill) -- same underlying signals rolled up to
   // one badge; only meaningful once an RFQ is actually active.
@@ -917,7 +924,7 @@ export function App() {
   const rfqStatus: 'running' | 'completed' | 'failed' =
     rfqProgressLog.some((entry) => entry.stepStatus === 'failed') || intakeProgress.bomStatus === 'error'
       ? 'failed'
-      : currentWorkflowStage === 'reportingAnalytics'
+      : runCompleted || currentWorkflowStage === 'reportingAnalytics'
         ? 'completed'
         : 'running';
 
@@ -1271,12 +1278,13 @@ export function App() {
                     // replaces the old idx < maxReachedStageIdx checkmark with the
                     // more accurate per-skill derivation from getStageStatus().
                     const stageStatus = isLocked ? 'waiting' : getStageStatus(stage.id as WorkflowStageId);
-                    const stageStatusLabel = { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed' }[stageStatus];
+                    const stageStatusLabel = { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', skipped: 'Not in this profile' }[stageStatus];
                     const stageStatusTextClass = {
                       completed: 'text-emerald-500',
                       running: 'text-brand',
                       waiting: 'text-muted-foreground',
                       failed: 'text-destructive',
+                      skipped: 'text-muted-foreground',
                     }[stageStatus];
 
                     // Every real, live stage (not comingSoon, not fully
