@@ -277,8 +277,9 @@ def build_aclass_parts_sheet(wb, rows, cbom_bounds):
         # both hold a formatted text label ("$ 1234.56"), not a raw number -- so this
         # references the same SUM($K...) expression K1's own formula computes.
         grand_total_row[17] = (
-            f'=ROUND(SUM(${avg_moq_letter}${data_start_row}:${avg_moq_letter}${data_end_row})'
-            f'/SUM(${ext_vol_cost_letter}${data_start_row}:${ext_vol_cost_letter}${data_end_row}),6)'
+            f'=IF(SUM(${ext_vol_cost_letter}${data_start_row}:${ext_vol_cost_letter}${data_end_row})=0,0,'
+            f'ROUND(SUM(${avg_moq_letter}${data_start_row}:${avg_moq_letter}${data_end_row})'
+            f'/SUM(${ext_vol_cost_letter}${data_start_row}:${ext_vol_cost_letter}${data_end_row}),6))'
         )
     else:
         grand_total_row[8] = "$ 0.00"
