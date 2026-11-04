@@ -654,7 +654,9 @@ export function App() {
       // never while a session is already open and watching a run complete
       // live. Re-check here, on the same live signal that drives the
       // banner, so both go stale/fresh together instead of racing.
-      if (mappedStage === 'quoteReadiness' && event.stepStatus === 'completed') {
+      // Standard_BOM_Flow's export_reports is macro 9 (reportingAnalytics), so both stages must refresh.
+      const exportStage = mappedStage === 'quoteReadiness' || mappedStage === 'reportingAnalytics';
+      if (exportStage && event.stepStatus === 'completed') {
         void refreshExportStatus(event.rfqId);
       }
       goToStage(getNextEnabledStage(mappedStage));
