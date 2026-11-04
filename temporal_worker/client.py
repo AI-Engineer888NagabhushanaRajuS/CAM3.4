@@ -44,7 +44,8 @@ async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None) -> t
     RUNNING - the run is mid-step; nothing is sent (a decision stored now would pre-approve the NEXT gate).
     COMPLETED - every skill already ran; nothing to resume, so no second run is started (the UI's
                 retry clicks used to start empty runs here).
-    STARTED - no live run (never started, or terminated/failed): start one; it resumes at skill_index.
+    STARTED - the run terminated or failed: start one; it resumes at skill_index.
+    NOT_STARTED - no run was ever started (nothing uploaded): there is nothing to resume, so none is started.
     """
     client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
     handle = client.get_workflow_handle(get_workflow_id(rfq_id))
@@ -53,7 +54,7 @@ async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None) -> t
     except RPCError as e:
         if e.status != RPCStatusCode.NOT_FOUND:
             raise
-        status = None
+        return None, "NOT_STARTED"
     if status == WorkflowExecutionStatus.COMPLETED:
         return handle.id, "COMPLETED"
     if status != WorkflowExecutionStatus.RUNNING:

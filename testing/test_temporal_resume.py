@@ -147,18 +147,28 @@ def test_a_decision_sent_while_the_gate_tool_is_still_running_is_honoured(monkey
     assert run_with_stack(monkeypatch, body)["status"] == "completed"
 
 
-def test_resume_with_no_live_run_starts_one(monkeypatch):
+def test_resume_never_starts_a_run_that_was_never_uploaded(monkeypatch):
+    # Opening an RFQ calls resume; with nothing ever uploaded there is no run to resume and no inputs to start one.
     async def body(env, stack):
-        wid, outcome = await tc.resume_rfq_workflow("R-RES-5")
-        first_run = (await env.client.get_workflow_handle(wid).describe()).run_id
-        await until(env.client.get_workflow_handle(wid), lambda s: s["awaiting"], "parked at the gate")
-        await tc.resume_rfq_workflow("R-RES-5")
-        await env.client.get_workflow_handle(wid).result()
-        wid2, outcome2 = await tc.resume_rfq_workflow("R-RES-5")  # the run is finished now: no new run
-        second_run = (await env.client.get_workflow_handle(wid2).describe()).run_id
-        return outcome, outcome2, first_run == second_run
+        outcome = await tc.resume_rfq_workflow("R-RES-5")
+        return outcome, stack.called
 
-    assert run_with_stack(monkeypatch, body) == ("STARTED", "COMPLETED", True)
+    outcome, called = run_with_stack(monkeypatch, body)
+    assert outcome == (None, "NOT_STARTED") and called == []
+
+
+def test_resume_after_a_finished_run_starts_nothing_new(monkeypatch):
+    async def body(env, stack):
+        wid = await tc.start_rfq_workflow("R-RES-6")
+        await until(env.client.get_workflow_handle(wid), lambda s: s["awaiting"], "parked at the gate")
+        await tc.resume_rfq_workflow("R-RES-6")  # parked at the gate: released
+        await env.client.get_workflow_handle(wid).result()
+        wid2, outcome2 = await tc.resume_rfq_workflow("R-RES-6")  # the run is finished now: no new run
+        second_run = (await env.client.get_workflow_handle(wid2).describe()).run_id
+        first_run = (await env.client.get_workflow_handle(wid).describe()).run_id
+        return outcome2, first_run == second_run
+
+    assert run_with_stack(monkeypatch, body) == ("COMPLETED", True)
 
 
 def test_a_new_upload_supersedes_a_run_still_parked_for_the_same_rfq(monkeypatch):
