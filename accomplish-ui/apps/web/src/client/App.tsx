@@ -708,6 +708,12 @@ export function App() {
             } catch (err) {
               logger.warn('Failed to resolve stage-based HITL mode, using legacy type mapping', { err });
             }
+            // Standard_BOM_Flow's final-selection gate sends its tool name as `stage`. The stage-number
+            // table above is RFQ_Flow's, and it maps that same step (macro 6) to the alternates screen.
+            const gateSkill = String(payload.stage ?? '').split('__').pop() ?? '';
+            if (gateSkill === 'resolve_final_selection') {
+              mode = 'priceSourceReview';
+            }
 
             if (mode === 'ignore') {
               // No popup, no layout change — silently unblock the pipeline.
