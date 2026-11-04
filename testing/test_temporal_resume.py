@@ -154,11 +154,11 @@ def test_resume_with_no_live_run_starts_one(monkeypatch):
         await until(env.client.get_workflow_handle(wid), lambda s: s["awaiting"], "parked at the gate")
         await tc.resume_rfq_workflow("R-RES-5")
         await env.client.get_workflow_handle(wid).result()
-        wid2, outcome2 = await tc.resume_rfq_workflow("R-RES-5")  # the run is finished now
+        wid2, outcome2 = await tc.resume_rfq_workflow("R-RES-5")  # the run is finished now: no new run
         second_run = (await env.client.get_workflow_handle(wid2).describe()).run_id
-        return outcome, outcome2, first_run != second_run
+        return outcome, outcome2, first_run == second_run
 
-    assert run_with_stack(monkeypatch, body) == ("STARTED", "STARTED", True)
+    assert run_with_stack(monkeypatch, body) == ("STARTED", "COMPLETED", True)
 
 
 def test_a_new_upload_supersedes_a_run_still_parked_for_the_same_rfq(monkeypatch):

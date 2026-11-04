@@ -675,6 +675,9 @@ def get_alternatives(rfq_id: str, token: dict = Depends(auth.verify_token)):
             [rfq_id]
         ).fetchall()
         col_names = [d[0] for d in con.description]
+    except duckdb.CatalogException:
+        # update_alternatives is created by distributor__detect_alternates; a profile without that step has none.
+        rows, col_names = [], []
     finally:
         con.close()
 

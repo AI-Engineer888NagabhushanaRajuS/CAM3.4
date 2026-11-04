@@ -41,17 +41,21 @@ async def resume_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flo
 
     RESUMED - the run was parked at a human gate; it is told to carry on.
     RUNNING - the run is mid-step; nothing is sent (a decision stored now would pre-approve the NEXT gate).
-    STARTED - no live run (never started, finished, or terminated): start one; it resumes at skill_index.
+    COMPLETED - every skill already ran; nothing to resume, so no second run is started (the UI's
+                retry clicks used to start empty runs here).
+    STARTED - no live run (never started, or terminated/failed): start one; it resumes at skill_index.
     """
     client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
     handle = client.get_workflow_handle(get_workflow_id(rfq_id))
     try:
-        running = (await handle.describe()).status == WorkflowExecutionStatus.RUNNING
+        status = (await handle.describe()).status
     except RPCError as e:
         if e.status != RPCStatusCode.NOT_FOUND:
             raise
-        running = False
-    if not running:
+        status = None
+    if status == WorkflowExecutionStatus.COMPLETED:
+        return handle.id, "COMPLETED"
+    if status != WorkflowExecutionStatus.RUNNING:
         return await start_rfq_workflow(rfq_id, profile_name), "STARTED"
     if (await handle.query(RFQWorkflow.hitl_state))["awaiting"]:
         await handle.signal(RFQWorkflow.human_decision, {"action": "approve", "via": "resume"})
