@@ -1278,7 +1278,9 @@ export function App() {
                     // replaces the old idx < maxReachedStageIdx checkmark with the
                     // more accurate per-skill derivation from getStageStatus().
                     const stageStatus = isLocked ? 'waiting' : getStageStatus(stage.id as WorkflowStageId);
-                    const stageStatusLabel = { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', skipped: 'Not in this profile' }[stageStatus];
+                    const stageStatusLabel = isLocked
+                      ? 'Locked'
+                      : { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', skipped: 'Not in this profile' }[stageStatus];
                     const stageStatusTextClass = {
                       completed: 'text-emerald-500',
                       running: 'text-brand',
