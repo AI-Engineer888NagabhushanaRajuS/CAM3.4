@@ -352,7 +352,8 @@ def execute_tool(request: ToolExecuteRequest):
                 # data. A failed tool call must halt advancement exactly like
                 # an explicit hitl gate, not fall through as if it succeeded.
                 #
-                hitl_flag = bool(clean_json_body.get("hitl"))
+                # RFQ_Flow's intake tools report a gate as hitl_required; Standard_BOM_Flow's as hitl.
+                hitl_flag = bool(clean_json_body.get("hitl") or clean_json_body.get("hitl_required"))
                 tool_failed = clean_json_body.get("status") == "failed"
 
                 if not hitl_flag and not tool_failed:

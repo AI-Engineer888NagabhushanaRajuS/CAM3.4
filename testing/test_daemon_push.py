@@ -61,6 +61,12 @@ def test_a_human_gate_pushes_hitl_request_to_the_daemon(fr, monkeypatch):
                        {"rfqId": "R1", "stage": TOOL, "hitlType": "approval"})], posted
 
 
+def test_a_hitl_required_flag_is_a_human_gate_too(fr, monkeypatch):
+    # RFQ_Flow intake tools (scan_local_file) report the gate as hitl_required, not hitl
+    posted = _run(fr, monkeypatch, {"status": "success", "hitl_required": True})
+    assert [u for u, _ in posted if u.endswith("/api/internal/trigger-hitl")], posted
+
+
 def test_a_normal_step_does_not_ask_for_a_review(fr, monkeypatch):
     posted = _run(fr, monkeypatch, {"status": "success"})
     assert not [u for u, _ in posted if u.endswith("/api/internal/trigger-hitl")], posted
