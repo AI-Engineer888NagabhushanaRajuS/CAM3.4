@@ -318,6 +318,18 @@ def export_excel(rfq_id):
     unique_suffix = uuid.uuid4().hex[:8]
     filename = f"CBOM_Report_{helpers.slugify(rfq_id)}_{timestamp}_{unique_suffix}.xlsx"
     path = os.path.join(config.EXPORTS_DIR, filename)
+    # RE 2 / C1: a manifest tab says which run made this file and what each tab holds, so a
+    # reviewer can tell a workbook's origin without the pipeline logs. Last tab keeps sheet order.
+    manifest = wb.create_sheet(title="Manifest")
+    manifest.append(["Field", "Value"])
+    manifest.append(["RFQ ID", rfq_id])
+    manifest.append(["Workbook", filename])
+    manifest.append(["Generated (UTC)", datetime.utcnow().isoformat(timespec="seconds")])
+    manifest.append(["Generator", "CAM 3.4 reporting export"])
+    manifest.append([])
+    manifest.append(["Sheet", "Rows", "Columns"])
+    for sheet in wb.worksheets[:-1]:
+        manifest.append([sheet.title, sheet.max_row, sheet.max_column])
     wb.save(path)
 
     duration = time.time() - start
