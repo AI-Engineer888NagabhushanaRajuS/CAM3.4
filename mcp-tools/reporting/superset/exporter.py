@@ -16,6 +16,7 @@ import os
 import time
 import uuid
 from datetime import datetime
+from openpyxl.utils import get_column_letter
 
 from openpyxl import Workbook
 
@@ -330,6 +331,15 @@ def export_excel(rfq_id):
     manifest.append(["Sheet", "Rows", "Columns"])
     for sheet in wb.worksheets[:-1]:
         manifest.append([sheet.title, sheet.max_row, sheet.max_column])
+    # RE 2 A3: one GO / NO-GO cell. Counts Excel error values in every tab, within each tab's own bounds.
+    error_terms = [
+        f"SUMPRODUCT(--ISERROR('{sheet.title}'!A1:{get_column_letter(sheet.max_column)}{sheet.max_row}))"
+        for sheet in wb.worksheets[:-1]
+    ]
+    manifest.append([])
+    manifest.append(["Error cells (all tabs)", "=" + "+".join(error_terms)])
+    error_row = manifest.max_row
+    manifest.append(["Go / no-go", f'=IF(B{error_row}=0,"GO","NO-GO")'])
     wb.save(path)
 
     duration = time.time() - start
