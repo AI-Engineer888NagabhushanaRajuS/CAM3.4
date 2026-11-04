@@ -20,3 +20,24 @@ def test_generated_formulas_match_libreoffice_recalculation(tmp_path):
         pytest.skip(f"export stores no cached formula values ({result['uncached_cells']} uncached); Excel recalculates on open")
     shown = result["mismatches"][:10]
     assert not result["mismatches"], f"{len(result['mismatches'])} of {result['formula_cells']} cells differ: {shown}"
+
+
+ERROR_LITERALS = {"#REF!", "#VALUE!", "#N/A", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"}
+
+
+@pytest.mark.skipif(find_libreoffice() is None, reason="LibreOffice not installed (set LIBREOFFICE_BIN)")
+@pytest.mark.skipif(not WORKBOOK, reason="set CAM_PARITY_WORKBOOK to a generated export")
+def test_export_ships_no_error_cells(tmp_path):
+    # RE 2, ship gate A1: nothing leaves with an Excel error literal in a cell (checked on the recalculated values)
+    import collections
+    import openpyxl
+
+    recalculated = openpyxl.load_workbook(recalculate(Path(WORKBOOK), tmp_path), data_only=True)
+    errors = collections.Counter(
+        (ws.title, cell.value)
+        for ws in recalculated.worksheets
+        for row in ws.iter_rows()
+        for cell in row
+        if isinstance(cell.value, str) and cell.value in ERROR_LITERALS
+    )
+    assert not errors, f"error cells in the export: {dict(errors)}"

@@ -189,8 +189,9 @@ def _count_formula(sheet_name, assembly_meta, part_meta, row_number):
     part_range = _bounded_range(sheet_name, "C")
     assembly_cell = f"{assembly_meta['column']}{row_number}"
     part_cell = f"{part_meta['column']}{row_number}"
-    criteria = f"( {assembly_range} = {assembly_cell} ) * ( {part_range} = {part_cell} )"
-    return f"=IF(SUM(INDEX({criteria}, 0, 1)) > 0, 1, 0)"
+    # COUNTIFS, not an array product: LibreOffice returns #VALUE!/#REF! for the array form, and COUNTIFS is
+    # native to Excel 2007+. CPNs hold no wildcard or operator characters, so the match is the same.
+    return f"=IF(COUNTIFS({assembly_range}, {assembly_cell}, {part_range}, {part_cell}) > 0, 1, 0)"
 
 
 def build_sum_and_count_detailed_sheet(wb, rows, cbom_bounds, include_proto=True):
