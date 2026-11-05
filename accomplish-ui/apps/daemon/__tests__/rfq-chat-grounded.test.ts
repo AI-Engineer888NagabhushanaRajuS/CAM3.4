@@ -107,6 +107,16 @@ describe('the assistant answers from the results or says it cannot', () => {
     expect(calls[0][1].content).toContain('Evidence from RFQ RFQ-1');
   });
 
+  it('asks the bridge for a small evidence budget when the model is local, the full one otherwise', async () => {
+    const retrieve = vi.fn(async () => evidence());
+    const local = { label: 'qwen3:8b (local)', complete: async () => null } as ChatModel;
+    const cloud = { label: 'anthropic/claude-haiku-5.5 (OpenRouter)', complete: async () => null } as ChatModel;
+    await answerFromResults({ rfqId: 'RFQ-1', question: 'what is the MOQ?' }, { model: local, retrieve });
+    await answerFromResults({ rfqId: 'RFQ-1', question: 'what is the MOQ?' }, { model: cloud, retrieve });
+    expect(retrieve.mock.calls[0][0]).toMatchObject({ maxChars: 2500 });
+    expect(retrieve.mock.calls[1][0].maxChars).toBeUndefined();
+  });
+
   it('answers hello without searching or asking a model', async () => {
     const { model, calls } = scripted('x');
     const retrieve = vi.fn(async () => evidence());

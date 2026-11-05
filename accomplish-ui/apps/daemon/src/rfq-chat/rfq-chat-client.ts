@@ -63,14 +63,14 @@ export interface RfqEvidence {
  * The RFQ's own results as citable rows (the latest exported workbook's stored values + the RFQ's live state), ranked
  * against the question by the Python bridge (fastapi-router/chat_evidence.py). Null when the bridge cannot be reached.
  */
-export async function retrieveRfqEvidence(params: { rfqId: string; question: string; topK?: number; timeoutMs?: number }): Promise<RfqEvidence | null> {
-  const { rfqId, question, topK = 12, timeoutMs = 20000 } = params;
+export async function retrieveRfqEvidence(params: { rfqId: string; question: string; topK?: number; maxChars?: number; timeoutMs?: number }): Promise<RfqEvidence | null> {
+  const { rfqId, question, topK = 12, maxChars, timeoutMs = 20000 } = params;
   try {
     const token = await mintRfqToken(rfqId);
     const res = await fetch(`${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/chat/evidence`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ question, top_k: topK }),
+      body: JSON.stringify({ question, top_k: topK, ...(maxChars ? { max_chars: maxChars } : {}) }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {

@@ -1220,6 +1220,7 @@ def download_gerber_report(rfq_id: str, token: dict = Depends(auth.verify_token)
 class ChatEvidenceRequest(BaseModel):
     question: str
     top_k: int = 12
+    max_chars: int = 9000   # a local model prefills ~40 tokens/s on the 8 GB card: the daemon asks for less
 
 
 @app.post("/api/rfq/{rfq_id}/chat/evidence")
@@ -1254,7 +1255,8 @@ def chat_evidence(rfq_id: str, body: ChatEvidenceRequest, token: dict = Depends(
     if attachment_chunks:
         extra += attachment_chunks
         index = {**index, "squashed": index["squashed"] + attachment_squashed}   # never mutate the cached index
-    found = chat_evidence.retrieve(index, body.question, extra=extra, top_k=max(1, min(body.top_k, 30)), rfq_id=rfq_id)
+    found = chat_evidence.retrieve(index, body.question, extra=extra, top_k=max(1, min(body.top_k, 30)), rfq_id=rfq_id,
+                              max_chars=max(1500, min(body.max_chars, 12000)))
     return {"rfq_id": rfq_id, "workbook": index["workbook"], "warning": warning or index.get("warning"), **found}
 
 

@@ -50,6 +50,42 @@ describe('which model answers: the key saved in Settings decides', () => {
   });
 });
 
+describe('the Local / OpenRouter switch in the assistant', () => {
+  it('local keeps the data on this machine even with a key saved', async () => {
+    const { resolveChatModel } = await load();
+    expect(resolveChatModel({ settingsKey: 'k', mode: 'local' }).label).toBe('qwen3:8b (local)');
+  });
+
+  it('openrouter uses only OpenRouter when a key exists, with no silent local fallback', async () => {
+    const { resolveChatModel } = await load();
+    expect(resolveChatModel({ settingsKey: 'k', mode: 'openrouter' }).label).toBe('anthropic/claude-haiku-5.5 (OpenRouter)');
+  });
+
+  it('openrouter without a key falls back to local rather than answering nothing', async () => {
+    const { resolveChatModel } = await load();
+    expect(resolveChatModel({ mode: 'openrouter' }).label).toBe('qwen3:8b (local)');
+  });
+
+  it('the switch beats RFQ_CHAT_PROVIDER, which stays the default when the UI sends nothing', async () => {
+    const { resolveChatModel } = await load({ RFQ_CHAT_PROVIDER: 'local' });
+    expect(resolveChatModel({ settingsKey: 'k', mode: 'openrouter' }).label).toContain('OpenRouter');
+    expect(resolveChatModel({ settingsKey: 'k' }).label).toBe('qwen3:8b (local)');
+  });
+
+  it('only auto, local and openrouter are accepted from a request', async () => {
+    const { parseProviderMode } = await load();
+    expect(['auto', 'local', 'openrouter', 'gpt', '', 5, null].map(parseProviderMode)).toEqual(['auto', 'local', 'openrouter', undefined, undefined, undefined, undefined]);
+  });
+
+  it('describes the providers without ever returning the key', async () => {
+    const { describeChatProviders } = await load();
+    const d = describeChatProviders({ settingsKey: 'sk-or-secret', selected: { provider: 'openrouter', model: 'google/gemini-2.5-flash' } });
+    expect(d).toEqual({ local: { model: 'qwen3:8b' }, openrouter: { hasKey: true, model: 'google/gemini-2.5-flash' }, defaultMode: 'auto' });
+    expect(JSON.stringify(d)).not.toContain('sk-or-secret');
+    expect(describeChatProviders({}).openrouter.hasKey).toBe(false);
+  });
+});
+
 describe('the chain of models', () => {
   it('sends the Settings key to OpenRouter and reports who answered', async () => {
     const fetchMock = vi.fn(async () => ok({ choices: [{ message: { content: 'cloud answer' } }] }));

@@ -8,6 +8,7 @@ import { chatStagingId, singleRfq } from '@/lib/chatContract';
 import { AssistantMessages } from './AssistantMessages';
 import type { DirectiveActions } from './AssistantDirectives';
 import { AttachFilesDialog } from './AttachFilesDialog';
+import { ProviderSwitch } from './ProviderSwitch';
 import { RfqPickerDialog } from './RfqPickerDialog';
 import { ScopeChips } from './ScopeChips';
 import { useAssistantChat } from './useAssistantChat';
@@ -112,6 +113,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <ProviderSwitch mode={chat.provider} onChange={chat.setProvider} onOpenSettings={onOpenModelSettings} />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="outline" size="icon" aria-label="Reset conversation" onClick={() => { chat.reset(); setDraft(''); }}>

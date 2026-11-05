@@ -5,6 +5,8 @@ vi.mock('@/lib/session', () => ({ getSessionToken: () => 'tok', clearSession: vi
 vi.mock('@/config/endpoints', () => ({ backendUrl: (p: string) => `http://daemon${p}`, PYTHON_BRIDGE_URL: 'http://bridge' }));
 
 // The real composer needs speech, model and i18n plumbing; the pane only relies on its props.
+// The switch fetches /api/chat/providers on mount; the pane tests count every fetch, so it is covered in ProviderSwitch.unit.test.tsx.
+vi.mock('@/components/rfq/ProviderSwitch', () => ({ ProviderSwitch: () => null }));
 vi.mock('@/components/landing/TaskInputBar', () => ({
   TaskInputBar: (p: { value: string; onChange: (v: string) => void; onSubmit: () => void; isLoading?: boolean; placeholder?: string; toolbarLeft?: React.ReactNode }) => (
     <div>

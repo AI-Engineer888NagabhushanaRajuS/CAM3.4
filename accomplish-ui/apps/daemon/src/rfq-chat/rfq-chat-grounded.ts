@@ -18,6 +18,9 @@ import type { ChatMessage, ChatModel, GroundedAnswer, Turn } from './rfq-chat-ty
 const NO_ANSWER = 'NO_ANSWER_FOUND';
 const TOP_K = 12; // best-matching rows the bridge returns for one question
 const MEMORY_CHUNKS = 4;
+// A local model prefills ~40 tokens/s on this 8 GB card (measured 2026-11-05: 5000 tokens = 119 s, 4 generated tokens = 1 s),
+// so the evidence size IS the latency: about 2500 chars keeps a first answer near 30 s. Cloud models get the full budget.
+const LOCAL_EVIDENCE_CHARS = Number(process.env.RFQ_CHAT_LOCAL_EVIDENCE_CHARS) || 2500;
 const MEMORY_CHARS = 600;
 
 export const SYSTEM_PROMPT = [
@@ -40,7 +43,7 @@ export interface MemoryContext {
 
 export interface GroundedDeps {
   model: ChatModel;
-  retrieve?: (p: { rfqId: string; question: string; topK: number }) => Promise<RfqEvidence | null>;
+  retrieve?: (p: { rfqId: string; question: string; topK: number; maxChars?: number }) => Promise<RfqEvidence | null>;
   /** Best-effort extra context from the Cognee memory service. Never required: null or a throw means "none". */
   memory?: (p: { rfqId: string; question: string }) => Promise<MemoryContext | null>;
   signal?: AbortSignal;
@@ -89,7 +92,7 @@ export async function answerFromResults(
 
   const query = retrievalQuery(question, history);
   const [evidence, memory] = await Promise.all([
-    (deps.retrieve ?? retrieveRfqEvidence)({ rfqId, question: query, topK: TOP_K }),
+    (deps.retrieve ?? retrieveRfqEvidence)({ rfqId, question: query, topK: TOP_K, maxChars: deps.model.label.includes('(local)') ? LOCAL_EVIDENCE_CHARS : undefined }),
     deps.memory ? deps.memory({ rfqId, question: query }).catch(() => null) : Promise.resolve(null),
   ]);
   if (evidence === null) {

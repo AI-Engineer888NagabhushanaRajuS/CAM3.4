@@ -84,6 +84,16 @@ def test_one_question_never_puts_more_than_the_cap_in_front_of_the_model(index):
     assert sum(len(c["text"]) for c in found["chunks"]) <= ce.MAX_EVIDENCE_CHARS
 
 
+def test_a_smaller_budget_is_honoured_and_still_keeps_the_best_row_first(index):
+    small = ce.retrieve(index, "What is the price of UBR0123?", max_chars=2500)
+    assert sum(len(c["text"]) for c in small["chunks"]) <= 2500
+    assert any("UBR0123" in c["text"] for c in small["chunks"])   # matched rows outrank the small-tab filler
+    broad_small = ce.retrieve(index, "capacitor", top_k=30, max_chars=2500)
+    broad_full = ce.retrieve(index, "capacitor", top_k=30)
+    assert sum(len(c["text"]) for c in broad_small["chunks"]) <= 2500
+    assert len(broad_small["chunks"]) < len(broad_full["chunks"])   # the full budget really is bigger here
+
+
 def test_the_newest_export_replaces_the_cached_one(tmp_path):
     path = tmp_path / "CBOM_Report_T.xlsx"
     make_export(path, rows=10)

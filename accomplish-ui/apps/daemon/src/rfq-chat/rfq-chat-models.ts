@@ -99,20 +99,39 @@ export function firstAvailable(models: ChatModel[]): ChatModel {
   };
 }
 
+/** The user's switch in the assistant: auto = OpenRouter when a key exists, else local; the others force one provider. */
+export type ChatProviderMode = 'auto' | 'local' | 'openrouter';
+export const parseProviderMode = (v: unknown): ChatProviderMode | undefined =>
+  v === 'auto' || v === 'local' || v === 'openrouter' ? v : undefined;
+
 export interface ChatProviderInputs {
   /** The OpenRouter key saved in Settings, if any. */
   settingsKey?: string | null;
   /** The model selected in Settings (used when its provider is openrouter). */
   selected?: { provider: string; model: string } | null;
+  /** The switch in the assistant UI; falls back to RFQ_CHAT_PROVIDER, then auto. */
+  mode?: ChatProviderMode;
 }
 
-export function resolveChatModel({ settingsKey, selected }: ChatProviderInputs = {}): ChatModel {
-  const mode = process.env.RFQ_CHAT_PROVIDER ?? 'auto';
+const cloudModelOf = (selected?: ChatProviderInputs['selected']) =>
+  selected?.provider === 'openrouter' && selected.model ? selected.model : DEFAULT_CLOUD_MODEL;
+
+export function resolveChatModel({ settingsKey, selected, mode: asked }: ChatProviderInputs = {}): ChatModel {
+  const mode = asked ?? parseProviderMode(process.env.RFQ_CHAT_PROVIDER) ?? 'auto';
   const envKey = process.env.RFQ_CHAT_CLOUD_FALLBACK === '1' ? (process.env.OPENROUTER_API_KEY ?? '') : '';
   const key = settingsKey || envKey;
-  const cloudModel = selected?.provider === 'openrouter' && selected.model ? selected.model : DEFAULT_CLOUD_MODEL;
   const models: ChatModel[] = [];
-  if (key && mode !== 'local') models.push(openRouterModel(key, cloudModel));
+  if (key && mode !== 'local') models.push(openRouterModel(key, cloudModelOf(selected)));
   if (mode !== 'openrouter' || !key) models.push(localModel());
   return firstAvailable(models);
+}
+
+/** What the switch shows: which providers exist right now. Never the key itself. */
+export function describeChatProviders({ settingsKey, selected }: ChatProviderInputs = {}) {
+  const envKey = process.env.RFQ_CHAT_CLOUD_FALLBACK === '1' ? (process.env.OPENROUTER_API_KEY ?? '') : '';
+  return {
+    local: { model: LOCAL_MODEL },
+    openrouter: { hasKey: Boolean(settingsKey || envKey), model: cloudModelOf(selected) },
+    defaultMode: parseProviderMode(process.env.RFQ_CHAT_PROVIDER) ?? 'auto',
+  };
 }

@@ -42,6 +42,23 @@ describe('the conversation does not end after an answer', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).scope).toEqual({ mode: 'none' });
   });
 
+  it('sends the Local / OpenRouter choice with every question, remembers it, and defaults to auto', async () => {
+    localStorage.removeItem('cam-chat-provider');
+    const first = renderHook(() => useAssistantChat('RFQ-TP1'));
+    expect(first.result.current.provider).toBe('auto');
+    await act(() => first.result.current.send('MOQ?'));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).provider).toBe('auto');
+
+    act(() => first.result.current.setProvider('openrouter'));
+    await act(() => first.result.current.send('and the price?'));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).provider).toBe('openrouter');
+    first.unmount();
+
+    const later = renderHook(() => useAssistantChat('RFQ-TP1')); // a new page load keeps the choice
+    expect(later.result.current.provider).toBe('openrouter');
+    localStorage.removeItem('cam-chat-provider');
+  });
+
   it('carries the sources and the model of an answer', async () => {
     const { result } = renderHook(() => useAssistantChat('RFQ-T3'));
     await act(() => result.current.send('MOQ?'));

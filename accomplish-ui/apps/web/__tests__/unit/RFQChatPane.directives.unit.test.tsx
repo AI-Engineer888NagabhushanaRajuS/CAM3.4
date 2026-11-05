@@ -4,6 +4,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 vi.mock('@/lib/session', () => ({ getSessionToken: () => 'tok', clearSession: vi.fn() }));
 vi.mock('@/config/endpoints', () => ({ backendUrl: (p: string) => `http://daemon${p}`, PYTHON_BRIDGE_URL: 'http://bridge' }));
 
+// The switch fetches /api/chat/providers on mount; the pane tests count every fetch, so it is covered in ProviderSwitch.unit.test.tsx.
+vi.mock('@/components/rfq/ProviderSwitch', () => ({ ProviderSwitch: () => null }));
 vi.mock('@/components/landing/TaskInputBar', () => ({
   TaskInputBar: (p: { value: string; onChange: (v: string) => void; onSubmit: () => void; isLoading?: boolean; toolbarLeft?: React.ReactNode }) => (
     <div>

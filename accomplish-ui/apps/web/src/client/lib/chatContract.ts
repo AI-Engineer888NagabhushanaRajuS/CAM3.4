@@ -50,6 +50,16 @@ export interface ChatResponse {
   ui?: UiDirective;
 }
 
+/** The model switch in the assistant: auto = OpenRouter when a key is saved, else local; the others force one. */
+export type ChatProviderMode = 'auto' | 'local' | 'openrouter';
+
+/** GET /api/chat/providers: what the switch can offer right now (never the key itself). */
+export interface ChatProvidersInfo {
+  local: { model: string };
+  openrouter: { hasKey: boolean; model: string };
+  defaultMode: ChatProviderMode;
+}
+
 /** A released attachment the question may refer to ("create an RFQ from this file"); rfqId = where it was scanned. */
 export interface FileRef {
   attachmentId: string;

@@ -200,7 +200,7 @@ def _sheet_rank(chunk):
     return _PRIORITY.index(sheet) if sheet in _PRIORITY else len(_PRIORITY)
 
 
-def retrieve(index, question, extra=(), top_k=12, rfq_id=None):
+def retrieve(index, question, extra=(), top_k=12, rfq_id=None, max_chars=MAX_EVIDENCE_CHARS):
     """Evidence for one question, in this order: the tab catalogue and RFQ state; the rows that match the question
     (a named part number first); then small tabs, whole, as filler for whatever budget is left. Matched rows must
     come before the filler: a real export has about 15 small tabs, enough to fill the whole budget by themselves
@@ -222,7 +222,7 @@ def retrieve(index, question, extra=(), top_k=12, rfq_id=None):
     filler = sorted((p for p in pairs if p[0].get("always")), key=lambda p: (_sheet_rank(p[0]), -p[1]))
     picked, seen, used = [], set(), 0
     for c, s in pinned + matched + filler:
-        if id(c) in seen or used + len(c["text"]) > MAX_EVIDENCE_CHARS:
+        if id(c) in seen or used + len(c["text"]) > max_chars:
             continue
         seen.add(id(c))
         picked.append(_public(c, s))

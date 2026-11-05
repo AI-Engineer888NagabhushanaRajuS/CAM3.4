@@ -4,7 +4,7 @@ import { backendUrl } from '@/config/endpoints';
 import { clearSession, getSessionToken } from '@/lib/session';
 import {
   defaultScope, isRfqId, parseScope, parseUi, scopeFromIds,
-  type ActionConfirmResponse, type ChatResponse, type ChatScope, type DisambiguateOption, type FileRef, type UiDirective,
+  type ActionConfirmResponse, type ChatProviderMode, type ChatResponse, type ChatScope, type DisambiguateOption, type FileRef, type UiDirective,
 } from '@/lib/chatContract';
 
 /** How a confirmation card ended; kept on the message so it survives a reload and cannot be clicked twice. */
@@ -90,8 +90,26 @@ const newId = () => (globalThis.crypto?.randomUUID?.() ?? `m_${Date.now()}_${Mat
  * message, and the composer stays available. `rfqId` is the RFQ selected in the left list (null = none); it sets the
  * scope when it changes, and the daemon's replies may change the scope after that.
  */
+const PROVIDER_KEY = 'cam-chat-provider';
+function loadProvider(): ChatProviderMode {
+  try {
+    const v = localStorage.getItem(PROVIDER_KEY);
+    return v === 'local' || v === 'openrouter' ? v : 'auto';
+  } catch {
+    return 'auto'; // storage blocked: the default still works
+  }
+}
+
 export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileRef[]) {
   const convo = convoOf(rfqId);
+  // The Local / OpenRouter switch; remembered per browser, sent with every question.
+  const [provider, setProviderState] = useState<ChatProviderMode>(loadProvider);
+  const providerRef = useRef(provider);
+  const setProvider = useCallback((next: ChatProviderMode) => {
+    providerRef.current = next;
+    setProviderState(next);
+    try { localStorage.setItem(PROVIDER_KEY, next); } catch { /* not remembered */ }
+  }, []);
   const [messages, setMessages] = useState<ChatMsg[]>(() => load(convo));
   const [scope, setScopeState] = useState<ChatScope>(() => loadScope(convo) ?? defaultScope(rfqId));
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -149,7 +167,7 @@ export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileR
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         // Released files ride along so "create an RFQ from this" can name them; the daemon re-checks them with the bridge.
-        body: JSON.stringify({ messages: history, scope: sendScope, fileRefs: getFileRefs?.() ?? [] }),
+        body: JSON.stringify({ messages: history, scope: sendScope, fileRefs: getFileRefs?.() ?? [], provider: providerRef.current }),
         signal: controller.signal,
       });
       if (res.status === 401) {
@@ -229,5 +247,5 @@ export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileR
   const picker = pickerFor ? messages.find((m) => m.id === pickerFor) : undefined;
   const openPicker = useCallback((id: string) => setPickerFor(id), []);
   const closePicker = useCallback(() => setPickerFor(null), []);
-  return { messages, running, scope, picker, send, stop, reset, applyPick, choose, settle, removeFromScope, openPicker, closePicker };
+  return { messages, running, scope, picker, provider, setProvider, send, stop, reset, applyPick, choose, settle, removeFromScope, openPicker, closePicker };
 }

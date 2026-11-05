@@ -4,7 +4,7 @@
  * one definition of "which model answers" and "what is an RFQ".
  */
 import { log } from '../logger.js';
-import { resolveChatModel } from './rfq-chat-models.js';
+import { resolveChatModel, type ChatProviderMode } from './rfq-chat-models.js';
 import { makeChatActions } from './rfq-chat-actions.js';
 import { rememberTurn, retrieveRfqContext, rfqHasExport } from './rfq-chat-client.js';
 import type { ChatActionDeps } from './rfq-chat-contract.js';
@@ -49,10 +49,10 @@ async function withExports(rfqs: RfqSummary[]): Promise<RfqSummary[]> {
 let sharedActions: ChatActionDeps | null = null;
 
 /** `sessionKey` keeps two people's conversations about the same RFQ apart in Cognee's session memory. */
-export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: AbortSignal): ChatServiceDeps {
+export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: AbortSignal, provider?: ChatProviderMode): ChatServiceDeps {
   const sessionId = (rfqId: string) => `rfq-chat-${rfqId}-${sessionKey}`;
   return {
-    model: () => resolveChatModel({ settingsKey: src.getApiKey('openrouter'), selected: src.getSelectedModel() }),
+    model: () => resolveChatModel({ settingsKey: src.getApiKey('openrouter'), selected: src.getSelectedModel(), mode: provider }),
     listRfqs,
     withExports,
     actions: (sharedActions ??= makeChatActions(src)),

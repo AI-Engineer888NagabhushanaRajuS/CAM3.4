@@ -21,6 +21,7 @@ import { chatReply } from './rfq-chat/rfq-chat-service.js';
 import { parseScope } from './rfq-chat/rfq-chat-scope.js';
 import type { ActionConfirmRequest, ChatRequest, ChatScope } from './rfq-chat/rfq-chat-contract.js';
 import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
+import { describeChatProviders, parseProviderMode, type ChatProviderMode } from './rfq-chat/rfq-chat-models.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
 
@@ -2375,6 +2376,17 @@ export class BrowserApiServer {
           });
           return;
         }
+        // GET /api/chat/providers: what the assistant's Local / OpenRouter switch can offer (is a key saved, which models). Never the key.
+        if (method === 'GET' && (url ?? '').split('?')[0] === '/api/chat/providers') {
+          if (!this.getSession(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end('{"error":"Not signed in"}');
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(describeChatProviders({ settingsKey: this.svc.secretsService.getApiKey('openrouter'), selected: this.svc.settingsService.getSelectedModel() })));
+          return;
+        }
         // ── CAM 3.4: RFQ assistant chat (SPEC-019) ───────────────────────────
         // POST /api/chat is the conversation: { messages, scope?, fileRefs? } -> { message, citations, model, rfq_id, scope?, ui? }.
         // POST /api/rfq/:id/chat is the same route with the RFQ in the URL (alias for the earlier per-RFQ pane).
@@ -2401,10 +2413,15 @@ export class BrowserApiServer {
               res.on('close', () => { if (!res.writableEnded) stop.abort(); }); // the user pressed Stop or left
               try {
                 const session = this.getSession(req);
+                let provider: ChatProviderMode | undefined;
+                try {
+                  provider = parseProviderMode((JSON.parse(body) as { provider?: unknown }).provider); // the switch in the assistant; the full parse below reports a bad body
+                } catch { /* reported below */ }
                 const deps = makeChatDeps(
                   { getApiKey: (p) => this.svc.secretsService.getApiKey(p), getSelectedModel: () => this.svc.settingsService.getSelectedModel() },
                   session?.email ?? 'local',
                   stop.signal,
+                  provider,
                 );
                 if (confirmMatch) {
                   const c = JSON.parse(body) as { confirmToken?: unknown; decision?: unknown; params?: Record<string, unknown> };
