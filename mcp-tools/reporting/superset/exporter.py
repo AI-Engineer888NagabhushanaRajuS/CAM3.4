@@ -34,6 +34,7 @@ from reports.bom_matrix import build_bom_matrix_sheet
 from reports.part_num_vs_mfg_num import part_num_vs_mfg_num, build_part_num_vs_mfg_num_sheet
 from reports.pcb_nre_fai_charge import fai_charge_rows, build_fai_charge_sheet
 from reports.mech_em_nre import mech_em_nre_rows, build_mech_em_nre_sheet
+from reports.new_suppliers import new_supplier_rows, build_new_suppliers_sheet, load_supplier_master
 from reports.missing_notes import missing_notes, flatten_missing_notes, build_missing_notes_sheet
 from reports.lead_time_fg import lead_time_fg_blocks, flatten_lead_time_fg, build_lead_time_fg_sheet
 from reports.lead_time_consolidated import lead_time_consolidated_rows, build_lead_time_consolidated_sheet
@@ -322,6 +323,12 @@ def export_excel(rfq_id):
     path = os.path.join(config.EXPORTS_DIR, filename)
     # RE 2 / C1: a manifest tab says which run made this file and what each tab holds, so a
     # reviewer can tell a workbook's origin without the pipeline logs. Last tab keeps sheet order.
+    supplier_master = load_supplier_master()
+    build_new_suppliers_sheet(
+        wb, new_supplier_rows(cbom_df.to_dict("records"), detected_volumes, supplier_master), detected_volumes,
+        master_provided=supplier_master is not None,
+    )
+    worksheet_names.append("New Suppliers")
     manifest = wb.create_sheet(title="Manifest")
     manifest.append(["Field", "Value"])
     manifest.append(["RFQ ID", rfq_id])
