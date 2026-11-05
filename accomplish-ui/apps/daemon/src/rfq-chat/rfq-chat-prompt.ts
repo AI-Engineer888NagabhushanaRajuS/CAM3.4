@@ -21,6 +21,13 @@ import type { MessageCitation } from './rfq-chat-client.js';
 const OLLAMA_ENDPOINT = (process.env.OLLAMA_ENDPOINT ?? 'http://localhost:11434').replace(/\/$/, '');
 const RFQ_CHAT_MODEL = process.env.RFQ_CHAT_MODEL ?? 'qwen3:8b';
 
+// Cloud fallback (OpenRouter). Off unless RFQ_CHAT_CLOUD_FALLBACK=1 AND OPENROUTER_API_KEY is set. When it runs,
+// the RFQ context (BOM part numbers, prices, suppliers) leaves this machine, so it is opt-in by design.
+const CLOUD_FALLBACK = process.env.RFQ_CHAT_CLOUD_FALLBACK === '1';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? '';
+const OPENROUTER_ENDPOINT = (process.env.OPENROUTER_ENDPOINT ?? 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+const OPENROUTER_MODEL = process.env.RFQ_CHAT_OPENROUTER_MODEL ?? 'anthropic/claude-haiku-5-5';
+
 const NO_ANSWER_SENTINEL = 'NO_ANSWER_FOUND';
 
 const SYSTEM_PROMPT = [
@@ -65,38 +72,74 @@ export async function synthesizeAnswer(params: SynthesizeAnswerParams, timeoutMs
 
   const userPrompt = `${contextParts.join('\n\n')}\n\nQuestion: ${question}`;
 
+  const messages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ];
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    // Local model first (the default and the only path when cloud fallback is off).
+    let raw = await completeWithOllama(messages, controller.signal);
+    if (raw === null && CLOUD_FALLBACK && OPENROUTER_API_KEY) {
+      log.warn('[RfqChat] local model unavailable; using OpenRouter fallback');
+      raw = await completeWithOpenRouter(messages, controller.signal);
+    }
+    if (!raw || raw.includes(NO_ANSWER_SENTINEL)) {
+      return { answer: null, citations: [] };
+    }
+    // Citations are every chunk actually fed into the prompt as context --
+    // never derived from the model's own output (see module docstring).
+    return { answer: raw, citations: chunks.map((c) => c.citation) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+type ChatMessage = { role: 'system' | 'user'; content: string };
+
+/** Returns the model's text, or null when Ollama is unreachable or answers with an error. */
+async function completeWithOllama(messages: ChatMessage[], signal: AbortSignal): Promise<string | null> {
   try {
     const res = await fetch(`${OLLAMA_ENDPOINT}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: RFQ_CHAT_MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        stream: false,
-      }),
-      signal: controller.signal,
+      body: JSON.stringify({ model: RFQ_CHAT_MODEL, messages, stream: false }),
+      signal,
     });
     if (!res.ok) {
       log.warn(`[RfqChat] Ollama synthesis HTTP ${res.status}`);
-      return { answer: null, citations: [] };
+      return null;
     }
     const data = (await res.json()) as { message?: { content?: string } };
-    const raw = data.message?.content?.trim();
-    if (!raw || raw.includes(NO_ANSWER_SENTINEL)) {
-      return { answer: null, citations: [] };
-    }
-    // Citations are every chunk actually fed into the prompt as context —
-    // never derived from the model's own output (see module docstring).
-    return { answer: raw, citations: chunks.map((c) => c.citation) };
+    return data.message?.content?.trim() ?? '';
   } catch (err) {
     log.warn(`[RfqChat] Ollama synthesis failed: ${err}`);
-    return { answer: null, citations: [] };
-  } finally {
-    clearTimeout(timeout);
+    return null;
+  }
+}
+
+/** Returns the model's text, or null when OpenRouter is unreachable or answers with an error. */
+async function completeWithOpenRouter(messages: ChatMessage[], signal: AbortSignal): Promise<string | null> {
+  try {
+    const res = await fetch(`${OPENROUTER_ENDPOINT}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({ model: OPENROUTER_MODEL, messages, stream: false }),
+      signal,
+    });
+    if (!res.ok) {
+      log.warn(`[RfqChat] OpenRouter synthesis HTTP ${res.status}`);
+      return null;
+    }
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    return data.choices?.[0]?.message?.content?.trim() ?? '';
+  } catch (err) {
+    log.warn(`[RfqChat] OpenRouter synthesis failed: ${err}`);
+    return null;
   }
 }
