@@ -183,12 +183,13 @@ def export_excel(rfq_id):
     build_part_num_vs_mfg_num_sheet(wb, part_num_vs_mfg_num(mappings.to_part_num_vs_mfg_num_payload(scrub_df, quote_df)))
     worksheet_names.append("Part Num Vs Mfg Num")
 
-    build_fai_charge_sheet(wb, fai_charge_rows(mappings.to_nre_payload(scrub_df[scrub_df["commodity"] == "PCB"])))
+    build_fai_charge_sheet(wb, fai_charge_rows(mappings.to_nre_payload(scrub_df[scrub_df["commodity"] == "PCB"])),
+                           cbom_bounds=cbom_bounds_by_sheet.get("7.0 CBOM VL-1"))
     worksheet_names.append("PCB NRE & FAI Charge")
 
     build_mech_em_nre_sheet(wb, mech_em_nre_rows(
         mappings.to_nre_payload(scrub_df[scrub_df["commodity"].str.upper().isin(["MECHANICAL", "ELECTROMECHANICAL"])])
-    ))
+    ), cbom_bounds=cbom_bounds_by_sheet.get("7.0 CBOM VL-1"))
     worksheet_names.append("Mech & EM NRE")
 
     mn_sections = missing_notes(mappings.to_missing_notes_payload(cbom_df, scrub_df, selected_quote_df, has_proto=has_proto))

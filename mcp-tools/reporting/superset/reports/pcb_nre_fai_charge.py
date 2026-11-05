@@ -14,11 +14,7 @@ Two layers, mirroring the PHP pipeline:
 
 # ponytail: reproduces two shipped quirks verbatim rather than fixing them
 # (see pcb-nre-fai-charge-report.md "Cross-check notes"):
-#   - Column F is labeled "NRE Charge (Conv.)" but its formula sources CBOM
-#     column T ("NRE Charge", raw) instead of column U ("NRE Charge (Conv.)")
-#     — the currency conversion CBOM already computed is silently bypassed.
-#   - The lookup always targets '7.0 CBOM VL-1' and a fixed row range
-#     (27-282), never the dynamic per-volume AK1/AL1 bounds used elsewhere.
+#   - Column F reads the converted NRE charge (CBOM column U), matching its label.
 
 No DB access happens here — bom_details_json_data/rfqs are supplied by the
 caller, and the DB write (`fai_charge_summary` table upsert) in the original
@@ -42,7 +38,7 @@ _FORMULA_COLUMNS = {
     "C": ("E", True),
     "D": ("F", True),
     "E": ("G", True),
-    "F": ("T", False),
+    "F": ("U", False),
 }
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
@@ -135,25 +131,26 @@ def fai_charge_rows(payload):
     return rows
 
 
-def _lookup_formula(cbom_col, part_cell, coerce_text):
+def _lookup_formula(cbom_col, part_cell, coerce_text, first_row, last_row):
     # IFERROR guards the MATCH-can't-find-the-part case (raw INDEX(range, #N/A) has
     # nothing to catch it otherwise and the #N/A leaks straight into the exported
     # cell) -- same fix already applied to this exact CBOM-lookup pattern in
     # aclass_parts.py. Falls back to "" (not the "-" aclass_parts.py uses) to match
     # this report's own blank convention from the outer IF(part_cell="","",...).
-    match_expr = f"MATCH({part_cell}, '{_CBOM_SHEET}'!$C${_CBOM_ROW_START}:$C${_CBOM_ROW_END}, 0)"
-    index_expr = f"INDEX('{_CBOM_SHEET}'!${cbom_col}${_CBOM_ROW_START}:${cbom_col}${_CBOM_ROW_END}, {match_expr})"
+    match_expr = f"MATCH({part_cell}, '{_CBOM_SHEET}'!$C${first_row}:$C${last_row}, 0)"
+    index_expr = f"INDEX('{_CBOM_SHEET}'!${cbom_col}${first_row}:${cbom_col}${last_row}, {match_expr})"
     value_expr = f'{index_expr}&""' if coerce_text else index_expr
     return f'=IF({part_cell}="","",IFERROR({value_expr},""))'
 
 
-def build_fai_charge_sheet(wb, rows):
+def build_fai_charge_sheet(wb, rows, cbom_bounds=None):
     """Port of FaiChargeExportExcelFormula: writes and styles the 'PCB NRE & FAI Charge' sheet.
 
     wb: an openpyxl.Workbook to append the sheet to.
     rows: the list of dicts produced by fai_charge_rows() — header row, data
         rows, trailing total row.
     """
+    first_row, last_row = cbom_bounds or (_CBOM_ROW_START, _CBOM_ROW_END)
     ws = wb.create_sheet(title="PCB NRE & FAI Charge")
 
     for row in rows:
@@ -179,7 +176,7 @@ def build_fai_charge_sheet(wb, rows):
             for col_letter, (cbom_col, coerce_text) in _FORMULA_COLUMNS.items():
                 if column_index_from_string(col_letter) > col_count:
                     continue
-                ws[f"{col_letter}{r}"] = _lookup_formula(cbom_col, part_cell, coerce_text)
+                ws[f"{col_letter}{r}"] = _lookup_formula(cbom_col, part_cell, coerce_text, first_row, last_row)
 
     for col_letter in ("E", "F"):
         cell = ws[f"{col_letter}{row_count}"]
@@ -244,7 +241,7 @@ def _demo():
     assert ws.title == "PCB NRE & FAI Charge"
     assert ws["A1"].value == "Part Number"
     assert ws["B2"].value.startswith('=IF($A2="","",IFERROR(INDEX(\'7.0 CBOM VL-1\'!$D$27:$D$282')
-    assert "$T$27:$T$282" in ws["F2"].value  # preserves the shipped "Conv." mislabel bug
+    assert "$U$27:$U$282" in ws["F2"].value  # reads the converted NRE charge (column U)
     assert ws[f"E{len(rows)}"].fill.fgColor.rgb.endswith("FFD966")
     print("build_fai_charge_sheet() self-check passed")
 
