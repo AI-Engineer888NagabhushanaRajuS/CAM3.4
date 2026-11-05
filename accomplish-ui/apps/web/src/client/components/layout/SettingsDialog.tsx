@@ -12,6 +12,7 @@ import { ProjectTrackingPanel } from '@/components/settings/projectTracking';
 import { UsersPanel } from '@/components/settings/users';
 import { CurrenciesPanel } from '@/components/settings/currencies';
 import { AboutTab } from '@/components/settings/AboutTab';
+import { SecurityTab } from '@/components/settings/SecurityTab';
 import { GeneralTab } from '@/components/settings/GeneralTab';
 import { SandboxSection } from '@/components/settings/SandboxSection';
 import { cn } from '@/lib/utils';
@@ -189,6 +190,7 @@ export function SettingsDialog({
                   <UsersPanel />
                 </div>
               )}
+              {s.activeTab === 'security' && <SecurityTab />}
               {s.activeTab === 'general' && (
                 <GeneralTab
                   notificationsEnabled={s.notificationsEnabled}

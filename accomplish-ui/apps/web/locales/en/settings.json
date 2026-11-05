@@ -276,7 +276,8 @@
     "scheduler": "Scheduler",
     "projectTracking": "Project Tracking",
     "currencies": "Currencies",
-    "users": "Users"
+    "users": "Users",
+    "security": "Security"
   },
   "notifications": {
     "toggle": {

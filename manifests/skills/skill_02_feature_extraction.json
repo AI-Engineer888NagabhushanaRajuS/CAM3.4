@@ -1,0 +1,98 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_02",
+    "skill_name": "Feature Extraction",
+    "office_analogy": "The Document Examiner",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Nagabhushan / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 1 completion hook[cite: 7]. Action: Extract critical mechanical attributes (dimensions, PCB layer count, surface finish, tight tolerances, enclosure specs) from drawings and title blocks against Master Capture Checklist[cite: 7]. Handle unreadable drawing edge cases by populating an explicit Gaps List[cite: 7]. Check: Verify all mandatory checklist attributes are parsed or explicitly flagged as gaps.",
+    "s_source": {
+      "required_inputs": [
+        "normalized_drawing_files",
+        "master_capture_checklist",
+        "pcb_spec_master",
+        "mech_and_em_spec_sheet"
+      ],
+      "fresh_state_parameters": ["extracted_attribute_set", "feature_gaps_register"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Run vision/geometry extraction scripts over mechanical PDFs and Gerber files to extract assembly parameters[cite: 7].",
+      "acceptance_check": "Programmatically verify: mandatory_checklist_coverage >= 95% OR gap_justification_logged == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Drawing_Feature_Extractor_MCP",
+      "fixed_check_tool": "Checklist_Coverage_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Telemetry"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "feature_extraction_complete == True",
+      "no_op_condition": "no_drawings_in_rfq_package == True",
+      "escalation_condition": "drawing_resolution_unreadable OR missing_title_block",
+      "budget_limit": "45000ms"
+    },
+    "o_outcome": {
+      "json_schema": "MechanicalAttributeSetPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_feature_extraction_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Parsing Mechanical Attributes -> Capture Checklist Mapped"],
+      "database_updates": ["Insert into assembly_attributes and feature_gaps_table"],
+      "alerts": ["PostHog telemetry tracks missing attribute count; notify reviewer"],
+      "next_step": "On human Action button press, fire completion hook to Skill 3 (Feasibility & Risk)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "2.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "2.1.1", "action": "Read normalized drawings for RFQ ID from Skill 1 hook payload", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "2.2",
+      "sub_skill_name": "Extract",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "2.2.1", "action": "Run extraction on drawing geometry, title block, and drawing text notes", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "2.3",
+      "sub_skill_name": "Map to the checklist",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "2.3.1", "action": "Map extracted attributes to Master Capture Checklist and record missing fields in Gaps List", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "2.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "2.4.1", "action": "Human checks extracted attributes and verifies flagged gaps", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_01_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "assembly_attributes", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_2"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"state_handoff_id": {"type": "string"}}, "required": ["state_handoff_id"]},
+    "output_schema": {"type": "object", "properties": {"attribute_set_id": {"type": "string"}, "gaps_list": {"type": "array"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

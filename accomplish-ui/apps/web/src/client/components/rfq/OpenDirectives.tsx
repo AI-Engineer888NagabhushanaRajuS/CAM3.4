@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { CheckCircle, DownloadSimple, FolderOpen, GearSix, WarningCircle } from '@phosphor-icons/react';
+import { CheckCircle, DownloadSimple, FileCode, FolderOpen, GearSix, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
 import { authDownload } from '@/lib/apiAuth';
+import { manifestHash } from '@/lib/chatContract';
 import type { ChatMsg } from './useAssistantChat';
 
 /** The same file the Quote Readiness "Download" button opens; fetched with the RFQ token so a refusal can be shown. */
@@ -79,6 +80,20 @@ export function OpenSettingsDirective({ busy, onOpen }: { busy: boolean; onOpen?
       <Button size="sm" variant="outline" className="min-h-8 gap-1.5" disabled={busy} onClick={onOpen}>
         <GearSix className="h-4 w-4" aria-hidden />
         Open Settings
+      </Button>
+    </div>
+  );
+}
+
+/** Opens the manifest editor on one manifest (hash route). A link, so it also works with the keyboard and in a new tab. */
+export function OpenManifestDirective({ path, label }: { path: string; label: string }) {
+  return (
+    <div className="mt-3">
+      <Button asChild size="sm" variant="outline" className="min-h-8 gap-1.5">
+        <a href={manifestHash(path)}>
+          <FileCode className="h-4 w-4" aria-hidden />
+          Open {label}
+        </a>
       </Button>
     </div>
   );

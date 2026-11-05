@@ -22,6 +22,7 @@ import { parseScope } from './rfq-chat/rfq-chat-scope.js';
 import type { ActionConfirmRequest, ChatRequest, ChatScope } from './rfq-chat/rfq-chat-contract.js';
 import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 import { describeChatProviders, parseProviderMode, type ChatProviderMode } from './rfq-chat/rfq-chat-models.js';
+import { handleManifestRoute } from './manifests/manifest-routes.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
 
@@ -340,7 +341,7 @@ export class BrowserApiServer {
   private cors(req: http.IncomingMessage, res: http.ServerResponse): void {
     const reqOrigin = req.headers['origin'] ?? '*';
     res.setHeader('Access-Control-Allow-Origin', reqOrigin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
     res.setHeader('Vary', 'Origin');
@@ -2307,6 +2308,32 @@ export class BrowserApiServer {
           return;
         }
 
+        // SPEC-020 dynamic propagation: the bridge (edit_regenerate.py) reports a value edit and the report
+        // regeneration that follows. Same trust and delivery as emit-skill-progress above (network placement,
+        // raw frame to this RFQ's tabs only); only these four event names are relayed.
+        if (method === 'POST' && url === '/api/internal/emit-rfq-event') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const { event, rfqId, ...payload } = JSON.parse(body) as { event?: string; rfqId?: string } & Record<string, unknown>;
+              const allowed = ['rfq:value-changed', 'rfq:reports-regenerating', 'rfq:reports-ready', 'rfq:reports-failed'];
+              if (!rfqId || typeof rfqId !== 'string' || !event || !allowed.includes(event)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `rfqId (string) and event (one of ${allowed.join(', ')}) are required` }));
+                return;
+              }
+              this.sendToRfq(rfqId, `data: ${JSON.stringify({ ...payload, event, rfqId })}\n\n`);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end('{"ok":true}');
+            } catch (err) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err instanceof Error ? err.message : 'bad request' }));
+            }
+          });
+          return;
+        }
+
         // Match on pathname, not the full url string — authenticated EventSource
         // connections include a `?token=...` query string, which never strictly
         // equals '/events' and was silently 404ing every authenticated SSE client.
@@ -2376,6 +2403,8 @@ export class BrowserApiServer {
           });
           return;
         }
+        // SPEC-020: manifest editor API (/api/manifests/*): tree, schema, file read, admin-only save. Own 401 check: the dev API key has no session.
+        if (handleManifestRoute(req, res, this.getSession(req))) { return; }
         // GET /api/chat/providers: what the assistant's Local / OpenRouter switch can offer (is a key saved, which models). Never the key.
         if (method === 'GET' && (url ?? '').split('?')[0] === '/api/chat/providers') {
           if (!this.getSession(req)) {

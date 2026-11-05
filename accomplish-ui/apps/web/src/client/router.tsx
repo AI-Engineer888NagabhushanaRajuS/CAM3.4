@@ -76,6 +76,14 @@ export const router = createHashRouter([
     ],
   },
 
+  // SPEC-020: manifest tree + Monaco JSON editor. Own full-screen shell; lazy so Monaco only loads here.
+  {
+    path: 'manifests',
+    lazy: () => import('./pages/Manifests'),
+    errorElement: <RouteErrorFallback />,
+    loader: requireAuth,
+  },
+
   // FDE Staging Pipeline -- role-gated, own top-level route, completely
   // separate shell from both the RFQ App and the Admin UI. Single-page
   // (FDEAppLayout renders its own left/center/right panes directly, unlike

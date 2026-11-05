@@ -1,0 +1,146 @@
+{
+  "skill_metadata": {
+    "macro_category": "erpDataSync",
+    "skill_id": "M03.9_ErpStandardize",
+    "skill_name": "Standardize ERP Export (not currently exposed)",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED_INACTIVE",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Registered in system_skills_registry (skill_index 9) but with is_active=false, and NOT present in Standard_BOM_Flow's live routing_sequence -- this tool is fully implemented but not currently exercised by the live product. Action (as implemented): validate rfq_id, look up a registered ERP file (file_role='ERP'); since upload_server.py's ERP upload endpoint has been repurposed for Costing Sheet, no ERP file is ever registered in the current product, so this tool always returns status:'skipped' today. If it were ever called with a real ERP file registered, it would run process_erp() and append standardized rows to a standing (not RFQ-scoped) erp reference table. Check: rfq_id format guard; write result status=='success' on the hypothetical non-skipped path. Bound: single attempt, no retry loop. Business rule: the erp table is a standing reference table shared across RFQs, not scoped to one rfq_id -- rows are appended, not gated by an rfq_id existence check.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string, validated against ^[A-Za-z0-9_-]+$) -- accepted for signature symmetry with the other standardize_* tools, but not meaningfully used since the erp table is not RFQ-scoped"
+      ],
+      "fresh_state_parameters": [
+        "Whether a row exists in file_metadata_db.rfq_file_telemetry with file_role='ERP' -- in the current product, this is never true (no ERP upload path exists in upload_server.py)"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Not invoked by the live Dify_Dynamic_Master_Router today (excluded from Standard_BOM_Flow's routing_sequence); could be invoked directly via /tool/execute if manually added to a routing_sequence or called out-of-band",
+      "action_step": "Attempt to fetch an ERP file path via postgres_metadata__execute_sql (file_role='ERP'); on the current product, this always returns no rows.",
+      "acceptance_check": "status=='skipped' with reason text is the only outcome ever observed in the current product, since no ERP file is ever registered."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (ScrubIntake server, scrub_mcp_server.py, port 8004)",
+      "action_tool": "standardize_erp (this tool itself, plus process_erp / process_erp_to_database helper functions)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "result['status']=='success' (hypothetical -- never observed to actually reach this in the live product)",
+      "no_op_condition": "No ERP file ever registered in the current product -- always returns status:'skipped', reason='no ERP file uploaded for rfq_id=...'",
+      "escalation_condition": "None -- this tool never sets hitl:1",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout, applicable only if this tool were ever actually invoked"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'skipped' | 'success' | 'failed'",
+        "rows_standardized": "integer (present when status=='success', never observed live)",
+        "reason": "string (present when status=='skipped', the only status ever observed live)",
+        "error": "string (present only on status=='failed')",
+        "traceback": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. This tool has no PostHog analytics calls (unlike the other 3 scrub_mcp_server tools, confirmed by direct code read) -- no state handoff mechanism at all beyond the plain-text status:'skipped' response, since it never meaningfully executes in the current product."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "If it were ever registered in a live routing_sequence, the same generic {skillCode:'M03.9_ErpStandardize', stepStatus} SSE mechanism as the other scrub_mcp_server tools would apply via fastapi_router.py's notify_skill_progress() -- not currently exercised since this tool is excluded from Standard_BOM_Flow"
+      ],
+      "database_updates": [
+        "None in the current product -- this skill_index (9) is not part of any live routing_sequence, so fastapi_router.py's routing gate skips it before ever calling it, incrementing rfq_process_stage without invoking this tool's logic at all"
+      ],
+      "alerts": [
+        "None"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Not currently invoked by Dify_Dynamic_Master_Router -- registered in system_skills_registry but is_active=false and absent from Standard_BOM_Flow's routing_sequence",
+      "trigger": "Would be HTTP_POST_Payload_plus_Variables (POST /tool/execute) if ever added to a live routing_sequence"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (scrub_mcp_server.py, port 8004) -- process is live and would serve this tool if called directly"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy (if invoked)"
+    },
+    "persistence": {
+      "database": "DuckDB (input_db.duckdb) for the standing erp table; PostgreSQL file_metadata_db for the (currently never-populated) ERP file-path lookup",
+      "table": "erp (DuckDB, standing/non-RFQ-scoped, appended only on the hypothetical non-skipped path)",
+      "action": "No DuckDB write occurs in the current product's actual usage pattern (always skipped)"
+    },
+    "audit": {
+      "telemetry": "None -- no PostHog analytics_events calls exist in this tool's code, unlike its 3 sibling tools"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui) -- not currently reached since this skill is excluded from the live routing_sequence",
+      "method": "N/A in current product usage"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "skipped",
+            "success",
+            "failed"
+          ]
+        },
+        "rows_standardized": {
+          "type": "integer"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "traceback": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED_INACTIVE",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

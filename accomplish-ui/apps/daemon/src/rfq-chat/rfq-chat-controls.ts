@@ -6,7 +6,9 @@
  * user presses. A handler returns null when it cannot act (the service then treats the message as before).
  */
 import type { ChatActionDeps, ChatScope, UiDirective } from './rfq-chat-contract.js';
+import { parseEdit } from './rfq-chat-edit-fields.js';
 import { rfqMentions, type ControlIntent } from './rfq-chat-intent.js';
+import { manifestReply, type LoadManifests } from './rfq-chat-manifests.js';
 import { describeStatus, type RfqStatus } from './rfq-chat-status.js';
 import type { ChatReply, RfqSummary } from './rfq-chat-types.js';
 
@@ -17,6 +19,8 @@ export interface ControlDeps {
   sessionKey?: string;
   /** Pipeline progress of one RFQ from the database; absent = the chat cannot read it here. */
   pipelineStatus?: (rfqId: string) => Promise<RfqStatus>;
+  /** The manifest tree for "open the ... manifest" (SPEC-020); absent = the chat cannot list manifests here. */
+  manifests?: LoadManifests;
 }
 
 export const quoted = (items: string[]): string => items.map((i) => `\`${i}\``).join(', ');
@@ -74,8 +78,11 @@ export async function controlReply(
   if (intent === 'settings') {
     return { message: `Press the button to open Settings, Providers. ${SETTINGS_NOTE}`, ui: { type: 'open_settings', section: 'providers' } };
   }
+  if (intent === 'manifest') {
+    return manifestReply(question, deps.manifests, incoming.mode === 'rfqs' && incoming.rfqIds.length > 0);
+  }
   const rfqs = await deps.listRfqs();
-  const found = pickRfq(question, incoming, rfqs, { open: 'open', status: 'check', resume: 'start', export: 'export' }[intent]);
+  const found = pickRfq(question, incoming, rfqs, { open: 'open', status: 'check', resume: 'start', export: 'export', edit: 'change' }[intent]);
   if (!found) {
     // Nothing named and nothing scoped. A list question ("which RFQs are waiting for review?") stays a data question.
     if (intent === 'status' && /\brfqs\b/i.test(question)) {
@@ -107,6 +114,14 @@ export async function controlReply(
     return withExport?.hasExport
       ? { ...mine, message: `${label} has exported reports. Press the button to open the downloads.`, ui: { type: 'open_export', rfqId: rfq.rfqId } }
       : { ...mine, message: `${label} has no exported reports yet, so there is nothing to download. They appear when the pipeline reaches Quote Readiness.` };
+  }
+  if (intent === 'edit') {
+    const e = parseEdit(question);
+    if (!deps.actions || !e) {
+      return { ...mine, message: 'Changing a value from the chat is not available here. Edit it in the costed BOM grid instead.' };
+    }
+    const r = await deps.actions.proposeEditValue({ sessionKey: deps.sessionKey ?? 'local', rfqId: rfq.rfqId, target: e.target, fieldText: e.fieldText, value: e.value });
+    return { ...mine, message: r.message, ui: r.ui };
   }
   if (!deps.actions) {
     return { ...mine, message: 'Starting a pipeline from the chat is not available here. Open the RFQ in the left pane and press Continue.' };

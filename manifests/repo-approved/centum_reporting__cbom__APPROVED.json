@@ -1,0 +1,161 @@
+{
+  "skill_metadata": {
+    "macro_category": "pricingConsolidation",
+    "skill_id": "M03.4_CbomBuild",
+    "skill_name": "Build CBOM Structure + QuoteWin Pricing",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 4 of Standard_BOM_Flow, after standardize_scrub_bom/standardize_quote_win/standardize_costing_sheet have populated the input tables. Action: clear any prior CBOM rows for this rfq_id (clear_cbom_rfq), detect the RFQ's volumes (queries.detect_volumes), materialize a QuoteWin tie-break selection view (queries.selected_quote_sql), then insert the CBOM structure with _qw pricing columns populated (queries.cbom_insert_sql) -- all inside one transaction. Check: the transaction commits only if no exception is raised; on any exception the whole transaction is rolled back. Bound: single attempt, no retry loop -- this is the FIRST reporting-stage tool, so unlike the other 5 reporting tools it does NOT require pre-existing cbom_db.cbom rows; it only requires input_db.scrub_bom_items rows to exist (raises ValueError otherwise). Business rule: regenerates ONLY the cbom table -- does not touch the 16 downstream reports.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "input_db.scrub_bom_items rows for this rfq_id -- REQUIRED precondition; run_cbom raises ValueError if zero rows found",
+        "input_db.volume, input_db.batch, input_db.quote_win rows for this rfq_id (read during generation, not independently gated)",
+        "Whether cbom_db.cbom already has rows for this rfq_id (cleared unconditionally via clear_cbom_rfq before regenerating -- this tool is always a full regenerate, never incremental)"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "BEGIN TRANSACTION; cbom_generator.clear_cbom_rfq(con, rfq_id); cbom_generator.generate_cbom(con, rfq_id) (detects volumes, builds the QuoteWin selection view, inserts CBOM rows); COMMIT on success, ROLLBACK on any exception.",
+      "acceptance_check": "No exception raised during generate_cbom -- the DB transaction's own COMMIT/ROLLBACK is the acceptance mechanism, not a separate post-hoc check."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "cbom (this tool itself, delegating to reporting_pipeline.run_cbom -> cbom_generator.generate_cbom/clear_cbom_rfq)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; the precondition check (input_db.scrub_bom_items row count) is inline SQL in reporting_pipeline.py itself."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "generate_cbom() completes without raising -- transaction commits",
+      "no_op_condition": "None -- this tool always fully clears and regenerates cbom rows for the rfq_id on every call; there is no idempotent already-processed short-circuit like the intake tools have",
+      "escalation_condition": "None -- this tool never sets hitl:1 (confirmed: its MCP wrapper never includes a hitl key at all); a precondition failure (no scrub_bom_items rows) raises ValueError, which the MCP wrapper catches and returns as status:'failed', not as a hitl gate",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout -- same real values used platform-wide"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rfq_id": "string",
+        "execution_time_seconds": "number",
+        "cbom_row_count": "integer",
+        "priced_row_count": "integer",
+        "detected_volumes": "array of strings (e.g. ['proto','1','2'])",
+        "warnings": "array of strings (e.g. noting rows with no resolved final price yet)",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is: (1) the cbom_db.cbom rows themselves, (2) a single logger.info(...) line written to reporting_module's report_generation.log via logging_utils.logger. No PostHog event is fired for this specific tool (confirmed: mcp_server.py's cbom tool has no analytics_posthog_client.capture call, unlike generate_reports/export_reports)."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.4_CbomBuild', skillName:'Build CBOM Structure + QuoteWin Pricing', stepStatus} pushed via fastapi_router.py's notify_skill_progress()"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py on success (hitl always falsy for this tool)"
+      ],
+      "alerts": [
+        "None confirmed beyond the SSE progress events"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute)"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB only -- cbom.duckdb (write), input_db.duckdb (read-only, scrub_bom_items/volume/batch/quote_win)",
+      "table": "cbom_db.cbom (cleared then rewritten)",
+      "action": "database.connect()'s single multi-catalog DuckDB connection, wrapped in db.duckdb_file_lock() at the MCP-server layer for cross-process safety"
+    },
+    "audit": {
+      "telemetry": "logging_utils.logger single info-level log line only -- no PostHog event for this specific tool"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via the daemon's rfq:skill-progress channel"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "cbom_row_count": {
+          "type": "integer"
+        },
+        "priced_row_count": {
+          "type": "integer"
+        },
+        "detected_volumes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

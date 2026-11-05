@@ -276,7 +276,8 @@
     "scheduler": "Scheduler",
     "projectTracking": "Отслеживание проектов",
     "currencies": "Валюты",
-    "users": "Пользователи"
+    "users": "Пользователи",
+    "security": "Безопасность"
   },
   "notifications": {
     "toggle": {

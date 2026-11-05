@@ -33,6 +33,7 @@ from typing import Any, Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 import auth
+import edit_regenerate
 
 # centum intake's reporting_module owns the cbom.duckdb connection pattern
 # (ATTACH cbom_db / input_db onto reports.duckdb) -- reused here rather than
@@ -241,18 +242,11 @@ def get_preview_data(
     }
 
 
-@app.put("/api/bom/batch-update/{rfq_id}")
-def batch_update_bom(rfq_id: str, updates: list[dict[str, Any]], token: dict = Depends(auth.verify_token)):
-    """Applies inline cell edits (full row snapshots, keyed by bom_item_id) to
-    cbom.duckdb's final_* columns, then recomputes the derived columns
-    (is_costed/scrap_percent/abc_classification/etc.) via
-    final_selection.recompute_derived_columns -- the same function
-    hitl_router.py already uses for the same purpose.
-    """
-    if not updates:
-        raise HTTPException(status_code=400, detail="No rows provided for update.")
-
-    cbom_key = _resolve_cbom_key(rfq_id)
+def apply_bom_updates(cbom_key: str, updates: list) -> int:
+    """Applies full-row-snapshot edits (keyed by bom_item_id, optional volume_no) to cbom.duckdb's final_* columns
+    (EDITABLE_FIELDS only) in one transaction, then recomputes the derived columns. Shared by PUT
+    /api/bom/batch-update and POST /api/rfq/{id}/edit-and-regenerate (which also uses it to revert). Takes and
+    releases the DuckDB lock itself; raises HTTPException(500) after rolling back on any failure."""
     with duckdb_file_lock():
         con = reporting_database.connect()
         try:
@@ -294,7 +288,35 @@ def batch_update_bom(rfq_id: str, updates: list[dict[str, Any]], token: dict = D
             raise HTTPException(status_code=500, detail=str(e))
 
         con.close()
+    return updated_count
+
+
+@app.put("/api/bom/batch-update/{rfq_id}")
+def batch_update_bom(rfq_id: str, updates: list[dict[str, Any]], token: dict = Depends(auth.verify_token)):
+    """Applies inline cell edits (full row snapshots, keyed by bom_item_id) to
+    cbom.duckdb's final_* columns, then recomputes the derived columns
+    (is_costed/scrap_percent/abc_classification/etc.) via
+    final_selection.recompute_derived_columns -- the same function
+    hitl_router.py already uses for the same purpose.
+    """
+    if not updates:
+        raise HTTPException(status_code=400, detail="No rows provided for update.")
+
+    updated_count = apply_bom_updates(_resolve_cbom_key(rfq_id), updates)
     return {"success": True, "rfq_id": rfq_id, "rows_updated": updated_count}
+
+
+def _list_cbom_exports(cbom_key: str) -> list:
+    """Every export workbook of ONE version-scoped key (exporter.py names them
+    CBOM_Report_<slug>_<YYYYMMDD>_<HHMMSS>[_<8 hex>].xlsx). Matched strictly: the old glob
+    `CBOM_Report_RFQ_1_*` also caught `CBOM_Report_RFQ_1_v2_*`, i.e. another version's files."""
+    slug = reporting_helpers.slugify(cbom_key)
+    pattern = re.compile(rf"^CBOM_Report_{re.escape(slug)}_\d{{8}}_\d{{6}}(_[0-9a-f]{{8}})?\.xlsx$")
+    try:
+        names = os.listdir(reporting_config.EXPORTS_DIR)
+    except OSError:
+        return []
+    return [os.path.join(reporting_config.EXPORTS_DIR, n) for n in names if pattern.match(n)]
 
 
 def _find_latest_export(cbom_key: str) -> Optional[str]:
@@ -308,11 +330,7 @@ def _find_latest_export(cbom_key: str) -> Optional[str]:
     exported filename is already based on it -- different versions of the
     same RFQ therefore never collide or get confused for one another on disk.
     """
-    pattern = os.path.join(
-        reporting_config.EXPORTS_DIR,
-        f"CBOM_Report_{reporting_helpers.slugify(cbom_key)}_*.xlsx",
-    )
-    matches = glob.glob(pattern)
+    matches = _list_cbom_exports(cbom_key)
     if not matches:
         return None
     return max(matches, key=os.path.getmtime)
@@ -488,6 +506,68 @@ def get_export_status(rfq_id: str, token: dict = Depends(auth.verify_token)):
         "consolidatedBom": _export_artifact(_find_latest_rfqflow_verification_export(rfq_id)),
         "quoteSummary": _export_artifact(_find_latest_quote_summary_export(rfq_id)),
     }
+
+
+def _read_edit_rows(cbom_key: str, specs: list) -> list:
+    """Per edit spec (bom_item_id, volume_no, fields) the matching cbom rows with their CURRENT values."""
+    with duckdb_file_lock():
+        con = reporting_database.connect()
+        try:
+            out = []
+            for bom_item_id, volume_no, fields in specs:
+                if not all(f in EDITABLE_FIELDS for f in fields):
+                    raise ValueError("field outside the editable allow-list")
+                sql = f"SELECT bom_item_id, volume_no, {', '.join(fields)} FROM cbom_db.cbom WHERE bom_item_id = ? AND rfq_id = ?"
+                params = [bom_item_id, cbom_key]
+                if volume_no is not None:
+                    sql += " AND volume_no = ?"
+                    params.append(volume_no)
+                rows = con.execute(sql, params).fetchall()
+                names = [d[0] for d in con.description]
+                out.append([dict(zip(names, r)) for r in rows])
+            return out
+        finally:
+            con.close()
+
+
+class EditAndRegenerateBody(BaseModel):
+    edits: list[dict[str, Any]]
+    note: Optional[str] = None
+
+
+@app.post("/api/rfq/{rfq_id}/edit-and-regenerate")
+def edit_and_regenerate(rfq_id: str, body: EditAndRegenerateBody, token: dict = Depends(auth.verify_token)):
+    """SPEC-020: apply final_* edits, re-run only export_reports (a NEW workbook version), return the cell diff.
+    Reverts the edits if regeneration fails. See edit_regenerate.py."""
+    cbom_key = _resolve_cbom_key(rfq_id)
+    ports = edit_regenerate.Ports(
+        read_rows=lambda specs: _read_edit_rows(cbom_key, specs),
+        apply=lambda rows: apply_bom_updates(cbom_key, rows),
+        list_exports=lambda: _list_cbom_exports(cbom_key),
+        export=lambda: edit_regenerate.call_reporting_export(cbom_key),
+        emit=lambda event, payload: edit_regenerate.emit_event(event, payload),
+    )
+    try:
+        return edit_regenerate.edit_and_regenerate(rfq_id, body.edits, body.note, EDITABLE_FIELDS, ports)
+    except edit_regenerate.EditError as e:
+        raise HTTPException(status_code=e.status, detail=e.message)
+
+
+@app.get("/api/rfq/{rfq_id}/exports")
+def list_rfq_exports(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """Every kept export version of this RFQ's active version, newest first, with its saved diff summary."""
+    return edit_regenerate.describe_exports(_list_cbom_exports(_resolve_cbom_key(rfq_id)))
+
+
+@app.get("/api/rfq/{rfq_id}/exports/{filename}/download")
+def download_rfq_export_version(rfq_id: str, filename: str, token: dict = Depends(auth.verify_token)):
+    """One KEPT version of this RFQ's workbook (the 'Versions' list). The name must be one of THIS RFQ's own exports
+    (strict match in _list_cbom_exports), so no path can be smuggled in and another RFQ's file is never served."""
+    own = {os.path.basename(p): p for p in _list_cbom_exports(_resolve_cbom_key(rfq_id))}
+    path = own.get(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No such export version for this RFQ")
+    return FileResponse(path, filename=filename, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.get("/api/bom/export/{rfq_id}/download")
@@ -1447,6 +1527,73 @@ def attachment_content(rfq_id: str, attachment_id: str, token: dict = Depends(au
         raise HTTPException(status_code=404, detail="No such attachment")
     name, path = found[0]
     return FileResponse(path, filename=name, media_type="application/octet-stream")
+
+
+# ---- security telemetry (Settings -> Security) --------------------------------------------------------------------------
+# Token: any validly signed one (verify_token_any_project); the web client mints it with the fixed scope id "SECURITY".
+import rfq_memory_client
+import security_telemetry
+
+@app.get("/api/security/telemetry")
+def security_telemetry_route(token: dict = Depends(auth.verify_token_any_project)):
+    return security_telemetry.telemetry(ATTACHMENT_INBOX, {
+        "maxFiles": MAX_ATTACHMENT_FILES, "maxFileBytes": MAX_ATTACHMENT_BYTES, "maxTotalBytes": MAX_ATTACHMENT_TOTAL})
+
+
+@app.get("/api/memory/status")
+def memory_status_route(token: dict = Depends(auth.verify_token_any_project)):
+    return security_telemetry.memory_status(rfq_memory_client.RFQ_MEMORY_INTERNAL_URL)
+
+
+# ---- SPEC-020 manifest lint + codegen preview (pure functions; nothing is executed or written) ----
+MANIFEST_BODY_LIMIT = 512 * 1024
+
+
+def _strict_json(raw, what: str):
+    """json.loads that answers 400 (never a trace) and refuses NaN/Infinity, which are not JSON."""
+    def no_constant(name):
+        raise ValueError(f"{name} is not valid JSON")
+    try:
+        return json.loads(raw, parse_constant=no_constant)
+    except (ValueError, RecursionError) as e:
+        raise HTTPException(status_code=400, detail=f"{what} is not valid JSON: {e}")
+
+
+async def _manifest_body(request: Request) -> dict:
+    raw = await request.body()
+    if len(raw) > MANIFEST_BODY_LIMIT:
+        raise HTTPException(status_code=413, detail="Manifest body is limited to 512 KB")
+    body = _strict_json(raw, "Request body")
+    if not isinstance(body, dict) or not isinstance(body.get("text"), str):
+        raise HTTPException(status_code=400, detail='Body must be a JSON object with a string field "text"')
+    return body
+
+
+# verify_token_any_project: these routes have no rfq_id/project_id to scope a token to.
+@app.post("/api/manifests/lint")
+async def manifests_lint(request: Request, token: dict = Depends(auth.verify_token_any_project)):
+    import manifest_codegen
+    body = await _manifest_body(request)
+    kind = body.get("kind") or "skill"
+    if kind not in manifest_codegen.KINDS:
+        raise HTTPException(status_code=400, detail=f"kind must be one of {', '.join(manifest_codegen.KINDS)}")
+    try:
+        return manifest_codegen.lint_manifest(_strict_json(body["text"], "Manifest text"), kind)
+    except RecursionError:
+        raise HTTPException(status_code=400, detail="Manifest is nested too deeply")
+
+
+@app.post("/api/manifests/codegen")
+async def manifests_codegen(request: Request, token: dict = Depends(auth.verify_token_any_project)):
+    import manifest_codegen
+    body = await _manifest_body(request)
+    doc = _strict_json(body["text"], "Manifest text")
+    if not isinstance(doc, dict):
+        raise HTTPException(status_code=400, detail="Manifest must be a JSON object")
+    try:
+        return manifest_codegen.build_preview(doc, body.get("sub_skill_id"))
+    except RecursionError:
+        raise HTTPException(status_code=400, detail="Manifest is nested too deeply")
 
 
 if __name__ == '__main__':

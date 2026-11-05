@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CircleNotch, FileText, ShieldCheck, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { fitsOneScan, formatBytes, MAX_FILES, REJECT_TEXT, scanFiles, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
+import { formatBytes, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
+import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
+import { PerimeterSteps, type Phase } from './PerimeterSteps';
 import { ScanResults } from './ScanResults';
-
-type Phase = 'review' | 'scanning' | 'result';
 
 interface AttachFilesDialogProps {
   open: boolean;
@@ -20,35 +19,7 @@ interface AttachFilesDialogProps {
   onReleased: () => void;
 }
 
-const STEPS = ['Select', 'Quarantine', 'BuLL*Sav', 'Repel', 'Verdict'] as const;
 const LIST_CAP = 200; // rows drawn; a folder drop can hold thousands
-
-/** The five stages of the perimeter. Quarantine to Repel run together on the server, so they are shown as one running block. */
-function Steps({ phase, response }: { phase: Phase; response: ScanResponse | null }) {
-  const failed = response?.engines.some((e) => e.status !== 'ok') ?? false;
-  const state = (i: number) =>
-    phase === 'review' ? (i === 0 ? 'now' : 'todo')
-    : phase === 'scanning' ? (i === 0 ? 'done' : i < 4 ? 'now' : 'todo')
-    : i === 2 || i === 3 ? (failed ? 'alert' : 'done') : 'done';
-  return (
-    <ol className="flex flex-wrap items-center gap-1.5 text-[11px]" aria-label="Security pipeline">
-      {STEPS.map((label, i) => (
-        <li key={label} className="flex items-center gap-1.5" aria-current={state(i) === 'now' ? 'step' : undefined}>
-          <span className={cn('rounded-full border px-2 py-0.5 font-medium', {
-            'border-primary/40 bg-primary/10 text-primary': state(i) === 'now',
-            'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400': state(i) === 'done',
-            'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400': state(i) === 'alert',
-            'border-border text-muted-foreground': state(i) === 'todo',
-          })}>
-            {label}
-            <span className="sr-only"> ({{ now: 'in progress', done: 'done', alert: 'needs attention', todo: 'not started' }[state(i)]})</span>
-          </span>
-          {i < STEPS.length - 1 && <span aria-hidden className="h-px w-3 bg-border" />}
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 /** Select or reject what was picked, then run both security engines on the rest. Nothing reaches the assistant before that. */
 export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose, onReleased }: AttachFilesDialogProps) {
@@ -61,29 +32,39 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const [phase, setPhase] = useState<Phase>('review');
   const [response, setResponse] = useState<ScanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wave, setWave] = useState({ n: 1, of: 1 });
+  const [failure, setFailure] = useState<WaveOutcome['failure']>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setChosen(new Set(triage.usable.slice(0, MAX_FILES)));
+    setChosen(new Set(triage.usable.slice(0, MAX_PICK)));
     setPhase('review');
     setResponse(null);
     setError(null);
+    setFailure(null);
   }, [triage]);
 
   const picked = triage.usable.filter((f) => chosen.has(f));
-  const fit = fitsOneScan(picked);
+  const waves = planWaves(picked).waves.length;
+  const fit = picked.length === 0 ? { ok: false, reason: 'Select at least one file' }
+    : picked.length > MAX_PICK ? { ok: false, reason: `${picked.length} selected; at most ${MAX_PICK} at a time. Untick ${picked.length - MAX_PICK}.` }
+    : { ok: true, reason: '' };
   const toggle = (f: File) => setChosen((s) => { const n = new Set(s); if (!n.delete(f)) n.add(f); return n; });
 
   const run = async () => {
     const controller = new AbortController();
     abort.current = controller;
     setError(null);
+    setFailure(null);
+    setWave({ n: 1, of: waves });
     setPhase('scanning');
     try {
-      const out = await scanFiles(rfqId, picked, controller.signal);
-      setResponse(out);
+      const out = await scanInWaves(rfqId, picked, { signal: controller.signal, onWave: (n, of) => setWave({ n, of }) });
+      if (out.response?.results.some((r) => r.decision === 'released')) onReleased();
+      if (out.failure && !out.response) throw new Error(out.failure.message);
+      setResponse(out.response);
+      setFailure(out.failure);
       setPhase('result');
-      if (out.results.some((r) => r.decision === 'released')) onReleased();
     } catch (err) {
       if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : 'The scan failed');
@@ -110,7 +91,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
             BuLL*Sav (ClamAV signatures) and Repel Shield (macros, injected instructions, disguised files) both check every file. A file is released only if both pass; a problem with either engine holds it.
           </DialogDescription>
         </DialogHeader>
-        <Steps phase={phase} response={response} />
+        <PerimeterSteps phase={phase} engines={response?.engines} />
 
         {phase === 'review' && (
           <div className="space-y-3">
@@ -121,9 +102,9 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
               </p>
             )}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{picked.length} of {triage.usable.length} selected{triage.rejected.length > 0 && ` · ${triage.rejected.length} rejected`}</span>
+              <span>{picked.length} of {triage.usable.length} selected{triage.rejected.length > 0 && ` · ${triage.rejected.length} rejected`}{waves > 1 && ` · sent in ${waves} waves`}</span>
               <span className="flex gap-3">
-                <button type="button" className="hover:text-foreground" onClick={() => setChosen(new Set(triage.usable.slice(0, MAX_FILES)))}>Select all</button>
+                <button type="button" className="hover:text-foreground" onClick={() => setChosen(new Set(triage.usable.slice(0, MAX_PICK)))}>Select all</button>
                 <button type="button" className="hover:text-foreground" onClick={() => setChosen(new Set())}>Clear</button>
               </span>
             </div>
@@ -139,7 +120,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
                 </li>
               ))}
               {triage.usable.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">None of these files can be sent.</li>}
-              {triage.usable.length > LIST_CAP && <li className="px-3 py-2 text-center text-xs text-muted-foreground">{triage.usable.length - LIST_CAP} more not listed: at most {MAX_FILES} are sent per scan.</li>}
+              {triage.usable.length > LIST_CAP && <li className="px-3 py-2 text-center text-xs text-muted-foreground">{triage.usable.length - LIST_CAP} more not listed: at most {MAX_PICK} are sent at a time.</li>}
             </ul>
             {triage.rejected.length > 0 && (
               <details open={triage.usable.length === 0} className="text-xs text-muted-foreground">
@@ -157,12 +138,18 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
 
         {phase === 'scanning' && (
           <div className="space-y-2" role="status">
-            <p className="flex items-center gap-2 text-sm text-foreground"><CircleNotch className="h-4 w-4 animate-spin motion-reduce:animate-none" />Quarantining and scanning {picked.length} {picked.length === 1 ? 'file' : 'files'}…</p>
-            <ul className="space-y-1 text-xs text-muted-foreground">{picked.map((f) => <li key={f.name} className="truncate">{f.name}</li>)}</ul>
+            <p className="flex items-center gap-2 text-sm text-foreground"><CircleNotch className="h-4 w-4 animate-spin motion-reduce:animate-none" />{wave.of > 1 ? `Wave ${wave.n} of ${wave.of}: ` : ''}Quarantining and scanning {picked.length} {picked.length === 1 ? 'file' : 'files'}…</p>
+            <ul className="space-y-1 text-xs text-muted-foreground">{(wave.of > 1 ? planWaves(picked).waves[wave.n - 1] ?? [] : picked).map((f) => <li key={f.name} className="truncate">{f.name}</li>)}</ul>
           </div>
         )}
 
         {phase === 'result' && response && <ScanResults response={response} />}
+        {phase === 'result' && failure && (
+          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-foreground">
+            <p className="flex items-start gap-2"><WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />Wave {failure.wave} of {failure.waves} failed: {failure.message}. The remaining waves were not run. These {failure.unsent.length} files were never scanned or released:</p>
+            <ul className="mt-1 max-h-24 overflow-y-auto pl-6">{failure.unsent.map((f) => <li key={f.name} className="truncate">{f.name}</li>)}</ul>
+          </div>
+        )}
 
         <DialogFooter className="gap-2 sm:gap-0">
           {phase === 'result' ? (

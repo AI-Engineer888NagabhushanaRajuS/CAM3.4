@@ -1,0 +1,146 @@
+{
+  "skill_metadata": {
+    "macro_category": "erpDataSync",
+    "skill_id": "M03.2_QuoteWinStandardize",
+    "skill_name": "Standardize QuoteWin Report",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 2 of Standard_BOM_Flow, after a QuoteWin (Awards Part Number Listing) file is uploaded via upload_server.py's POST /api/rfq/upload/quotewin. Action: validate rfq_id, resolve the registered QuoteWin file path from rfq_file_telemetry (file_role='QUOTEWIN'), run process_quote_win() to map/standardize the workbook, and write the standardized rows to DuckDB's quote_win table under a cross-process lock. Check: rfq_id format guard, and the write result reports status=='success'. Bound: single attempt only -- no retry loop exists; unlike Costing Sheet/ERP, QuoteWin is a REQUIRED input for this tool -- a missing file is a hard failure (status:'failed'), not a graceful skip. Business rule: schema mapping and standardization only, no downstream cbom/enrichment logic performed here.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string, validated against ^[A-Za-z0-9_-]+$)",
+        "A row in file_metadata_db.rfq_file_telemetry with file_role='QUOTEWIN', is_active=true, for (rfq_id, version) -- required, no graceful-skip path if missing"
+      ],
+      "fresh_state_parameters": [
+        "version (integer, default 1, resolved by fastapi_router.py's active-version lookup before this tool is called)"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "Fetch the QuoteWin file path via postgres_metadata__execute_sql, run process_quote_win(quote_win_file), then write the resulting DataFrame to DuckDB's quote_win table inside db.duckdb_file_lock().",
+      "acceptance_check": "Programmatically evaluate whether the write result's status=='success'."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (ScrubIntake server, scrub_mcp_server.py, port 8004)",
+      "action_tool": "standardize_quote_win (this tool itself, plus process_quote_win / process_quote_win_to_database helper functions)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; validation is inline (_validate_id(), status check on the single table write)."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "result['status']=='success'",
+      "no_op_condition": "already_processed==true if quote_win rows already exist for this rfq_id+version -- same idempotency pattern as standardize_scrub_bom, but this tool never sets hitl itself either way",
+      "escalation_condition": "None specific to this tool -- it never sets hitl:1 on its own response; it exists to clear the FRESH-scrub_bom-triggered HITL pause by being uploaded, then the caller (RfqErpQuoteWinUploadModal.tsx) calls GET /api/dify/start to resume",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout -- same real, unsynced values as standardize_scrub_bom"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rows_standardized": "integer",
+        "already_processed": "boolean (optional)",
+        "error": "string (present only on status=='failed')",
+        "traceback": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is the written quote_win DuckDB rows, plus PostHog upload_processing_started/completed/failed events. Flagged as a gap against ISATVON's audit-artifact expectation."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.2_QuoteWinStandardize', skillName:'Standardize QuoteWin Report', stepStatus} pushed via fastapi_router.py's notify_skill_progress() -- running before the call, completed/failed after"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py when this tool succeeds (hitl falsy)"
+      ],
+      "alerts": [
+        "None confirmed beyond the SSE progress events"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute)"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (scrub_mcp_server.py, port 8004)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB (input_db.duckdb) for output; PostgreSQL file_metadata_db for file-path lookup",
+      "table": "quote_win (DuckDB, written); rfq_file_telemetry (Postgres, read)",
+      "action": "Direct DuckDB write under db.duckdb_file_lock(); Postgres file-path read via postgres_metadata__execute_sql MCP tool"
+    },
+    "audit": {
+      "telemetry": "PostHog_Analytics_Events (upload_processing_started/completed/failed)"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via the daemon's rfq:skill-progress channel"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rows_standardized": {
+          "type": "integer"
+        },
+        "already_processed": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        },
+        "traceback": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

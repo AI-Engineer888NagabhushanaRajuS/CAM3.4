@@ -47,6 +47,7 @@ import {
   CaretRight,
   LockSimple,
   Gear,
+  BracketsCurly,
   SignOut,
   MagnifyingGlass,
   Pulse,
@@ -59,6 +60,8 @@ import { RfqVersionSelectModal } from './components/rfq/RfqVersionSelectModal';
 import type { RfqFileVersion } from './components/rfq/RfqVersionSelectModal';
 import { RfqExecutionCard } from './components/rfq/RfqExecutionCard';
 import { RfqProgressTimeline } from './components/rfq/RfqProgressTimeline';
+import { ChangesPanel } from './components/rfq/ChangesPanel';
+import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
 import { AdditionalCostingSheetsModal } from './components/costing-sheets/AdditionalCostingSheetsModal';
@@ -795,6 +798,9 @@ export function App() {
           setHitlLayoutExpanded(false);
         } else if (payload.event === 'rfq:skill-progress') {
           applyRfqSkillProgress(payload);
+        } else if (isRfqChangeEvent(payload.event)) {
+          // SPEC-020 live changes: same connection, shown by ChangesPanel (the store keeps events per RFQ).
+          pushRfqChangeEvent(payload);
         }
       } catch (err) {
         console.error("Error reading stream transmission frames:", err);
@@ -1159,6 +1165,16 @@ export function App() {
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <ThemeToggle />
+          <button
+            type="button"
+            title="Manifests"
+            aria-label="Manifests"
+            onClick={() => navigate('/manifests')}
+            className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <BracketsCurly className="h-4 w-4" aria-hidden="true" />
+            Manifests
+          </button>
           <button
             type="button"
             title="Settings"
@@ -1578,6 +1594,7 @@ export function App() {
                       </div>
                     )}
                     <RfqProgressTimeline entries={rfqProgressLog} />
+                    {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
                     {currentWorkflowStage === 'quoteReadiness' && (
                       <div className="space-y-3 px-5 pb-5">
                         <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">

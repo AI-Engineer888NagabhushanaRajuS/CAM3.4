@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import type { DisambiguateOption } from '@/lib/chatContract';
 import { ConfirmActionCard } from './ConfirmActionCard';
-import { OpenExportDirective, OpenRfqDirective, OpenSettingsDirective } from './OpenDirectives';
+import { OpenExportDirective, OpenManifestDirective, OpenRfqDirective, OpenSettingsDirective } from './OpenDirectives';
 import type { ChatMsg, ConfirmOutcome } from './useAssistantChat';
 
 export interface DirectiveActions {
@@ -71,6 +71,8 @@ export function Directive({ msg, actions, busy }: { msg: ChatMsg; actions: Direc
       return <OpenExportDirective rfqId={ui.rfqId} busy={busy} />;
     case 'open_settings':
       return <OpenSettingsDirective busy={busy} onOpen={actions.onOpenSettings} />;
+    case 'open_manifest':
+      return <OpenManifestDirective path={ui.path} label={ui.label} />;
     default:
       return null;
   }

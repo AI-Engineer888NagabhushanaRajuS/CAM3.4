@@ -6,6 +6,7 @@
 import { log } from '../logger.js';
 import { resolveChatModel, type ChatProviderMode } from './rfq-chat-models.js';
 import { makeChatActions } from './rfq-chat-actions.js';
+import { loadManifestTree } from './rfq-chat-manifests.js';
 import { fetchRfqStatus } from './rfq-chat-status.js';
 import { rememberTurn, retrieveRfqContext, rfqHasExport } from './rfq-chat-client.js';
 import type { ChatActionDeps } from './rfq-chat-contract.js';
@@ -59,6 +60,7 @@ export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: A
     actions: (sharedActions ??= makeChatActions(src)),
     sessionKey,
     pipelineStatus: (rfqId) => fetchRfqStatus(rfqId),
+    manifests: loadManifestTree,
     signal,
     memory: async ({ rfqId, question }) => {
       const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 4000 });

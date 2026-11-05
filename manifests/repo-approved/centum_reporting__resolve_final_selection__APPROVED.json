@@ -1,0 +1,158 @@
+{
+  "skill_metadata": {
+    "macro_category": "pricingConsolidation",
+    "skill_id": "M03.6_FinalSelectionHITL",
+    "skill_name": "Resolve Final Cost Selection (HITL gate)",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 6 of Standard_BOM_Flow, after enrich_costing_sheet. Action: require cbom_db.cbom rows to already exist (hard ValueError otherwise); auto-resolve every cbom row where exactly one source (_costing/_erp/_qw) has data directly into cbom.duckdb's final_* columns, then persist genuine multi-source conflicts to Postgres logic_db.final_selection_conflicts for human review. Check: the DuckDB portion commits/rolls back as one transaction; the Postgres write (ensure_conflicts_table + idempotent DELETE-then-INSERT of unresolved conflicts) happens inside its own explicit BEGIN/COMMIT in run_resolve_final_selection. Bound: single attempt, no retry loop. Business rule: this tool ALWAYS returns hitl:1, even when there are zero pending conflicts -- it is the platform's only gate before Finalize Price / CBOM preview, so it must never be silently skipped; hitl_router.py's own submit endpoint accepts an empty resolutions list as a no-op confirm precisely to handle the zero-conflict case.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "cbom_db.cbom rows for this rfq_id -- REQUIRED precondition; raises ValueError otherwise",
+        "cbom rows' _costing/_erp/_qw source columns (which of the 3 have non-null data determines auto-resolve vs conflict)",
+        "Pre-existing UNRESOLVED rows in logic_db.final_selection_conflicts for this rfq_id (resolved_source IS NULL) -- deleted and replaced on every re-run; already-resolved rows are never touched"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "BEGIN TRANSACTION (DuckDB); run the auto-resolve SQL for single-source rows and recompute derived columns; query genuine multi-source conflicts; COMMIT. Then, in a separate Postgres transaction: ensure_conflicts_table(pg_conn) (idempotent DDL/migration), DELETE this rfq_id's unresolved conflicts, INSERT the current conflict set, COMMIT.",
+      "acceptance_check": "No exception raised in either the DuckDB or Postgres transaction. The response always reports hitl:1 -- this is a fixed business rule, not conditioned on the acceptance check's outcome."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "resolve_final_selection (this tool itself, delegating to reporting_pipeline.run_resolve_final_selection -> final_selection.resolve_final_selection, which also writes Postgres logic_db.final_selection_conflicts)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists. Human review of the actual conflicts happens through a SEPARATE service, hitl_router.py (port 5002/5102), but that is a review/resolution UI backend, not a validation-check tool for THIS tool's own execution."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "resolve_final_selection() completes without raising in both the DuckDB and Postgres transactions",
+      "no_op_condition": "None in the DuckDB auto-resolve step (always re-evaluates every cbom row); the Postgres side IS idempotent in a specific way -- re-running deletes and replaces only UNRESOLVED conflicts, never touching already-resolved ones, so a repeat call safely refreshes the pending set without discarding completed human review",
+      "escalation_condition": "hitl:1 is returned UNCONDITIONALLY on every successful call, even with pending_conflicts==0 -- the caller (fastapi_router.py) will never advance rfq_process_stage past this skill on its own; hitl_router.py's POST /api/rfq/{rfq_id}/final-selection is what actually clears the way, and only once every conflict is resolved",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rfq_id": "string",
+        "hitl": "1 (always, on success)",
+        "pending_conflicts": "integer",
+        "review_required": "boolean (pending_conflicts > 0)",
+        "execution_time_seconds": "number",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "The one tool of these 10 with a genuine, real append-style state artifact: logic_db.final_selection_conflicts (Postgres) -- created/migrated idempotently by ensure_conflicts_table(), holding conflict_id/rfq_id/cbom_item_id/bom_item_id/volume_no/cpn/available_sources/resolved_source/resolved_by/resolved_at/created_at. This is the closest real analog in this platform to ISATVON's 'mandatory audit trail artifact', though it is a live working-state table (rows get UPDATEd on resolution) rather than a strictly append-only log."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.6_FinalSelectionHITL', skillName:'Resolve Final Cost Selection (HITL gate)', stepStatus} pushed via fastapi_router.py's notify_skill_progress()",
+        "Dify's DMR additionally calls the accomplish-ui daemon's POST /api/internal/trigger-hitl ({rfqId, stage:'centum_reporting__resolve_final_selection', hitlType:'approval'}) specifically because hitl==1, broadcasting a hitl:request SSE event that opens the frontend's pricing-source-review UI"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.hitl_required set true by fastapi_router.py (since hitl is always truthy here)",
+        "logic_db.final_selection_conflicts rows inserted/cleared as described above",
+        "cbom_db.cbom's final_* columns updated for every auto-resolved (single-source) row"
+      ],
+      "alerts": [
+        "None beyond the SSE hitl:request event -- no separate paging/escalation channel confirmed"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute); Dify additionally calls the daemon directly on hitl==1"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB (cbom.duckdb, read+write) AND PostgreSQL logic_db -- the only one of these 10 tools that writes to Postgres directly rather than only DuckDB",
+      "table": "cbom_db.cbom (final_* columns updated); logic_db.final_selection_conflicts (Postgres, inserted/deleted)",
+      "action": "Two separate transactions: DuckDB BEGIN/COMMIT for auto-resolve, then a Postgres BEGIN/COMMIT for the conflicts table -- not one atomic cross-database transaction"
+    },
+    "audit": {
+      "telemetry": "logic_db.final_selection_conflicts itself functions as the real audit surface for this tool, plus a single logging_utils.logger info-level line"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via rfq:skill-progress AND a dedicated hitl:request event (via the daemon's POST /api/internal/trigger-hitl), since this tool always halts the pipeline"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "hitl": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "pending_conflicts": {
+          "type": "integer"
+        },
+        "review_required": {
+          "type": "boolean"
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id",
+        "hitl"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

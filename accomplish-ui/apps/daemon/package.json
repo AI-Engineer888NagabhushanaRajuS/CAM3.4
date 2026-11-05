@@ -21,6 +21,7 @@
     "@accomplish_ai/agent-core": "workspace:*",
     "@opencode-ai/sdk": "1.14.18",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "ajv": "^8.17.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",

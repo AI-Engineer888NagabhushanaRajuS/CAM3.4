@@ -248,7 +248,8 @@
     "scheduler": "Scheduler",
     "projectTracking": "项目跟踪",
     "currencies": "货币",
-    "users": "用户"
+    "users": "用户",
+    "security": "安全"
   },
   "integrations": {
     "title": "消息平台集成",

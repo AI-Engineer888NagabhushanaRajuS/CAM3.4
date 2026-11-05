@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle, MinusCircle, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { confirmAction, type ActionStep, type UiDirective } from '@/lib/chatContract';
+import { OpenExportDirective } from './OpenDirectives';
 import type { ConfirmOutcome } from './useAssistantChat';
 
 type Confirm = Extract<UiDirective, { type: 'confirm_action' }>;
@@ -34,6 +35,11 @@ const str = (v: unknown): string => (typeof v === 'string' && v.trim() ? v : NOT
 
 /** What the card lists. start_pipeline has fixed, named rows (null = shown in words); create_rfq lists whatever the daemon sent. */
 function rowsOf(ui: Confirm): Array<[string, unknown]> {
+  if (ui.action === 'edit_value') {
+    const { rfqId, bomItemId, label: part, fieldLabel, before, after } = ui.params;
+    const val = (v: unknown) => (v === null || v === undefined || v === '' ? 'Empty' : String(v));
+    return [['RFQ', str(rfqId)], ['Item', `${str(part)} (bom item ${str(bomItemId)})`], ['Field', str(fieldLabel)], ['Current value', val(before)], ['New value', val(after)]];
+  }
   if (ui.action !== 'start_pipeline') {
     return Object.entries(ui.params).map(([k, v]) => [label(k), v]);
   }
@@ -104,6 +110,9 @@ export function ConfirmActionCard({ ui, outcome, onSettle }: ConfirmActionCardPr
       {ui.action === 'start_pipeline' && (
         <h4 className="text-sm font-semibold text-foreground">Start or resume the pipeline for {str(ui.params.rfqId)}</h4>
       )}
+      {ui.action === 'edit_value' && (
+        <h4 className="text-sm font-semibold text-foreground">Change {str(ui.params.fieldLabel)} and regenerate the reports</h4>
+      )}
       <p className="text-sm font-medium text-foreground">{ui.summary}</p>
       <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[max-content_1fr]">
         {rowsOf(ui).map(([k, v]) => (
@@ -131,6 +140,7 @@ export function ConfirmActionCard({ ui, outcome, onSettle }: ConfirmActionCardPr
           </p>
           {response?.message && <p className="break-words text-xs text-muted-foreground">{response.message}</p>}
           {response && <Steps steps={response.steps} />}
+          {response?.ui?.type === 'open_export' && <OpenExportDirective rfqId={response.ui.rfqId} busy={false} />}
           {response?.rfqId && <p className="text-xs text-foreground">RFQ: <strong className="font-semibold">{response.rfqId}</strong></p>}
         </div>
       )}

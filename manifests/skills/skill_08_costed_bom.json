@@ -1,0 +1,98 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_08",
+    "skill_name": "Costed BOM",
+    "office_analogy": "The Full Cost Sheet",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Akshay / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 7 hook[cite: 7]. Action: Roll up material, manufacturing, labor, overhead, FAI, NRE, freight, and scrap factors into 100% auditable costed BOM matrices (`CBOM Proto`, `CBOM VL-1`) and push clean data payload to BullMind[cite: 1, 7]. Check: Verify total cost sum matches sub-component rollups to 4 decimal places[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "validated_quote_matrix",
+        "scrap_factor_master_table",
+        "currency_exchange_rates_table",
+        "batch_qty_sheet"
+      ],
+      "fresh_state_parameters": ["costed_bom_rollup_master", "bullmind_sync_status"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Execute multi-level cost aggregation calculations in DuckDB and push structured payload to BullMind[cite: 4, 7].",
+      "acceptance_check": "Programmatically evaluate: cost_rollup_verified == True AND bullmind_push_success == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Costed_BOM_Engine_MCP",
+      "fixed_check_tool": "Mathematical_Audit_Rollup_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "costed_bom_pushed_to_bullmind == True",
+      "no_op_condition": "costed_bom_already_locked == True",
+      "escalation_condition": "cost_rollup_discrepancy_detected",
+      "budget_limit": "30000ms"
+    },
+    "o_outcome": {
+      "json_schema": "CostedBOMDataPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_costed_bom_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Aggregating Multi-Level BOM Costs -> Pushed to BullMind"],
+      "database_updates": ["Insert into costed_bom_master and sync BullMind table"],
+      "alerts": ["PostHog tracks cost calculation latency; notify finance team[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 9 (Reporting via BullMind)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "8.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "8.1.1", "action": "Read chosen bid prices, baseline, BOM, risk flags, and batch quantities", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "8.2",
+      "sub_skill_name": "Consolidate",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "8.2.1", "action": "Build multi-level costed BOM (material, manufacturing, FAI, NRE, freight, scrap factors)", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "8.3",
+      "sub_skill_name": "Push to BullMind",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "8.3.1", "action": "Push clean costed BOM dataset to BullMind engine layer", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "8.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "8.4.1", "action": "Human verifies costed BOM and auditability of price points", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_07_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "costed_bom_master", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_8"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"validated_matrix": {"type": "array"}}, "required": ["validated_matrix"]},
+    "output_schema": {"type": "object", "properties": {"costed_bom_id": {"type": "string"}, "total_cost": {"type": "number"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

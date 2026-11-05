@@ -3,9 +3,10 @@
  * rules recognise is 'unsure' and goes to the ordinary conversation, where the model may hand it back as an RFQ-data
  * question (rfq-chat-general.ts), so the model "classifies" inside the one call it makes anyway.
  */
+import { isEditRequest } from './rfq-chat-edit-fields.js';
 
-/** The first six are the assistant's controls over the app (rfq-chat-controls.ts); each is answered from rules and the database, no model. */
-export type ControlIntent = 'open' | 'status' | 'resume' | 'export' | 'upload' | 'settings';
+/** The assistant's controls over the app (rfq-chat-controls.ts); each is answered from rules and the database, no model. */
+export type ControlIntent = 'open' | 'status' | 'resume' | 'export' | 'upload' | 'settings' | 'edit' | 'manifest';
 export type Intent = 'guide' | 'create' | 'data' | 'unsure' | ControlIntent;
 
 // "hai" is how this team writes hi. A greeting is answered from the guide (what I can do); thanks and the like are plain talk.
@@ -30,6 +31,8 @@ const RESUME = new RegExp(String.raw`\b(resume|restart|re-?run|continue|kick off
 const STATUS = /\b(pipeline|workflow|hitl|stuck|progress|waiting (for|on) (a |the )?(human |my )?(review|approval)|(which|what|current|at what) (stage|step)|stage (is|of|are)|(is|still|currently|has) (it |this |that |the \w+ )?(running|finished|stopped)|where (is|are) (it|this|that|rfq|the rfq)|how far)\b/i;
 const EXPORT = /\b(export|download)\b/i;
 const UPLOAD = /\b(upload|attach)\b[^.?!\n]{0,25}\b(files?|bom|volume|workbook|spreadsheet|sheets?|csv|xlsx?|pdf|docx)\b|\badd\s+(?:a|an|another|more)\s+(?:new\s+)?(?:\w+\s+)?(files?|bom|volume)\b/i;
+// SPEC-020: "open the Input Standardization manifest", "show skill 4 json". Not with an RFQ id: that is the workbook's Manifest sheet.
+const MANIFEST = /\b(open|show|view|display|edit|go to|take me to|pull up)\b[^.?!\n]{0,60}\b(manifests?|skills?|json)\b/i;
 const SETTINGS = /\b(openrouter|api[- ]?key|settings|providers?)\b|\b(change|switch|use|pick|select)\b[^.?!\n]{0,20}\b(model|provider)\b/i;
 
 /** True when a question is about Settings / the model / the OpenRouter key: a guide answer to it also gets the Open Settings button. */
@@ -41,6 +44,12 @@ export function controlIntent(question: string): ControlIntent | null {
     return null;
   }
   const hasId = new RegExp(ID, 'i').test(question);
+  if (isEditRequest(question)) {
+    return 'edit'; // "set the MOQ of PN-100 to 500": a value edit behind a confirmation card (SPEC-020)
+  }
+  if (!hasId && MANIFEST.test(question)) {
+    return 'manifest';
+  }
   if (OPEN.test(question)) {
     return 'open';
   }

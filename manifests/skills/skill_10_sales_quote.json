@@ -1,0 +1,97 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_10",
+    "skill_name": "Sales Quote",
+    "office_analogy": "The Sales Letter",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Akshay / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 9 hook[cite: 7]. Action: Apply commercial margins, FAI/NRE charges, and taxes; draft proposal cover letter in Tiptap editor with Excel report attachments; send email to client upon human approval signature[cite: 1, 7]. Check: Verify human approval signature is valid before SMTP email dispatch[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "costed_bom_master_payload",
+        "generated_16_excel_reports",
+        "commercial_margin_rules_master"
+      ],
+      "fresh_state_parameters": ["draft_sales_quote_proposal", "crm_client_email_target"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Apply commercial margin rules, render proposal in Tiptap editor, and hold for human sign-off[cite: 1, 7].",
+      "acceptance_check": "Programmatically evaluate: human_approval_signed == True AND client_email_dispatched == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Sales_Quote_Email_Dispatcher_MCP",
+      "fixed_check_tool": "Commercial_Signoff_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "quote_approved_and_dispatched == True",
+      "no_op_condition": "quote_already_sent_to_client == True",
+      "escalation_condition": "margin_below_minimum_threshold",
+      "budget_limit": "30000ms"
+    },
+    "o_outcome": {
+      "json_schema": "FinalSalesQuotePayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_sales_quote_dispatch_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Quote Proposal Drafted -> Awaiting Signature -> Sent to Client"],
+      "database_updates": ["Update crm_project_record status to 'QUOTE_SENT'"],
+      "alerts": ["PostHog logs quote approval event; notify account executive[cite: 1, 7]"],
+      "next_step": "Workflow complete. Handoff to client post-quote engagement tracking[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "10.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "10.1.1", "action": "Read costed BOM and generated Excel report files", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "10.2",
+      "sub_skill_name": "Build the quote",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "10.2.1", "action": "Add FAI, NRE, assembly charges, taxes, and commercial margin buffers; trigger internal approval chain", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "10.3",
+      "sub_skill_name": "Compose",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "10.3.1", "action": "Draft quote proposal email: cover letter in Tiptap rich-text editor, Excel breakdown attached", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "10.4",
+      "sub_skill_name": "Approve and send",
+      "type": "Human Final Action",
+      "steps": [{"step_id": "10.4.1", "action": "Human signs off on quote; email is dispatched to client target", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_09_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "crm_project_record", "action": "Update_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_10"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"excel_report_paths": {"type": "array"}}, "required": ["excel_report_paths"]},
+    "output_schema": {"type": "object", "properties": {"quote_status": {"type": "string"}, "dispatch_timestamp": {"type": "string"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

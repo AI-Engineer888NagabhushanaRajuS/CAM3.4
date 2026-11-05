@@ -25,7 +25,7 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: Array<{ id: string; label: string; detail?: string }> }
   | {
       type: 'confirm_action';
-      action: 'create_rfq' | 'start_pipeline';
+      action: 'create_rfq' | 'start_pipeline' | 'edit_value';
       summary: string;
       /** Exactly what will be done: customer, project, files, flow profile. Shown to the user before Confirm. */
       params: Record<string, unknown>;
@@ -37,7 +37,9 @@ export type UiDirective =
   // Buttons the user presses in the bubble (assistant controls the app, 2026-11-05): the UI never navigates by itself.
   | { type: 'open_rfq'; rfqId: string }
   | { type: 'open_export'; rfqId: string }
-  | { type: 'open_settings'; section: 'providers' };
+  | { type: 'open_settings'; section: 'providers' }
+  // SPEC-020: a button that opens the manifest editor (hash route #/manifests?path=<path>); path is relative to manifests/.
+  | { type: 'open_manifest'; path: string; label: string };
 
 export interface ChatRequest {
   messages: Array<{ role: string; content: string }>;
@@ -68,6 +70,8 @@ export interface ActionConfirmResponse {
   ok: boolean;
   message: string;
   rfqId?: string;
+  /** SPEC-020: set to { type: 'open_export', rfqId } when an edit regenerated the reports, so the UI can offer the new version. */
+  ui?: UiDirective;
   /** One entry per step actually attempted, in order, so a failure says where it stopped. */
   steps: Array<{ step: string; status: 'done' | 'failed' | 'skipped'; detail?: string }>;
 }
@@ -86,5 +90,11 @@ export interface ChatActionDeps {
    * (action 'start_pipeline', params { rfqId, stage, customer, project }).
    */
   proposeStartPipeline(p: { sessionKey: string; rfqId: string }): Promise<{ message: string; ui?: UiDirective }>;
+  /**
+   * SPEC-020: change one final_* value of one costed-BOM row and regenerate the reports. Refuses with a plain message when the
+   * RFQ, row or field is unknown or not editable, or the value does not fit; otherwise returns a confirm_action card
+   * (action 'edit_value', params { rfqId, bomItemId, label, field, fieldLabel, before, after }).
+   */
+  proposeEditValue(p: { sessionKey: string; rfqId: string; target: string; fieldText: string; value: string }): Promise<{ message: string; ui?: UiDirective }>;
   confirm(p: { sessionKey: string; req: ActionConfirmRequest }): Promise<ActionConfirmResponse>;
 }

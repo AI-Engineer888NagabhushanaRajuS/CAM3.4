@@ -19,6 +19,7 @@ import { controlReply, quoted, unknownRfqReply } from './rfq-chat-controls.js';
 import { classify, classifyBase, mentionsSettings, rfqMentions } from './rfq-chat-intent.js';
 import { answerAcrossRfqs, MAX_RFQS, pickRfqDirective } from './rfq-chat-multi.js';
 import type { ChatActionDeps, ChatScope } from './rfq-chat-contract.js';
+import type { LoadManifests } from './rfq-chat-manifests.js';
 import type { RfqStatus } from './rfq-chat-status.js';
 import type { ChatModel, ChatReply, RfqSummary, Turn } from './rfq-chat-types.js';
 
@@ -38,6 +39,8 @@ export interface ChatServiceDeps extends Omit<GroundedDeps, 'model'> {
   sessionKey?: string;
   /** Pipeline progress of one RFQ from the database (rfq-chat-status.ts). Absent = "where is it?" cannot be answered here. */
   pipelineStatus?: (rfqId: string) => Promise<RfqStatus>;
+  /** Manifest tree for "open the ... manifest" (rfq-chat-manifests.ts). */
+  manifests?: LoadManifests;
 }
 
 export interface ChatParams {
@@ -84,7 +87,7 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
   });
 
   let intent = classify(question);
-  if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings') {
+  if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings' || intent === 'edit' || intent === 'manifest') {
     const done = await controlReply(intent, { deps, question, incoming });
     if (done) {
       return talk(done.message, done);
@@ -157,7 +160,7 @@ async function dataReply({ deps, question, history, incoming, talk }: Ctx): Prom
 
   if (scope.mode === 'rfqs' && scope.rfqIds.length === 1) {
     const rfqId = scope.rfqIds[0];
-    const { model, listRfqs: _list, withExports: _w, remember, actions: _actions, sessionKey: _key, pipelineStatus: _status, ...rest } = deps;
+    const { model, listRfqs: _list, withExports: _w, remember, actions: _actions, sessionKey: _key, pipelineStatus: _status, manifests: _manifests, ...rest } = deps;
     const answer = await answerFromResults({ rfqId, question, history }, { ...rest, model: model() });
     if (answer.citations.length > 0) {
       remember?.({ rfqId, question, answer: answer.message });

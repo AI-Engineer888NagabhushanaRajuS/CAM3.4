@@ -1,5 +1,5 @@
 /**
- * SPEC-019 actions (create_rfq, start_pipeline). The assistant never writes anything by itself: a propose* call validates
+ * SPEC-019 actions (create_rfq, start_pipeline, edit_value). The assistant never writes anything by itself: a propose* call validates
  * and returns a confirmation card; only confirm() with that card's single-use token runs the steps, and every
  * step is audited. Tokens live in memory (a daemon restart voids pending cards, which is the safe direction).
  */
@@ -8,15 +8,19 @@ import type { ActionConfirmRequest, ActionConfirmResponse, ChatActionDeps } from
 import { realActionDeps } from './rfq-chat-actions-deps.js';
 import { resolveFiles, resolveParties } from './rfq-chat-actions-parse.js';
 import { planStartPipeline, runStartPipeline } from './rfq-chat-actions-pipeline.js';
+import { planEditValue, runEditValue } from './rfq-chat-actions-edit.js';
 import { runCreateRfq } from './rfq-chat-actions-run.js';
-import { chatStagingId, hashParams, type ActionDeps, type CreateRfqParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
+import { chatStagingId, hashParams, type ActionDeps, type CreateRfqParams, type EditValueParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
 
 export const TOKEN_TTL_MS = 5 * 60 * 1000;
 
+/** What "nothing was ..." says for each action when a card is refused or cancelled. */
+const NOTHING = { create_rfq: 'created', start_pipeline: 'started', edit_value: 'changed' } as const;
+
 interface Pending {
   sessionKey: string;
-  action: 'create_rfq' | 'start_pipeline';
-  params: CreateRfqParams | StartPipelineParams;
+  action: keyof typeof NOTHING;
+  params: CreateRfqParams | StartPipelineParams | EditValueParams;
   paramHash: string;
   expiresAt: number;
 }
@@ -42,7 +46,7 @@ export function makeChatActions(
 
   const refuse = async (sessionKey: string, hash: string, why: string, action: Pending['action'] = 'create_rfq'): Promise<ActionConfirmResponse> => {
     await audit(sessionKey, 'confirm.refused', hash, why);
-    return { ok: false, message: `Refused: ${why}. ${action === 'create_rfq' ? 'Nothing was created.' : 'Nothing was started.'}`, steps: [] };
+    return { ok: false, message: `Refused: ${why}. Nothing was ${NOTHING[action]}.`, steps: [] };
   };
 
   /** One token per card: single use, bound to the session and to the exact params (hash), valid 5 minutes. */
@@ -117,6 +121,24 @@ export function makeChatActions(
       }
     },
 
+    async proposeEditValue({ sessionKey, rfqId, target, fieldText, value }) {
+      try {
+        const plan = await planEditValue(deps, { rfqId, target, fieldText, value });
+        if (!plan.params || !plan.summary) {
+          await audit(sessionKey, 'propose.refused', '-', `${rfqId}: ${plan.message}`);
+          return { message: plan.message };
+        }
+        const card = await issue(sessionKey, 'edit_value', plan.params, `card issued to edit ${plan.params.field} of ${plan.params.bomItemId} in ${rfqId}`);
+        return {
+          message: plan.message,
+          ui: { type: 'confirm_action', action: 'edit_value', summary: plan.summary, params: plan.params as unknown as Record<string, unknown>, ...card },
+        };
+      } catch (err) {
+        log.warn(`[RfqChatActions] edit proposal failed: ${err}`);
+        return { message: `I can't read the costed BOM of ${rfqId} right now (${err instanceof Error ? err.message : String(err)}). Nothing was changed.` };
+      }
+    },
+
     async confirm({ sessionKey, req }: { sessionKey: string; req: ConfirmReq }) {
       const p = pending.get(req.confirmToken);
       if (!p) {
@@ -134,18 +156,20 @@ export function makeChatActions(
         return refuse(sessionKey, p.paramHash, 'the parameters changed after the confirmation was issued', p.action);
       }
       if (req.decision === 'cancel') {
-        const none = p.action === 'create_rfq' ? 'created' : 'started';
-        await audit(sessionKey, 'confirm.cancel', p.paramHash, `cancelled; nothing ${none}`);
-        return { ok: true, message: `Cancelled. Nothing was ${none}.`, steps: [] };
+        await audit(sessionKey, 'confirm.cancel', p.paramHash, `cancelled; nothing ${NOTHING[p.action]}`);
+        return { ok: true, message: `Cancelled. Nothing was ${NOTHING[p.action]}.`, steps: [] };
       }
       try {
         await deps.appendAudit({ who: sessionKey, when: new Date(deps.now()).toISOString(), action: 'confirm.start', paramHash: p.paramHash, result: p.params.rfqId });
       } catch (err) {
         // No audit trail, no write.
         log.warn(`[RfqChatActions] audit unavailable, ${p.action} refused: ${err}`);
-        return { ok: false, message: `Refused: the audit log is not writable, so nothing was ${p.action === 'create_rfq' ? 'created' : 'started'}.`, steps: [] };
+        return { ok: false, message: `Refused: the audit log is not writable, so nothing was ${NOTHING[p.action]}.`, steps: [] };
       }
       const auditStep = (action: string, result: string) => audit(sessionKey, action, p.paramHash, result);
+      if (p.action === 'edit_value') {
+        return runEditValue(deps, p.params as EditValueParams, auditStep);
+      }
       return p.action === 'create_rfq' ? runCreateRfq(deps, p.params as CreateRfqParams, auditStep) : runStartPipeline(deps, p.params as StartPipelineParams, auditStep);
     },
   };

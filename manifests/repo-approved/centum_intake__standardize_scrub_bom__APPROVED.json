@@ -1,0 +1,162 @@
+{
+  "skill_metadata": {
+    "macro_category": "intake",
+    "skill_id": "M03.1_ScrubBOMStandardize",
+    "skill_name": "Standardize SCRUB BOM Workbook",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify Dynamic Master Router's POST /tool/execute call for skill_index 1 of Standard_BOM_Flow, immediately after a BOM file is uploaded via upload_server.py's POST /api/rfq/upload. Action: validate rfq_id, resolve the registered BOM file path from rfq_file_telemetry (file_role='BOM', active row for the current version), run process_scrub_bom_workbook() to map/standardize the 'SCRUB BOM'/'Settings'/'Batch' sheets, and write the results to DuckDB's scrub_bom_items/volume/batch tables under a cross-process lock. Check: rfq_id matches ^[A-Za-z0-9_-]+$ before any SQL use, and all 3 table writes individually report status=='success'. Bound: single attempt only -- no retry loop exists in the implementation; any exception is caught and returned as status:'failed' with a traceback, not retried. Business rule: performs schema mapping and standardization only -- volume expansion, consolidation, and duplicate-CPN detection are explicitly out of scope for this tool.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string, validated against ^[A-Za-z0-9_-]+$)",
+        "A row in file_metadata_db.rfq_file_telemetry with file_role='BOM', is_active=true, for (rfq_id, version) -- the BOM workbook file path"
+      ],
+      "fresh_state_parameters": [
+        "version (integer, default 1; resolved by fastapi_router.py from file_metadata_db.rfq_process_tracking's active version before this tool is called)",
+        "Whether scrub_bom_items/volume/batch rows already exist for this rfq_id+version (drives the already_processed no-op path)"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "Fetch the BOM file path via the postgres_metadata__execute_sql MCP tool, run process_scrub_bom_workbook(bom_file), then write scrub_bom_items/volume/batch to DuckDB inside db.duckdb_file_lock().",
+      "acceptance_check": "Programmatically evaluate whether every one of the 3 per-table write results has status=='success'; overall_status is 'success' only if all 3 agree."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (ScrubIntake server, scrub_mcp_server.py, port 8004)",
+      "action_tool": "standardize_scrub_bom (this tool itself, plus process_scrub_bom_workbook / process_scrub_bom_to_database / process_volume_to_database / process_batch_to_database helper functions)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists. Validation (_validate_id() regex guard, per-table status checks) is inline Python inside this same function, not delegated to a separate tool."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "table_results['scrub_bom_items']['status']=='success' AND table_results['volume']['status']=='success' AND table_results['batch']['status']=='success'",
+      "no_op_condition": "already_processed==true for this rfq_id+version -- i.e. every one of the 3 tables' rows already existed from a prior run (scrub_mcp_server.py's own idempotency check); on this path hitl is deliberately NOT re-asserted",
+      "escalation_condition": "hitl:1 in the response on a FRESH (non-already_processed) success -- halts the DMR pipeline (fastapi_router.py will not advance rfq_process_stage) until a human uploads QuoteWin/Costing Sheet via the frontend's RfqErpQuoteWinUploadModal",
+      "budget_limit": "300s read timeout on the MCP Jungle call_tool() request (tool_calling.py) / 600s on the Dify HTTP Request node that calls /tool/execute -- two independent, unsynced timeout values, both real"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "scrub_bom_items": "{status, already_processed?, error?}",
+        "volume": "{status, already_processed?, error?}",
+        "batch": "{status, already_processed?, error?}",
+        "hitl": "1 (present only on a fresh success)",
+        "error": "string (present only on status=='failed')",
+        "traceback": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists in the current implementation (unlike an ideal ISATVON audit artifact). The real state handoff is: (1) the written scrub_bom_items/volume/batch DuckDB rows themselves, (2) file_metadata_db.rfq_file_telemetry.execution_logs (jsonb, appended to by upload_server.py, not this tool), and (3) PostHog analytics events (upload_processing_started/completed/failed) fired by this tool. Flagged as a gap against ISATVON's audit-artifact expectation, not silently assumed to exist."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.1_ScrubBOMStandardize', skillName:'Standardize SCRUB BOM Workbook', macroCategory, stepStatus:'running'} pushed via fastapi_router.py's notify_skill_progress() before the tool call",
+        "Same payload with stepStatus:'completed' after a successful (non-hitl, non-failed) advance, or stepStatus:'failed' with an error string on failure",
+        "No fixed message strings (e.g. 'Looping [Pass X/Y]') exist in this code -- the frontend (accomplish-ui) renders its own UI text from this generic payload"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py only when hitl is falsy",
+        "file_metadata_db.rfq_process_tracking.hitl_required set true by fastapi_router.py when this tool returns hitl:1"
+      ],
+      "alerts": [
+        "None confirmed in code beyond the SSE progress events above -- no separate escalation/paging channel exists for this tool"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute, {tool_name, arguments:{rfq_id}})"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (scrub_mcp_server.py, port 8004)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB (input_db.duckdb) for output tables; PostgreSQL file_metadata_db for file-path lookup and pipeline-state updates",
+      "table": "scrub_bom_items, volume, batch (DuckDB, written); rfq_file_telemetry (Postgres, read); rfq_process_tracking (Postgres, written by the caller, not this tool directly)",
+      "action": "Direct DuckDB writes under db.duckdb_file_lock(); Postgres file-path read via postgres_metadata__execute_sql MCP tool"
+    },
+    "audit": {
+      "telemetry": "PostHog_Analytics_Events (upload_processing_started/completed/failed) -- no PostgreSQL audit-log table exists for this tool"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via the daemon's rfq:skill-progress channel, sourced from fastapi_router.py's notify_skill_progress()"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "scrub_bom_items": {
+          "type": "object"
+        },
+        "volume": {
+          "type": "object"
+        },
+        "batch": {
+          "type": "object"
+        },
+        "hitl": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "traceback": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

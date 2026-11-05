@@ -60,6 +60,32 @@ export function fitsOneScan(chosen: File[]): { ok: boolean; reason?: string } {
   return { ok: true };
 }
 
+/** Most files one attach action will take in total, however many waves that makes. */
+export const MAX_PICK = 100;
+
+/**
+ * Splits an over-limit pick into sequential waves that each fit one scan (10 files, 60 MB), keeping the order.
+ * A file over 25 MB can never be scanned, so it is rejected with the usual reason instead of getting a wave.
+ */
+export function planWaves(files: File[]): { waves: File[][]; rejected: Triage['rejected'] } {
+  const out: { waves: File[][]; rejected: Triage['rejected'] } = { waves: [], rejected: [] };
+  let bytes = 0;
+  for (const file of files) {
+    if (file.size > MAX_FILE_BYTES) {
+      out.rejected.push({ file, reason: 'too_large' });
+      continue;
+    }
+    const last = out.waves[out.waves.length - 1];
+    if (!last || last.length >= MAX_FILES || bytes + file.size > MAX_TOTAL_BYTES) {
+      out.waves.push([]);
+      bytes = 0;
+    }
+    out.waves[out.waves.length - 1].push(file);
+    bytes += file.size;
+  }
+  return out;
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;

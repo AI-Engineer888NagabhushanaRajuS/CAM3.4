@@ -32,9 +32,9 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: DisambiguateOption[] }
   | {
       type: 'confirm_action';
-      action: 'create_rfq' | 'start_pipeline';
+      action: 'create_rfq' | 'start_pipeline' | 'edit_value';
       summary: string;
-      /** Exactly what will be done: customer, project, files, flow profile. start_pipeline: { rfqId, stage, customer, project }. */
+      /** Exactly what will be done: customer, project, files, flow profile. start_pipeline: { rfqId, stage, customer, project }. edit_value: { rfqId, bomItemId, label, field, fieldLabel, before, after }. */
       params: Record<string, unknown>;
       confirmToken: string;
       expiresAt: string;
@@ -43,7 +43,9 @@ export type UiDirective =
   /** Buttons only: the user presses them, the UI never acts alone. open_rfq selects the RFQ like the left list does. */
   | { type: 'open_rfq'; rfqId: string }
   | { type: 'open_export'; rfqId: string }
-  | { type: 'open_settings'; section: 'providers' };
+  | { type: 'open_settings'; section: 'providers' }
+  /** SPEC-020: opens the manifest editor at #/manifests?path=<path> (path relative to manifests/). */
+  | { type: 'open_manifest'; path: string; label: string };
 
 export interface ChatResponse {
   message: string;
@@ -100,6 +102,8 @@ export interface ActionConfirmResponse {
   ok: boolean;
   message: string;
   rfqId?: string;
+  /** SPEC-020: { type: 'open_export', rfqId } when an edit regenerated the reports. */
+  ui?: UiDirective;
   steps: ActionStep[];
 }
 
@@ -143,10 +147,15 @@ export function parseUi(value: unknown): UiDirective | undefined {
       return typeof ui.rfqId === 'string' && ui.rfqId.trim() ? (ui as unknown as UiDirective) : undefined;
     case 'open_settings':
       return ui.section === 'providers' ? (ui as unknown as UiDirective) : undefined;
+    case 'open_manifest':
+      return typeof ui.path === 'string' && ui.path.trim() && typeof ui.label === 'string' ? (ui as unknown as UiDirective) : undefined;
     default:
       return undefined;
   }
 }
+
+/** The hash route of the manifest editor for a manifest path. */
+export const manifestHash = (path: string): string => `#/manifests?path=${encodeURIComponent(path)}`;
 
 // Assumption: a disambiguation option whose id looks like an RFQ id (RFQ-00001, RFQ-CENTUM-PROOF-24) carries an RFQ.
 const RFQ_ID = /^RFQ-[\w-]+$/i;

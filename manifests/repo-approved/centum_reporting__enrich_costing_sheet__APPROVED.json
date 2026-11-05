@@ -1,0 +1,146 @@
+{
+  "skill_metadata": {
+    "macro_category": "pricingConsolidation",
+    "skill_id": "M03.5_CostingEnrichment",
+    "skill_name": "Enrich CBOM with Costing Sheet Data",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 5 of Standard_BOM_Flow, after cbom has run. Action: require cbom_db.cbom rows to already exist for this rfq_id (hard ValueError otherwise); run enrichment.enrich_costing_sheet(con, rfq_id), which executes UPDATE statements (queries.costing_enrichment_sql) to fill _costing columns on existing cbom rows from the input_db.costing_sheet table. Check: transaction commits only if no exception is raised. Bound: single attempt, no retry loop. Business rule: independent of enrich_erp -- either order, or either skipped; if standardize_costing_sheet earlier reported status:'skipped' (no file uploaded), this tool still runs but simply matches zero rows.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "cbom_db.cbom rows for this rfq_id -- REQUIRED precondition (enrichment.py's _require_cbom_rows()); raises ValueError otherwise",
+        "input_db.costing_sheet rows for this rfq_id -- may be empty if no Costing Sheet was ever uploaded (an accepted, non-error state)"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "BEGIN TRANSACTION; enrichment.enrich_costing_sheet(con, rfq_id) executes UPDATE statements filling _costing columns; COMMIT on success, ROLLBACK on exception.",
+      "acceptance_check": "No exception raised -- rows_matched_costing (COUNT of rows with price_original_costing IS NOT NULL) is reported but is not itself a pass/fail gate; 0 matched rows (no Costing Sheet uploaded) is still a 'success' response."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "enrich_costing_sheet (this tool itself, delegating to reporting_pipeline.run_costing_enrichment -> enrichment.enrich_costing_sheet)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; the cbom-rows precondition is inline SQL in enrichment.py's _require_cbom_rows()."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "enrich_costing_sheet() completes without raising -- transaction commits regardless of rows_matched_costing count",
+      "no_op_condition": "No idempotent already-processed short-circuit exists -- every call re-runs the UPDATE statements; if input_db.costing_sheet has zero rows for this rfq_id, the effective outcome is a no-op (rows_matched_costing==0) but the call itself always executes",
+      "escalation_condition": "None -- this tool never sets hitl:1",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rfq_id": "string",
+        "execution_time_seconds": "number",
+        "cbom_row_count": "integer",
+        "rows_matched_costing": "integer (COUNT of rows with price_original_costing IS NOT NULL)",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is: (1) the mutated _costing columns on cbom_db.cbom rows, (2) a single logger.info(...) line to report_generation.log. No PostHog event confirmed for this tool."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.5_CostingEnrichment', skillName:'Enrich CBOM with Costing Sheet Data', stepStatus} pushed via fastapi_router.py's notify_skill_progress()"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py on success (hitl always falsy for this tool)"
+      ],
+      "alerts": [
+        "None confirmed beyond the SSE progress events"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute)"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB only -- cbom.duckdb (read+write, _costing columns), input_db.duckdb (read-only, costing_sheet)",
+      "table": "cbom_db.cbom (columns updated, not rows added)",
+      "action": "database.connect()'s multi-catalog DuckDB connection, wrapped in db.duckdb_file_lock()"
+    },
+    "audit": {
+      "telemetry": "logging_utils.logger single info-level log line only"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via the daemon's rfq:skill-progress channel"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "cbom_row_count": {
+          "type": "integer"
+        },
+        "rows_matched_costing": {
+          "type": "integer"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

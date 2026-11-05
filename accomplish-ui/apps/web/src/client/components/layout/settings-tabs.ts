@@ -6,6 +6,7 @@ import {
   Buildings,
   UsersThree,
   CurrencyDollar,
+  ShieldCheck,
 } from '@phosphor-icons/react';
 
 export type SettingsTabId =
@@ -14,6 +15,7 @@ export type SettingsTabId =
   | 'projectTracking'
   | 'currencies'
   | 'users'
+  | 'security'
   | 'general'
   | 'about';
 
@@ -24,6 +26,7 @@ export const SETTINGS_TABS = [
   // Admin-only -- filtered out for non-admin sessions in SettingsDialog.tsx.
   { id: 'currencies' as const, labelKey: 'tabs.currencies', icon: CurrencyDollar },
   { id: 'users' as const, labelKey: 'tabs.users', icon: UsersThree },
+  { id: 'security' as const, labelKey: 'tabs.security', icon: ShieldCheck },
   { id: 'general' as const, labelKey: 'tabs.general', icon: GearSix },
   { id: 'about' as const, labelKey: 'tabs.about', icon: Info },
 ] as const;

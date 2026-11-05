@@ -35,6 +35,37 @@ export interface StartPipelineParams {
   project: string | null;
 }
 
+/** The parameters of a confirmed "change one value and regenerate the reports" card (SPEC-020). */
+export interface EditValueParams {
+  rfqId: string;
+  bomItemId: string;
+  /** Part number (or description) shown to the user. */
+  label: string;
+  field: string;
+  fieldLabel: string;
+  before: string | number | null;
+  after: string | number;
+}
+
+/** One costed-BOM row as the preview endpoint returns it, reduced to what the edit needs. */
+export interface BomRow {
+  bomItemId: string;
+  cpn: string;
+  mpn: string;
+  fg: string;
+  description: string;
+  /** The final_* values of the row, as stored. */
+  values: Record<string, string | number | null>;
+}
+
+/** What the bridge answers for POST /api/rfq/{id}/edit-and-regenerate. */
+export interface EditResult {
+  applied: number;
+  before: { filename: string } | null;
+  after: { filename: string; generated_at?: string };
+  diff: { total_changed_cells: number; sheets: Array<{ sheet: string; changed: number }> } | null;
+}
+
 export interface Attachment {
   attachmentId: string;
   name: string;
@@ -81,6 +112,10 @@ export interface ActionDeps {
   pipelineState(rfqId: string): Promise<RfqStatus>;
   /** GET {RFQ_UPLOAD_URL}/api/dify/start/{rfqId}, the call the UI makes to resume; throws UnknownOutcomeError when the answer is unknown. */
   startPipeline(rfqId: string): Promise<{ status: string; outcome?: string }>;
+  /** Costed-BOM rows of an RFQ whose bom item id, CPN or manufacturer part number equals `target` (case-insensitive). */
+  findBomRows(rfqId: string, target: string): Promise<BomRow[]>;
+  /** POST {bridge}/api/rfq/{rfqId}/edit-and-regenerate; throws UnknownOutcomeError when the answer is unknown, Error with the bridge's detail on a refusal. */
+  editAndRegenerate(rfqId: string, edit: { bomItemId: string; field: string; value: string | number }, note: string): Promise<EditResult>;
 }
 
 /** JSON with sorted keys, so the same parameters always hash the same. */

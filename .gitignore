@@ -52,3 +52,6 @@ manifests/*.tmp
 
 # Cognee local data
 database/cognee_data/
+
+# SPEC-020: generated copies of edited manifests (history is local, not source)
+manifests/.history/

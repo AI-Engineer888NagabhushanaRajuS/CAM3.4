@@ -8,6 +8,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { UnknownOutcomeError, type ActionDeps } from './rfq-chat-actions-types.js';
+import { realEditDeps } from './rfq-chat-edit-deps.js';
 import { fetchRfqStatus } from './rfq-chat-status.js';
 
 const bridge = (): string => (process.env.PYTHON_BRIDGE_URL ?? process.env.PYTHON_SERVICE_URL ?? 'http://localhost:3110').replace(/\/$/, '');
@@ -152,6 +153,7 @@ export function realActionDeps(): ActionDeps {
       const out = (await res.json()) as { success?: boolean; dify_status?: string; dify_response?: { outcome?: string } };
       return { status: out.dify_status ?? (out.success ? 'SUCCESS' : ''), outcome: out.dify_response?.outcome };
     },
+    ...realEditDeps({ bridge, authHeader, failure }),
     async appendAudit(line) {
       const file = auditFile();
       await mkdir(join(file, '..'), { recursive: true });

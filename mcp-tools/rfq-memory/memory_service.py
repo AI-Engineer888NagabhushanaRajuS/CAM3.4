@@ -116,7 +116,7 @@ def _llm_writes_enabled() -> bool:
 async def chat_remember(rfq_id: str, body: RememberRequest, token: dict = Depends(config.verify_token)):
     if not _llm_writes_enabled():
         return {"ok": True, "skipped": "RFQ_MEMORY_LLM_WRITES is off"}
-    await query.remember_turn(rfq_id, body.session_id, body.question, body.answer)
+    await _limited(query.remember_turn(rfq_id, body.session_id, body.question, body.answer))
     return {"ok": True}
 
 
@@ -153,8 +153,35 @@ async def internal_ingest(body: IngestRequest):
 _background_tasks: set = set()
 
 
+# Even with writes on, at most RFQ_MEMORY_MAX_CONCURRENT Cognee LLM jobs run at once (default 1); the rest wait here.
+# ponytail: one process-wide limit; per-RFQ fairness only if one RFQ's burst ever blocks the others.
+_MAX_CONCURRENT = max(1, int(os.environ.get("RFQ_MEMORY_MAX_CONCURRENT") or 1))
+_write_slots = asyncio.Semaphore(_MAX_CONCURRENT)
+_running = 0
+_queued = 0
+
+
+async def _limited(coro):
+    """Await one write job once a slot is free. Counts feed GET /internal/memory/status."""
+    global _running, _queued
+    _queued += 1
+    try:
+        await _write_slots.acquire()
+    except BaseException:
+        coro.close()
+        raise
+    finally:
+        _queued -= 1
+    _running += 1
+    try:
+        return await coro
+    finally:
+        _running -= 1
+        _write_slots.release()
+
+
 def _spawn(coro) -> None:
-    task = asyncio.create_task(coro)
+    task = asyncio.create_task(_limited(coro))
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
 
@@ -186,6 +213,13 @@ async def internal_reset(body: ResetRequest):
     await versioning.prune_rfq_dataset(body.rfq_id)
     deleted = citation_store.delete_citations(body.rfq_id)
     return {"ok": True, "citations_deleted": deleted}
+
+
+@internal_app.get("/internal/memory/status")
+async def internal_status():
+    return {"writesEnabled": _llm_writes_enabled(),
+            "provider": "openrouter" if getattr(config, "_USE_OPENROUTER", False) else "ollama",
+            "maxConcurrent": _MAX_CONCURRENT, "running": _running, "queued": _queued}
 
 
 @internal_app.get("/health")
