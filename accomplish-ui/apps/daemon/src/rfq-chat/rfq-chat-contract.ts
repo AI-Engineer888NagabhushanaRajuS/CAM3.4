@@ -38,6 +38,8 @@ export type UiDirective =
 export interface ChatRequest {
   messages: Array<{ role: string; content: string }>;
   scope?: ChatScope;
+  /** Added by the routing agent: scanned files the user attached to this turn, for the create-RFQ intent (passed to proposeCreateRfq). */
+  fileRefs?: Array<{ attachmentId: string; name: string; rfqId?: string }>;
 }
 
 export interface ChatResponse {

@@ -5,7 +5,9 @@
  */
 import { log } from '../logger.js';
 import { resolveChatModel } from './rfq-chat-models.js';
-import { rememberTurn, retrieveRfqContext } from './rfq-chat-client.js';
+import { makeChatActions } from './rfq-chat-actions.js';
+import { rememberTurn, retrieveRfqContext, rfqHasExport } from './rfq-chat-client.js';
+import type { ChatActionDeps } from './rfq-chat-contract.js';
 import type { ChatServiceDeps, RfqSummary } from './rfq-chat-service.js';
 
 export interface ChatDepsSource {
@@ -20,7 +22,7 @@ async function listRfqs(): Promise<RfqSummary[]> {
       `SELECT COALESCE(p.rfq_id, t.rfq_id) AS rfq_id, p.customer_name, p.project_name, t.rfq_process_stage, t.hitl_required
          FROM rfq_project_tracking p
          FULL OUTER JOIN (SELECT * FROM rfq_process_tracking WHERE is_active) t ON t.rfq_id = p.rfq_id
-        ORDER BY 1 DESC LIMIT 50`,
+        ORDER BY 1 DESC LIMIT 500`,
     );
     return rows.map((r) => ({
       rfqId: String(r.rfq_id),
@@ -35,12 +37,26 @@ async function listRfqs(): Promise<RfqSummary[]> {
   }
 }
 
+const EXPORT_CHECKED = 60; // ponytail: the 60 newest RFQs only (two bridge calls each); older ones read "no export" until the bridge reports it in one call
+
+/** The picker shows which RFQs have an exported workbook (the only ones whose numbers can be answered). Called only when a picker opens. */
+async function withExports(rfqs: RfqSummary[]): Promise<RfqSummary[]> {
+  const head = await Promise.all(rfqs.slice(0, EXPORT_CHECKED).map(async (r) => ({ ...r, hasExport: await rfqHasExport(r.rfqId) })));
+  return [...head, ...rfqs.slice(EXPORT_CHECKED)];
+}
+
+/** One instance for the daemon: its confirmation tokens must survive between the chat request that issues a card and the confirm request. */
+let sharedActions: ChatActionDeps | null = null;
+
 /** `sessionKey` keeps two people's conversations about the same RFQ apart in Cognee's session memory. */
 export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: AbortSignal): ChatServiceDeps {
   const sessionId = (rfqId: string) => `rfq-chat-${rfqId}-${sessionKey}`;
   return {
     model: () => resolveChatModel({ settingsKey: src.getApiKey('openrouter'), selected: src.getSelectedModel() }),
     listRfqs,
+    withExports,
+    actions: (sharedActions ??= makeChatActions(src)),
+    sessionKey,
     signal,
     memory: async ({ rfqId, question }) => {
       const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 4000 });

@@ -42,7 +42,7 @@ describe('RFQChatPane: one persistent conversation', () => {
     expect(screen.getByRole('log')).toBeTruthy();
     expect(screen.getByTestId('task-input-textarea')).toBeTruthy();
     expect(screen.getByText('UI-A1')).toBeTruthy();
-    expect(screen.getByText(/Answers come only from the RFQ/)).toBeTruthy();
+    expect(screen.getByText(/RFQ answers come with their source cells/)).toBeTruthy();
   });
 
   it('keeps the composer and the whole conversation after an answer, and takes a second question', async () => {
@@ -72,12 +72,15 @@ describe('RFQChatPane: one persistent conversation', () => {
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'Which parts have no pricing (uncosted) in this RFQ?' });
   });
 
-  it('is the same assistant without an RFQ: it posts to the general route and cannot take files', async () => {
+  it('is the same assistant without an RFQ: normal chat with scope none, and files still have a scope to be scanned in', async () => {
     render(<RFQChatPane rfqId={null} isOpen inline />);
-    expect((screen.getByRole('button', { name: 'Add files' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Add files' }) as HTMLButtonElement).disabled).toBe(false);
     type('which RFQs do I have?');
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock.mock.calls[0][0]).toBe('http://daemon/api/chat');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.scope).toEqual({ mode: 'none' });
+    expect(body.fileRefs).toEqual([]); // nothing attached yet
   });
 
   it('turns an error into a message and stays usable', async () => {

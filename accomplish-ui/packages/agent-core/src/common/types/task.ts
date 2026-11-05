@@ -142,7 +142,15 @@ export interface TaskMessage {
  * `chunks[].citation` value, never constructed from free-text model output.
  */
 export interface MessageCitation {
-  sourceType: 'cbom_row' | 'bom_row' | 'gerber_checklist' | 'excel_export' | 'file_telemetry' | 'cognee_memory';
+  sourceType:
+    | 'cbom_row'
+    | 'bom_row'
+    | 'gerber_checklist'
+    | 'excel_export'
+    | 'file_telemetry'
+    | 'cognee_memory'
+    | 'attachment'
+    | 'user_guide';
   /** Real, resolvable identifier fields specific to sourceType — e.g. for
    * 'cbom_row': { rfqId, cbomItemId, volumeNo, fg, cpn }; for
    * 'file_telemetry': { rfqId, version, fileRole, filePath }. */

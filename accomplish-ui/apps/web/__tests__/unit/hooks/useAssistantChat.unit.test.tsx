@@ -30,14 +30,16 @@ describe('the conversation does not end after an answer', () => {
     expect(second.messages.map((m: { content: string }) => m.content)).toEqual(['MOQ of UBR03225?', 'UBR03225 has an MOQ of 5000 (CBOM!A5:E5).', 'and the lead time?']);
   });
 
-  it('posts to the RFQ route with the session token, and to the general route without an RFQ', async () => {
+  it('posts to /api/chat with the session token and the scope: the selected RFQ, or none', async () => {
     const one = renderHook(() => useAssistantChat('RFQ-T2'));
     await act(() => one.result.current.send('hi'));
-    expect(fetchMock.mock.calls[0][0]).toBe('http://daemon/api/rfq/RFQ-T2/chat');
+    expect(fetchMock.mock.calls[0][0]).toBe('http://daemon/api/chat');
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer tok-1');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).scope).toEqual({ mode: 'rfqs', rfqIds: ['RFQ-T2'] });
     const all = renderHook(() => useAssistantChat(null));
     await act(() => all.result.current.send('which RFQs do I have?'));
     expect(fetchMock.mock.calls[1][0]).toBe('http://daemon/api/chat');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).scope).toEqual({ mode: 'none' });
   });
 
   it('carries the sources and the model of an answer', async () => {
@@ -63,6 +65,31 @@ describe('the conversation does not end after an answer', () => {
     await act(() => result.current.send('hello'));
     act(() => result.current.reset());
     expect(result.current.messages).toEqual([]);
+  });
+});
+
+describe('scope and directives', () => {
+  it('takes the scope from the answer and keeps the pending question on a pick_rfq message', async () => {
+    const ui = { type: 'pick_rfq', reason: 'Which?', options: [], allowAll: true, allowMultiple: true };
+    fetchMock.mockImplementationOnce(async () => reply({ message: 'Which RFQs?', citations: [], model: null, rfq_id: null, scope: { mode: 'none' }, ui }));
+    const { result } = renderHook(() => useAssistantChat(null));
+    await act(() => result.current.send('go / no-go?'));
+    expect(result.current.picker?.question).toBe('go / no-go?');
+    await act(async () => { result.current.applyPick(result.current.picker!, { mode: 'all' }); });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(result.current.scope).toEqual({ mode: 'all' });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toMatchObject({ scope: { mode: 'all' }, messages: expect.arrayContaining([{ role: 'user', content: 'go / no-go?' }]) });
+    expect(result.current.picker).toBeUndefined();
+  });
+
+  it('keeps the scope with the conversation', async () => {
+    const { result, rerender } = renderHook(({ id }) => useAssistantChat(id), { initialProps: { id: null as string | null } });
+    act(() => result.current.removeFromScope('all'));
+    await act(async () => { result.current.applyPick({ id: 'x', role: 'assistant', content: '', at: 0 }, { mode: 'rfqs', rfqIds: ['RFQ-S1', 'RFQ-S2'] }); });
+    rerender({ id: 'RFQ-S3' });
+    await waitFor(() => expect(result.current.scope).toEqual({ mode: 'rfqs', rfqIds: ['RFQ-S3'] }));
+    rerender({ id: null });
+    await waitFor(() => expect(result.current.scope).toEqual({ mode: 'none' })); // selecting resets to the selection
   });
 });
 

@@ -18,6 +18,8 @@ import { log } from './logger.js';
 import { matchTestLogin } from './test-login.js';
 import type { OpenAiOauthManager } from './opencode/auth-openai.js';
 import { chatReply } from './rfq-chat/rfq-chat-service.js';
+import { parseScope } from './rfq-chat/rfq-chat-scope.js';
+import type { ActionConfirmRequest, ChatRequest, ChatScope } from './rfq-chat/rfq-chat-contract.js';
 import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
@@ -2373,11 +2375,15 @@ export class BrowserApiServer {
           });
           return;
         }
-        // ── CAM 3.4: RFQ assistant chat ──────────────────────────────────────
-        // POST /api/rfq/:id/chat answers from that RFQ's results; POST /api/chat answers from the RFQ list or routes to
-        // an RFQ the question names. Every answer is built from rows and verified (rfq-chat/*); read-only, no mutations.
+        // ── CAM 3.4: RFQ assistant chat (SPEC-019) ───────────────────────────
+        // POST /api/chat is the conversation: { messages, scope?, fileRefs? } -> { message, citations, model, rfq_id, scope?, ui? }.
+        // POST /api/rfq/:id/chat is the same route with the RFQ in the URL (alias for the earlier per-RFQ pane).
+        // POST /api/chat/actions/confirm runs or cancels a confirmation card issued by the chat (single-use token, same session).
+        // Answers come from the guide or from rows and are verified (rfq-chat/*); the only write is a confirmed card.
         const chatMatch = method === 'POST' && (url ?? '').match(/^\/api\/(?:rfq\/([^/?]+)\/)?chat$/);
-        if (chatMatch) {
+        const confirmMatch = method === 'POST' && (url ?? '').split('?')[0] === '/api/chat/actions/confirm';
+        const rfqInUrl = chatMatch && chatMatch[1] ? decodeURIComponent(chatMatch[1]) : null;
+        if (chatMatch || confirmMatch) {
           let body = '';
           req.on('data', (c: Buffer) => { body += c; });
           req.on('end', () => {
@@ -2385,18 +2391,36 @@ export class BrowserApiServer {
               const stop = new AbortController();
               res.on('close', () => { if (!res.writableEnded) stop.abort(); }); // the user pressed Stop or left
               try {
-                const parsed = JSON.parse(body) as { messages?: Array<{ role: string; content: string }> };
-                const messages = (Array.isArray(parsed.messages) ? parsed.messages : []).filter(
-                  (m) => m && typeof m.role === 'string' && typeof m.content === 'string',
-                );
                 const session = this.getSession(req);
                 const deps = makeChatDeps(
                   { getApiKey: (p) => this.svc.secretsService.getApiKey(p), getSelectedModel: () => this.svc.settingsService.getSelectedModel() },
                   session?.email ?? 'local',
                   stop.signal,
                 );
+                if (confirmMatch) {
+                  const c = JSON.parse(body) as { confirmToken?: unknown; decision?: unknown; params?: Record<string, unknown> };
+                  if (typeof c.confirmToken !== 'string' || (c.decision !== 'confirm' && c.decision !== 'cancel')) {
+                    throw new SyntaxError('confirmToken and decision (confirm | cancel) are required');
+                  }
+                  const result = await deps.actions!.confirm({
+                    sessionKey: session?.email ?? 'local',
+                    req: { confirmToken: c.confirmToken, decision: c.decision, ...(c.params ? { params: c.params } : {}) } as ActionConfirmRequest,
+                  });
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify(result));
+                  return;
+                }
+                const parsed = JSON.parse(body) as { messages?: Array<{ role: string; content: string }>; scope?: ChatScope; fileRefs?: ChatRequest['fileRefs'] };
+                const messages = (Array.isArray(parsed.messages) ? parsed.messages : []).filter(
+                  (m) => m && typeof m.role === 'string' && typeof m.content === 'string',
+                );
                 const reply = await chatReply(
-                  { rfqId: chatMatch[1] ? decodeURIComponent(chatMatch[1]) : null, messages },
+                  {
+                    rfqId: rfqInUrl,
+                    scope: parseScope(parsed.scope),
+                    fileRefs: Array.isArray(parsed.fileRefs) ? parsed.fileRefs.filter((f) => f && typeof f.attachmentId === 'string' && typeof f.name === 'string') : undefined,
+                    messages,
+                  },
                   deps,
                 );
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2406,7 +2430,7 @@ export class BrowserApiServer {
                 if (!badRequest) log.error(`[RFQChat] pipeline error: ${e}`);
                 if (res.writableEnded || res.destroyed) return;
                 res.writeHead(badRequest ? 400 : 503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: e instanceof SyntaxError ? 'Invalid JSON' : badRequest ? 'No user message found' : `Chat backend error: ${e instanceof Error ? e.message : String(e)}` }));
+                res.end(JSON.stringify({ error: e instanceof SyntaxError ? `Invalid request: ${e.message}` : badRequest ? 'No user message found' : `Chat backend error: ${e instanceof Error ? e.message : String(e)}` }));
               }
             })();
           });

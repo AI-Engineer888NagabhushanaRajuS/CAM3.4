@@ -9,9 +9,9 @@ const SettingsDialog = lazy(async () => {
 });
 
 /**
- * The middle pane. It is always the assistant: with an RFQ selected it answers from that RFQ's results; without one it
- * lists the RFQs and routes to the one the question names. It stays on screen after every answer (the earlier one-shot
- * task launcher closed the conversation after the first message).
+ * The middle pane. It is always the assistant: selecting an RFQ on the left sets the conversation's scope to it; without
+ * one it is a normal chat that asks which RFQs to use when a question needs them. It stays on screen after every answer
+ * (the earlier one-shot task launcher closed the conversation after the first message).
  */
 export function HomePage() {
   const { activeRfqId } = useRfqContext();

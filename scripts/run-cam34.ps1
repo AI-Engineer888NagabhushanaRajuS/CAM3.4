@@ -123,17 +123,25 @@ foreach ($c in $checks) {
 
 # ---- daemon (login, live progress) and web UI, on the host ----
 if ($Build) { Stop-Port $DaemonPort; Stop-Port $WebPort }   # -Build means "run what the source says now"
+# Start-Process -WorkingDirectory treats the "[3.4]" in the repo path as a wildcard and fails: use .NET directly.
+function Start-Hidden([string]$CmdLine, [string]$Out, [string]$Err) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'cmd.exe'
+    $psi.Arguments = "/c $CmdLine 1>`"$Out`" 2>`"$Err`""
+    $psi.WorkingDirectory = $ui
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    [void][System.Diagnostics.Process]::Start($psi)
+}
 if (-not (Test-Port $DaemonPort)) {
     Write-Host 'Starting the daemon...'
     $env:ACCOMPLISH_BACKEND_PORT = "$DaemonPort"
     $env:ACCOMPLISH_TEST_LOGIN = '1'
-    Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', 'pnpm', '-F', '@accomplish/daemon', 'dev' -WorkingDirectory $ui `
-        -RedirectStandardOutput (Join-Path $logs 'daemon.log') -RedirectStandardError (Join-Path $logs 'daemon.err.log') -WindowStyle Hidden
+    Start-Hidden 'pnpm -F @accomplish/daemon dev' (Join-Path $logs 'daemon.log') (Join-Path $logs 'daemon.err.log')
 }
 if (-not (Test-Port $WebPort)) {
     Write-Host 'Starting the web UI...'
-    Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', 'pnpm', 'dev:web', '--host', '0.0.0.0', '--port', "$WebPort", '--strictPort' -WorkingDirectory $ui `
-        -RedirectStandardOutput (Join-Path $logs 'web.log') -RedirectStandardError (Join-Path $logs 'web.err.log') -WindowStyle Hidden
+    Start-Hidden "pnpm dev:web --host 0.0.0.0 --port $WebPort --strictPort" (Join-Path $logs 'web.log') (Join-Path $logs 'web.err.log')
 }
 if (-not (Wait-Http "http://localhost:$DaemonPort/health" 180)) { throw "Daemon did not answer on :$DaemonPort. See $logs\daemon.log" }
 if (-not (Wait-Http "http://localhost:$WebPort" 120)) { throw "Web UI did not answer on :$WebPort. See $logs\web.log" }

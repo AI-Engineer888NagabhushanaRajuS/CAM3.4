@@ -1,4 +1,5 @@
 import type { MessageCitation } from '@accomplish_ai/agent-core';
+import type { ChatScope, RfqOption, UiDirective } from './rfq-chat-contract.js';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -20,4 +21,17 @@ export interface GroundedAnswer {
   grounded: true;
   /** Which model phrased it; null when no model was needed (a refusal, a greeting, an evidence listing). */
   model: string | null;
+}
+
+/** One RFQ as the list shows it. hasExport is optional so a list source that cannot tell leaves it out (read as false). */
+export type RfqSummary = Omit<RfqOption, 'hasExport'> & { hasExport?: boolean };
+
+/** What the conversation service returns; the HTTP route sends it as the ChatResponse (rfq-chat-contract.ts). */
+export interface ChatReply {
+  rfq_id: string | null;
+  message: string;
+  citations: GroundedAnswer['citations'];
+  model: string | null;
+  scope?: ChatScope;
+  ui?: UiDirective;
 }

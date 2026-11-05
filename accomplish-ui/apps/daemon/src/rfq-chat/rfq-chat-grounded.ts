@@ -63,7 +63,7 @@ export function smallTalk(question: string, rfqId: string): string | null {
 
 // A part-number-like token: 6+ chars with a digit and a letter or hyphen; not a value with a unit (10uF, 3.3V, 0402).
 const IDENT = /(?<![A-Za-z0-9])(?=[A-Za-z0-9._/-]*\d)(?=[A-Za-z0-9._/-]*[A-Za-z-])[A-Za-z0-9][A-Za-z0-9._/-]{5,}(?![A-Za-z0-9])/g;
-const identifiers = (text: string) => (text.match(IDENT) ?? []).map((t) => t.replace(/[._/-]+$/, '')).filter((t) => !/^\d+(\.\d+)?[A-Za-z%]{0,3}$/.test(t) && !/^rfq-/i.test(t));
+export const identifiers = (text: string) => (text.match(IDENT) ?? []).map((t) => t.replace(/[._/-]+$/, '')).filter((t) => !/^\d+(\.\d+)?[A-Za-z%]{0,3}$/.test(t) && !/^rfq-/i.test(t));
 
 /** "and its lead time?" names no part: carry the part numbers of the last two user turns into the search. */
 export function retrievalQuery(question: string, history: Turn[] = []): string {

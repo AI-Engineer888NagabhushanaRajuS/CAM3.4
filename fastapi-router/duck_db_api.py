@@ -1430,6 +1430,19 @@ def delete_attachment(rfq_id: str, attachment_id: str, token: dict = Depends(aut
     return {"rfq_id": rfq_id, "attachment_id": attachment_id, "deleted": True}
 
 
+@app.get("/api/rfq/{rfq_id}/attachments/{attachment_id}/content")
+def attachment_content(rfq_id: str, attachment_id: str, token: dict = Depends(auth.verify_token)):
+    """The bytes of a RELEASED attachment (both engines clean). The assistant's create-RFQ action forwards them to the
+    upload server, because the daemon cannot read this container's volume. Quarantined bytes never exist here."""
+    if not re.fullmatch(r"[0-9a-f]{12}", attachment_id):
+        raise HTTPException(status_code=400, detail="Invalid attachment id")
+    found = [(name, path) for aid, name, path in _released_files(_attachment_dir(rfq_id)) if aid == attachment_id]
+    if not found:
+        raise HTTPException(status_code=404, detail="No such attachment")
+    name, path = found[0]
+    return FileResponse(path, filename=name, media_type="application/octet-stream")
+
+
 if __name__ == '__main__':
     import uvicorn
     # 0.0.0.0, not a single fixed LAN IP -- matches every other service in this

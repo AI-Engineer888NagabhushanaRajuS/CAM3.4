@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowClockwise, ChatCircle, Plus, ShieldCheck, X } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TaskInputBar } from '@/components/landing/TaskInputBar';
 import { ACCEPTED_EXTENSIONS, deleteAttachment, listAttachments, type Attachment } from '@/lib/rfqAttachments';
+import { chatStagingId, singleRfq } from '@/lib/chatContract';
 import { AssistantMessages } from './AssistantMessages';
+import type { DirectiveActions } from './AssistantDirectives';
 import { AttachFilesDialog } from './AttachFilesDialog';
+import { RfqPickerDialog } from './RfqPickerDialog';
+import { ScopeChips } from './ScopeChips';
 import { useAssistantChat } from './useAssistantChat';
 
 interface RFQChatPaneProps {
-  /** The RFQ the assistant answers about; null = the assistant that lists RFQs and routes to the one named. */
+  /** The RFQ selected in the left list: it becomes the conversation's scope. null = normal chat until the assistant asks which RFQs. */
   rfqId: string | null;
   isOpen: boolean;
   onClose?: () => void;
@@ -20,29 +24,52 @@ interface RFQChatPaneProps {
 }
 
 /**
- * The assistant. One persistent conversation: it never closes after an answer, a refusal or an error. Answers come from
- * the RFQ's results (daemon rfq-chat service), each with the cells they came from. Files are added through a review
- * popup and two security engines; only released files become context.
+ * The assistant. One persistent conversation: it never closes after an answer, a refusal or an error. RFQ answers come
+ * from the scope's results (daemon rfq-chat service), each with the cells they came from; the daemon's `ui` directives
+ * (RFQ picker, option buttons, confirmation card, upload) are drawn here and never acted on without the user. Files are
+ * added through a review popup and two security engines; only released files become context.
  */
 export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenModelSettings, onOpenSpeechSettings }: RFQChatPaneProps) {
-  const chat = useAssistantChat(rfqId);
+  const [context, setContext] = useState<Attachment[]>([]);
+  const contextRef = useRef<{ files: Attachment[]; at: string }>({ files: [], at: '' });
+  const getFileRefs = useCallback(
+    () => contextRef.current.files.map((a) => ({ attachmentId: a.attachment_id, name: a.name, rfqId: contextRef.current.at })),
+    [],
+  );
+  const chat = useAssistantChat(rfqId, getFileRefs);
   const [draft, setDraft] = useState('');
   const [picked, setPicked] = useState<File[] | null>(null);
-  const [context, setContext] = useState<Attachment[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  // Files are scanned and listed under the one RFQ in scope, else the one selected in the left list, else a per-tab
+  // staging scope: with no RFQ yet, "create an RFQ from this file" still has somewhere safe to scan it first.
+  const one = singleRfq(chat.scope);
+  const uploadRfq = one ?? rfqId ?? chatStagingId();
+  contextRef.current = { files: context, at: uploadRfq };
+
   const refresh = useCallback(async () => {
-    if (!rfqId) {
-      setContext([]);
-      return;
-    }
     try {
-      setContext(await listAttachments(rfqId));
+      setContext(await listAttachments(uploadRfq));
     } catch {
       setContext([]); // the scan service may be down or older: show no files rather than guess
     }
-  }, [rfqId]);
+  }, [uploadRfq]);
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const { choose, openPicker, settle } = chat;
+  const actions = useMemo<DirectiveActions>(() => ({
+    onChoose: choose,
+    onOpenPicker: openPicker,
+    onSettle: (id, outcome) => settle(id, { confirm: outcome }),
+    onUpload: (accept) => {
+      setNotice(null);
+      if (fileInput.current) {
+        fileInput.current.accept = (accept.length > 0 ? accept : ACCEPTED_EXTENSIONS).join(',');
+        fileInput.current.click();
+      }
+    },
+  }), [choose, openPicker, settle]);
 
   if (!isOpen && !inline) return null;
 
@@ -58,9 +85,8 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
   };
 
   const remove = async (a: Attachment) => {
-    if (!rfqId) return;
     try {
-      await deleteAttachment(rfqId, a.attachment_id);
+      await deleteAttachment(uploadRfq, a.attachment_id);
     } finally {
       void refresh();
     }
@@ -75,14 +101,14 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
     <div className={rootClass}>
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <ChatCircle className="h-4 w-4 shrink-0 text-primary" weight="fill" />
             <h2 className="truncate text-sm font-semibold text-foreground">RFQ Assistant</h2>
-            <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{rfqId ?? 'All RFQs'}</span>
+            <ScopeChips scope={chat.scope} onRemove={chat.removeFromScope} />
           </div>
           <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
             <ShieldCheck className="h-3 w-3 shrink-0 text-primary" weight="fill" />
-            Answers come only from the RFQ’s results, with their sources{model ? ` · ${model}` : ''}
+            RFQ answers come with their source cells{model ? ` · ${model}` : ''}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -102,9 +128,10 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         </div>
       </div>
 
-      <AssistantMessages messages={chat.messages} running={chat.running} rfqId={rfqId} onPick={(p) => void chat.send(p)} />
+      <AssistantMessages messages={chat.messages} running={chat.running} rfqId={one} onPick={(p) => void chat.send(p)} actions={actions} />
 
       <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-4 sm:px-6">
+        {notice && <p role="status" className="mb-2 text-xs text-amber-700 dark:text-amber-400">{notice}</p>}
         {context.length > 0 && (
           <ul className="mb-2 flex flex-wrap gap-1.5" aria-label="Files the assistant can read">
             {context.map((a) => (
@@ -121,7 +148,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         <div
           onDropCapture={(e) => {
             const files = Array.from(e.dataTransfer?.files ?? []);
-            if (rfqId && files.length) setPicked(files);
+            if (files.length) setPicked(files);
           }}
         >
           <TaskInputBar
@@ -129,7 +156,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
             onChange={setDraft}
             onSubmit={submit}
             isLoading={chat.running}
-            placeholder={rfqId ? 'Ask about this RFQ’s results…' : 'Ask which RFQs you have, or name one…'}
+            placeholder={one ? 'Ask about this RFQ’s results…' : 'Ask anything, or ask about an RFQ…'}
             autoFocus={inline}
             autoSubmitOnTranscription={false}
             onOpenSpeechSettings={onOpenSpeechSettings}
@@ -138,12 +165,14 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
             toolbarLeft={
               <Tooltip>
                 <TooltipTrigger asChild>
-                  {/* the span carries the hint: a disabled button shows no tooltip of its own */}
-                  <span className="inline-flex" title={rfqId ? undefined : 'Pick an RFQ to add files'}>
+                  <span className="inline-flex">
                     <button
                       type="button"
-                      disabled={!rfqId || chat.running}
-                      onClick={() => fileInput.current?.click()}
+                      disabled={chat.running}
+                      onClick={() => {
+                        if (fileInput.current) fileInput.current.accept = ACCEPTED_EXTENSIONS.join(',');
+                        fileInput.current?.click();
+                      }}
                       aria-label="Add files"
                       className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -151,7 +180,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
                     </button>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{rfqId ? 'Add files: checked by two security engines first' : 'Pick an RFQ to add files'}</TooltipContent>
+                <TooltipContent>Add files: checked by two security engines first</TooltipContent>
               </Tooltip>
             }
           />
@@ -171,14 +200,25 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         />
       </div>
 
-      {rfqId && picked && (
+      {picked && (
         <AttachFilesDialog
           open
-          rfqId={rfqId}
+          rfqId={uploadRfq}
           files={picked}
           alreadyAttached={context.map((a) => a.name)}
           onClose={() => setPicked(null)}
           onReleased={() => void refresh()}
+        />
+      )}
+
+      {chat.picker?.ui?.type === 'pick_rfq' && (
+        <RfqPickerDialog
+          key={chat.picker.id}
+          reason={chat.picker.ui.reason}
+          options={chat.picker.ui.options}
+          initial={chat.scope.mode === 'rfqs' ? chat.scope.rfqIds : []}
+          onPick={(next) => chat.picker && chat.applyPick(chat.picker, next)}
+          onCancel={chat.closePicker}
         />
       )}
     </div>

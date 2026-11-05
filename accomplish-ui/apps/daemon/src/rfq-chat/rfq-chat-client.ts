@@ -102,6 +102,25 @@ export async function retrieveRfqEvidence(params: { rfqId: string; question: str
 }
 
 /**
+ * Whether the RFQ has an exported workbook (the bridge's export-status: any of the CBOM, Consolidated BOM or Final Quote).
+ * False when the bridge does not answer within the timeout: the picker then shows "no export" rather than a guess.
+ */
+export async function rfqHasExport(rfqId: string, timeoutMs = 2500): Promise<boolean> {
+  try {
+    const token = await mintRfqToken(rfqId, timeoutMs);
+    const res = await fetch(`${PYTHON_BRIDGE_URL}/api/bom/export-status/${encodeURIComponent(rfqId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return false;
+    const d = (await res.json()) as { cbom?: unknown; consolidatedBom?: unknown; quoteSummary?: unknown };
+    return !!(d.cbom || d.consolidatedBom || d.quoteSummary);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Retrieves grounding context for a question, scoped to rfqId. Mints its
  * own fresh token (never reuses one across calls — see rfq-chat-client's
  * own module docstring and the 60s TTL this mirrors from apiAuth.ts).

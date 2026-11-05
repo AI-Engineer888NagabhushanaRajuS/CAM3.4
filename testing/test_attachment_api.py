@@ -89,6 +89,10 @@ def test_clean_workbook_is_released_listed_cited_and_deleted(api, tmp_path):
                                "identifier": {"file": "CBOM.xlsx", "attachment_id": r["attachment_id"]}}
     assert ev["missing_identifiers"] == []   # a part number that exists only in an attachment is not "missing"
 
+    got = client(api).get(f"/api/rfq/{RFQ}/attachments/{r['attachment_id']}/content", headers=auth(api))
+    assert got.status_code == 200 and got.content == cbom   # the create-RFQ action forwards these exact bytes
+    assert client(api).get(f"/api/rfq/{RFQ}/attachments/{'0' * 12}/content", headers=auth(api)).status_code == 404
+
     gone = client(api).delete(f"/api/rfq/{RFQ}/attachments/{r['attachment_id']}", headers=auth(api))
     assert gone.status_code == 200 and not os.path.exists(stored)
     assert client(api).get(f"/api/rfq/{RFQ}/attachments", headers=auth(api)).json() == []
