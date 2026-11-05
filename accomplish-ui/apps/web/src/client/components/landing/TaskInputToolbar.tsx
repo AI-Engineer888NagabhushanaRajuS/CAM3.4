@@ -42,7 +42,8 @@ export function TaskInputToolbar({
   const { t } = useTranslation('common');
   const accomplish = getAccomplish();
   const submitLabel = isLoading ? t('buttons.stop') : t('buttons.submit');
-  const isButtonDisabled = isSubmitDisabled || isRecording || slashCommandOpen;
+  // While a request runs this is the Stop button: it must stay clickable even though the (empty) input cannot submit.
+  const isButtonDisabled = (!isLoading && isSubmitDisabled) || isRecording || slashCommandOpen;
 
   const buttonColorClass = isLoading
     ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'

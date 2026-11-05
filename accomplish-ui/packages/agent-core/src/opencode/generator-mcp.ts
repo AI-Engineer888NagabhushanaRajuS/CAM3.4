@@ -36,6 +36,9 @@ export interface McpServerConfig {
       };
 }
 
+/** @playwright/mcp release the CAM 3.4 flags were checked against (2026-11-05). */
+const PLAYWRIGHT_MCP_VERSION = '0.0.84';
+
 function resolveMcpCommand(
   mcpToolsPath: string,
   mcpName: string,
@@ -154,6 +157,23 @@ export function buildMcpServers(options: BuildMcpServersOptions): Record<string,
       enabled: true,
       ...(Object.keys(browserEnv).length > 0 && { environment: browserEnv }),
       timeout: 30000,
+    };
+  }
+
+  // SPEC-019 phase D, opt-in: the official Playwright MCP for UI-only operations. Upstream says --allowed-origins "does not
+  // serve as a security boundary and does not affect redirects", so it is a guardrail here, not the boundary: the boundary is
+  // the user's confirmation card, an in-memory profile (--isolated) and no file access (the default without
+  // --allow-unrestricted-file-access). Pinned: npx would otherwise run whatever is latest.
+  const playwrightOrigin = process.env.CAM_PLAYWRIGHT_MCP_ORIGIN;
+  if (playwrightOrigin) {
+    mcpServers.playwright = {
+      type: 'local',
+      command: [
+        'npx', '-y', `@playwright/mcp@${PLAYWRIGHT_MCP_VERSION}`,
+        '--allowed-origins', playwrightOrigin, '--isolated', '--headless', '--block-service-workers',
+      ],
+      enabled: true,
+      timeout: 60000,
     };
   }
 

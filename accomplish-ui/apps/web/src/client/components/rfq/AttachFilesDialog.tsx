@@ -52,7 +52,11 @@ function Steps({ phase, response }: { phase: Phase; response: ScanResponse | nul
 
 /** Select or reject what was picked, then run both security engines on the rest. Nothing reaches the assistant before that. */
 export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose, onReleased }: AttachFilesDialogProps) {
-  const triage = useMemo(() => triageFiles(files, alreadyAttached), [files, alreadyAttached]);
+  // Triage only when a NEW pick arrives. A release refreshes `alreadyAttached`; recomputing then would reset the dialog
+  // to "review" and show the just-released files as "already attached", hiding their verdicts.
+  const attached = useRef(alreadyAttached);
+  attached.current = alreadyAttached;
+  const triage = useMemo(() => triageFiles(files, attached.current), [files]);
   const [chosen, setChosen] = useState<Set<File>>(new Set());
   const [phase, setPhase] = useState<Phase>('review');
   const [response, setResponse] = useState<ScanResponse | null>(null);

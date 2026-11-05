@@ -59,6 +59,11 @@ export async function runCreateRfq(
       }
     });
     await step('scan_files', async () => {
+      // Files already stored under this id (planted through the open scan route, or left by an earlier failed run that
+      // never got to delete them) would become this RFQ's evidence: refuse rather than inherit them.
+      if ((await deps.listAttachments(p.rfqId)).length > 0) {
+        throw new Error(`files already exist under ${p.rfqId}; nothing is uploaded`);
+      }
       const verdicts = await deps.scanFiles(p.rfqId, [data.BOM, data.VOLUME]);
       for (const v of verdicts) {
         if (v.attachmentId) {
@@ -104,7 +109,10 @@ export async function runCreateRfq(
       return { ok: false, rfqId: p.rfqId, message: `${head} The server may have finished the upload, so I did not delete anything: ${p.rfqId} exists and its files and pipeline may exist too. Check the RFQ list before asking again.`, steps };
     }
     try {
-      for (const id of released) {
+      // Everything stored under this id, not just what the scan reported: a scan that timed out after the bridge stored
+      // the files returns no verdicts, and the next RFQ to reuse this id would inherit them.
+      const stored = new Set([...released, ...(await deps.listAttachments(p.rfqId)).map((a) => a.attachmentId)]);
+      for (const id of stored) {
         await deps.deleteAttachment(p.rfqId, id);
       }
       await deps.deleteRfqRows(p.rfqId);

@@ -2382,7 +2382,16 @@ export class BrowserApiServer {
         // Answers come from the guide or from rows and are verified (rfq-chat/*); the only write is a confirmed card.
         const chatMatch = method === 'POST' && (url ?? '').match(/^\/api\/(?:rfq\/([^/?]+)\/)?chat$/);
         const confirmMatch = method === 'POST' && (url ?? '').split('?')[0] === '/api/chat/actions/confirm';
-        const rfqInUrl = chatMatch && chatMatch[1] ? decodeURIComponent(chatMatch[1]) : null;
+        // A bad percent-escape (".../api/rfq/%/chat") throws URIError here, outside any try: keep the raw text instead,
+        // so it just fails the RFQ lookup like any unknown id.
+        let rfqInUrl: string | null = null;
+        if (chatMatch && chatMatch[1]) {
+          try {
+            rfqInUrl = decodeURIComponent(chatMatch[1]);
+          } catch {
+            rfqInUrl = chatMatch[1];
+          }
+        }
         if (chatMatch || confirmMatch) {
           let body = '';
           req.on('data', (c: Buffer) => { body += c; });

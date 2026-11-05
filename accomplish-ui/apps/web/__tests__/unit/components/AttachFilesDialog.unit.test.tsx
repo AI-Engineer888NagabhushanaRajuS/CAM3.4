@@ -81,6 +81,18 @@ describe('the verdicts of both engines are shown as they are', () => {
     expect(onReleased).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps showing the verdicts after the release refreshes the attached list (found in the real UI)', async () => {
+    scanFiles.mockResolvedValue({ rfq_id: 'RFQ-00001', engines, results: [result('quote.xlsx')] } satisfies ScanResponse);
+    const files = [file('quote.xlsx')];
+    const view = open(files);
+    fireEvent.click(screen.getByRole('button', { name: 'Scan 1 file' }));
+    expect(await screen.findByText('Scan complete')).toBeTruthy();
+    // the pane refreshes its list: the released file is now "already attached", which must not reset the dialog
+    view.rerender(<AttachFilesDialog open rfqId="RFQ-00001" files={files} alreadyAttached={['quote.xlsx']} onClose={() => {}} onReleased={() => {}} />);
+    expect(screen.getByText('Scan complete')).toBeTruthy();
+    expect(screen.queryByText(/Already in this selection or already attached/)).toBeNull();
+  });
+
   it('says files are held when an engine is unavailable', async () => {
     scanFiles.mockResolvedValue({
       rfq_id: 'RFQ-00001',

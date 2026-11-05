@@ -19,6 +19,7 @@ uvicorn.Server instances -- see main() at the bottom.
 
 import asyncio
 import logging
+import os
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -103,8 +104,18 @@ class RememberRequest(BaseModel):
     answer: str
 
 
+def _llm_writes_enabled() -> bool:
+    """Cognee's remember/add/cognify run LLM extraction. On the default local setup that is the SAME Ollama (one 8 GB GPU,
+    ~3.5 tokens/s) that answers the user's chat questions: one burst queued 41 requests (each up to 9m50s, then retried) and
+    starved every answer for hours (2026-11-05). So every write path refuses unless RFQ_MEMORY_LLM_WRITES=1, whichever
+    caller (daemon, upload-server, bridge, pipeline) asks. Reads (retrieve) stay on: they only embed."""
+    return os.environ.get("RFQ_MEMORY_LLM_WRITES") == "1"
+
+
 @chat_app.post("/rfq/{rfq_id}/chat/remember")
 async def chat_remember(rfq_id: str, body: RememberRequest, token: dict = Depends(config.verify_token)):
+    if not _llm_writes_enabled():
+        return {"ok": True, "skipped": "RFQ_MEMORY_LLM_WRITES is off"}
     await query.remember_turn(rfq_id, body.session_id, body.question, body.answer)
     return {"ok": True}
 
@@ -131,6 +142,8 @@ async def internal_ingest(body: IngestRequest):
     # immediately, do the actual cognee.add()/cognify() as a background
     # task so this HTTP response returns fast regardless of Cognee's own
     # LLM-call-heavy latency (plan §9/§18).
+    if not _llm_writes_enabled():
+        return {"accepted": False, "skipped": "RFQ_MEMORY_LLM_WRITES is off"}
     _spawn(ingest.ingest_stage(body.rfq_id, body.version, body.source, body.tool_result))
     return {"accepted": True}
 
@@ -158,6 +171,8 @@ class AttachmentIngestRequest(BaseModel):
 async def internal_ingest_attachment(body: AttachmentIngestRequest):
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="text is blank")
+    if not _llm_writes_enabled():
+        return {"accepted": False, "skipped": "RFQ_MEMORY_LLM_WRITES is off"}
     _spawn(ingest.ingest_attachment(body.rfq_id, body.attachment_id, body.filename, body.text))
     return {"accepted": True}
 

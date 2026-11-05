@@ -267,6 +267,8 @@ services:
       # would 401. So Ollama is forced unless .env sets RFQ_MEMORY_LLM_PROVIDER=openrouter next to a real key.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       RFQ_MEMORY_LLM_PROVIDER: ${RFQ_MEMORY_LLM_PROVIDER:-ollama}
+      # Off unless "1": every Cognee write (remember/ingest) runs LLM jobs that starved the chat model on the shared Ollama.
+      RFQ_MEMORY_LLM_WRITES: ${RFQ_MEMORY_LLM_WRITES:-}
     extra_hosts: ["host.docker.internal:host-gateway"]
     # Chat (JWT on every route) is published for the host daemon; ingest/reset only on host loopback.
     ports: ["18108:8108", "127.0.0.1:18109:8109"]

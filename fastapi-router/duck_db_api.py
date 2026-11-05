@@ -1328,6 +1328,10 @@ def _attachment_evidence(rfq_id: str):
 
 
 def _queue_attachment_memory(rfq_id: str, attachment_id: str, name: str, path: str) -> None:
+    # Opt-in: Cognee's ingestion runs LLM extraction on the same host Ollama that answers chat questions; on one 8 GB GPU
+    # the queued jobs starve every answer (observed 2026-11-05). The attachment's text is still chat evidence without it.
+    if os.environ.get("RFQ_MEMORY_INGEST_ATTACHMENTS") != "1":
+        return
     try:
         import rfq_memory_client
         hook = getattr(rfq_memory_client, "queue_attachment_ingestion", None)

@@ -17,6 +17,7 @@ function setup(over: Partial<ActionDeps> = {}, released = files) {
   const audit: AuditLine[] = [];
   let clock = Date.parse('2026-11-05T10:00:00Z');
   let n = 0;
+  let scanned = false; // the new RFQ id holds files only once the bridge has scanned and stored them
   const deps: ActionDeps = {
     now: () => clock,
     newToken: () => `tok-${++n}`,
@@ -28,6 +29,9 @@ function setup(over: Partial<ActionDeps> = {}, released = files) {
     nextRfqId: async () => 'RFQ-000042',
     listAttachments: async (scope) => {
       calls.push(`list:${scope}`);
+      if (scope === 'RFQ-000042' && !scanned) {
+        return [];
+      }
       return released.map((f) => ({ attachmentId: f.attachmentId, name: f.name, sha256: null }));
     },
     readAttachment: async (_scope, id) => {
@@ -39,6 +43,7 @@ function setup(over: Partial<ActionDeps> = {}, released = files) {
     },
     scanFiles: async (_id, f) => {
       calls.push('scan');
+      scanned = true;
       return f.map((x) => ({ name: x.name, decision: 'released' as const, attachmentId: sha12(x.bytes) }));
     },
     deleteAttachment: async (_id, a) => {
@@ -208,6 +213,30 @@ describe('confirm', () => {
     expect(s.calls).not.toContain('upload');
     expect(s.calls).toContain('deleteRfqRows:RFQ-000042');
     expect(out.message).toContain('removed again');
+  });
+
+  it('refuses to inherit files that already exist under the new RFQ id', async () => {
+    const s = setup({ listAttachments: async () => files.map((f) => ({ attachmentId: f.attachmentId, name: f.name, sha256: null })) });
+    const ui = await propose(s);
+    const out = await s.actions.confirm({ sessionKey: 's1', req: { confirmToken: ui.confirmToken, decision: 'confirm' } });
+    expect(out.ok).toBe(false);
+    expect(out.message).toContain('Stopped at scan_files');
+    expect(out.message).toContain('files already exist under RFQ-000042');
+    expect(s.calls).not.toContain('scan');
+    expect(s.calls).not.toContain('upload');
+  });
+
+  it('a scan that dies after the bridge stored the files still deletes them when rolling back', async () => {
+    let stored = false;
+    const s = setup({
+      scanFiles: async () => { stored = true; throw new Error('the scan service timed out'); },
+      listAttachments: async (scope) => (scope === 'RFQ-000042' ? (stored ? [{ attachmentId: 'orphan1', name: 'BOM.xlsx', sha256: null }] : []) : files.map((f) => ({ attachmentId: f.attachmentId, name: f.name, sha256: null }))),
+    });
+    const ui = await propose(s);
+    const out = await s.actions.confirm({ sessionKey: 's1', req: { confirmToken: ui.confirmToken, decision: 'confirm' } });
+    expect(out.message).toContain('removed again');
+    expect(s.calls).toContain('deleteAttachment:orphan1');
+    expect(s.calls).toContain('deleteRfqRows:RFQ-000042');
   });
 
   it('a failed createRfq stops at step 1: nothing else is attempted, nothing to roll back', async () => {

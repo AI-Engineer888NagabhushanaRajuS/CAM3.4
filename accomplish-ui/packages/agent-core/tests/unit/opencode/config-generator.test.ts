@@ -922,6 +922,29 @@ describe('ConfigGenerator', () => {
       expect(mcpConfig.environment).toBeUndefined();
     });
 
+    it('registers the pinned Playwright MCP only when CAM_PLAYWRIGHT_MCP_ORIGIN is set, limited to that origin and isolated', () => {
+      const saved = process.env.CAM_PLAYWRIGHT_MCP_ORIGIN;
+      try {
+        delete process.env.CAM_PLAYWRIGHT_MCP_ORIGIN;
+        expect(generateConfig(makeOptions()).mcpServers.playwright).toBeUndefined();
+
+        process.env.CAM_PLAYWRIGHT_MCP_ORIGIN = 'http://localhost:5181';
+        const pw = generateConfig(makeOptions()).mcpServers.playwright;
+        expect(pw?.enabled).toBe(true);
+        expect(pw?.command).toEqual([
+          'npx', '-y', '@playwright/mcp@0.0.84',
+          '--allowed-origins', 'http://localhost:5181', '--isolated', '--headless', '--block-service-workers',
+        ]);
+        expect(pw?.command).not.toContain('--allow-unrestricted-file-access');
+      } finally {
+        if (saved === undefined) {
+          delete process.env.CAM_PLAYWRIGHT_MCP_ORIGIN;
+        } else {
+          process.env.CAM_PLAYWRIGHT_MCP_ORIGIN = saved;
+        }
+      }
+    });
+
     it('should strip all browser references from prompt when mode is none', () => {
       const result = generateConfig(makeOptions({ browser: { mode: 'none' } }));
 
