@@ -15,7 +15,7 @@ Two layers, mirroring the PHP pipeline:
 
 Both known bugs in the shipped PHP are reproduced as-is rather than fixed
 (see ex-inv-vl-report.md "Cross-check notes"):
-  - A1 is always literally "Excess Cost #1", even on volume 2/3/proto sheets.
+  - A1 reads "Excess Cost #<volume>" (the PHP hardcoded "#1" on every volume; corrected).
   - Volume 1's AH/AI delta formulas always reference a sheet named
     'Ex Inv VL-proto', even if the proto sheet was excluded from the
     workbook (BomDetail.proto <= 0) — a latent #REF! source.
@@ -268,8 +268,7 @@ def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, ex
         cell.fill = _HEADER_FILL
         cell.font = _HEADER_FONT
 
-    # Quirk preserved as-is: PHP hardcodes "Excess Cost #1" regardless of volume.
-    ws["A1"] = "Excess Cost #1"
+    ws["A1"] = f"Excess Cost #{_suffix(volume)}"
     ws["A1"].fill = _HEADER_FILL
     ws["A1"].font = _HEADER_FONT
 
