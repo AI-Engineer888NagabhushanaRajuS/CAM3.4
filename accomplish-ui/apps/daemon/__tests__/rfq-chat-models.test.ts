@@ -84,7 +84,7 @@ describe('the chain of models', () => {
     const out = await localModel().complete(ask);
     expect(out?.text).toBe('The MOQ is 5000 [2].');
     const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
-    expect(body).toMatchObject({ think: false, stream: false, options: { temperature: 0.1, num_ctx: 12288 } });
+    expect(body).toMatchObject({ think: false, stream: false, keep_alive: '30m', options: { temperature: 0.1, num_ctx: 8192, num_predict: 400 } });
   });
 
   it('stops asking models once the user pressed Stop', async () => {

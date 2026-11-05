@@ -34,8 +34,13 @@ export function localModel(timeoutMs = 120_000): ChatModel {
         const res = await fetch(`${OLLAMA}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          // 12k context: the evidence rows plus the conversation must never push the system prompt out of the window
-          body: JSON.stringify({ model: LOCAL_MODEL, messages, stream: false, think: false, options: { temperature: 0.1, num_ctx: 12288 } }),
+          // 8k context holds 9000 chars of evidence plus the conversation (about 3.5k tokens) without the KV-cache cost of
+          // 12k on an 8 GB card; num_predict stops a runaway generation (answers are short numbered-row phrasings);
+          // keep_alive avoids a model reload between questions.
+          body: JSON.stringify({
+            model: LOCAL_MODEL, messages, stream: false, think: false, keep_alive: '30m',
+            options: { temperature: 0.1, num_ctx: 8192, num_predict: 400 },
+          }),
           signal: within(timeoutMs, signal),
         });
         if (!res.ok) {

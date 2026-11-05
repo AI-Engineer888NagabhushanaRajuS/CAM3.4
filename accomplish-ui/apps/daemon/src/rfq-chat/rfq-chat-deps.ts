@@ -46,6 +46,10 @@ export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: A
       const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 4000 });
       return r ? { chunks: r.chunks.map((c) => ({ text: c.text, citation: { ...c.citation } })), sessionRecall: r.sessionRecall } : null;
     },
-    remember: ({ rfqId, question, answer }) => rememberTurn({ rfqId, sessionId: sessionId(rfqId), question, answer }),
+    // Off by default: each write makes Cognee run LLM extraction on the same Ollama that answers the user, and on one
+    // 8 GB GPU the queued extraction jobs starve the answer (observed 2026-11-05: 9m50s 500s, answers timing out).
+    remember: process.env.RFQ_CHAT_MEMORY_WRITE === '1'
+      ? ({ rfqId, question, answer }) => rememberTurn({ rfqId, sessionId: sessionId(rfqId), question, answer })
+      : undefined,
   };
 }
