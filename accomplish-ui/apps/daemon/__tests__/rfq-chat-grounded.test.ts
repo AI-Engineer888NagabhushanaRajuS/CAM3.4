@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { answerFromResults, retrievalQuery, SYSTEM_PROMPT } from '../src/rfq-chat/rfq-chat-grounded.js';
 import { chatReply } from '../src/rfq-chat/rfq-chat-service.js';
+import { resolveChatModel } from '../src/rfq-chat/rfq-chat-models.js';
 import type { RfqEvidence } from '../src/rfq-chat/rfq-chat-client.js';
 import type { ChatMessage, ChatModel } from '../src/rfq-chat/rfq-chat-types.js';
 
@@ -115,6 +116,19 @@ describe('the assistant answers from the results or says it cannot', () => {
     await answerFromResults({ rfqId: 'RFQ-1', question: 'what is the MOQ?' }, { model: cloud, retrieve });
     expect(retrieve.mock.calls[0][0]).toMatchObject({ maxChars: 2500 });
     expect(retrieve.mock.calls[1][0].maxChars).toBeUndefined();
+  });
+
+  it('decides the budget from the FIRST model of the real resolver chain: Auto with a key is cloud first, so it gets the full budget', async () => {
+    // retrieve returns null so the call ends before any model is contacted; only the budget asked for is observed
+    const budgetFor = async (m: ChatModel) => {
+      const retrieve = vi.fn(async () => null);
+      await answerFromResults({ rfqId: 'RFQ-1', question: 'what is the MOQ?' }, { model: m, retrieve });
+      return retrieve.mock.calls[0][0].maxChars;
+    };
+    expect(await budgetFor(resolveChatModel({}))).toBe(2500); // no key: local only
+    expect(await budgetFor(resolveChatModel({ settingsKey: 'k', mode: 'local' }))).toBe(2500);
+    expect(await budgetFor(resolveChatModel({ settingsKey: 'k' }))).toBeUndefined(); // auto: "... (OpenRouter) -> qwen3:8b (local)"
+    expect(await budgetFor(resolveChatModel({ settingsKey: 'k', mode: 'openrouter' }))).toBeUndefined();
   });
 
   it('answers hello without searching or asking a model', async () => {

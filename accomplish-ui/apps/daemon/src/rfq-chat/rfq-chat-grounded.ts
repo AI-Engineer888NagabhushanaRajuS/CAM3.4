@@ -23,6 +23,13 @@ const MEMORY_CHUNKS = 4;
 const LOCAL_EVIDENCE_CHARS = Number(process.env.RFQ_CHAT_LOCAL_EVIDENCE_CHARS) || 2500;
 const MEMORY_CHARS = 600;
 
+/**
+ * A model chain's label is "first -> second" (rfq-chat-models.ts firstAvailable). Only the FIRST link decides the evidence
+ * budget: with Auto and a saved key the chain is "... (OpenRouter) -> qwen3:8b (local)" and the cloud model must get the
+ * full budget (if it fails, the local fallback then reads the big evidence slowly and may time out; accepted, it is the rare path).
+ */
+const asksLocalFirst = (model: ChatModel): boolean => model.label.split(' -> ')[0].endsWith('(local)');
+
 export const SYSTEM_PROMPT = [
   'You are the RFQ assistant of a BOM / CBOM costing platform. You answer questions about ONE RFQ using ONLY the numbered Evidence rows you are given. Each row is tagged [n] with the sheet and cells (or file) it came from.',
   'Rules:',
@@ -92,7 +99,7 @@ export async function answerFromResults(
 
   const query = retrievalQuery(question, history);
   const [evidence, memory] = await Promise.all([
-    (deps.retrieve ?? retrieveRfqEvidence)({ rfqId, question: query, topK: TOP_K, maxChars: deps.model.label.includes('(local)') ? LOCAL_EVIDENCE_CHARS : undefined }),
+    (deps.retrieve ?? retrieveRfqEvidence)({ rfqId, question: query, topK: TOP_K, maxChars: asksLocalFirst(deps.model) ? LOCAL_EVIDENCE_CHARS : undefined }),
     deps.memory ? deps.memory({ rfqId, question: query }).catch(() => null) : Promise.resolve(null),
   ]);
   if (evidence === null) {

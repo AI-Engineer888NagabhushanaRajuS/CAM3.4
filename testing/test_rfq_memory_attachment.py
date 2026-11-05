@@ -72,13 +72,31 @@ def internal_client(stubs, monkeypatch):
         yield client, spawned
 
 
-def test_route_accepts_attachment_and_schedules_ingestion(internal_client):
+def test_route_accepts_attachment_and_schedules_ingestion(internal_client, monkeypatch):
+    monkeypatch.setenv("RFQ_MEMORY_LLM_WRITES", "1")   # writes are off by default, see the guard tests below
     client, spawned = internal_client
     body = {"rfq_id": "RFQ-1", "attachment_id": "a1", "filename": "terms.pdf", "text": "Net 45 days."}
     res = client.post("/internal/memory/ingest-attachment", json=body)
     assert res.status_code == 202
     assert res.json() == {"accepted": True}
     assert spawned == [("RFQ-1", "a1", "terms.pdf", "Net 45 days.")]
+
+
+@pytest.mark.parametrize("value", [None, "", "0", "true", "yes"])
+def test_llm_writes_are_refused_unless_explicitly_enabled(internal_client, monkeypatch, value):
+    """Cognee writes run LLM jobs on the same Ollama that answers chat: 41 queued jobs starved every answer for hours
+    (2026-11-05). Only the exact value "1" enables them; nothing is scheduled otherwise."""
+    if value is None:
+        monkeypatch.delenv("RFQ_MEMORY_LLM_WRITES", raising=False)
+    else:
+        monkeypatch.setenv("RFQ_MEMORY_LLM_WRITES", value)
+    client, spawned = internal_client
+    attach = {"rfq_id": "RFQ-1", "attachment_id": "a1", "filename": "terms.pdf", "text": "Net 45 days."}
+    res = client.post("/internal/memory/ingest-attachment", json=attach)
+    assert res.status_code == 202 and res.json()["accepted"] is False and "RFQ_MEMORY_LLM_WRITES" in res.json()["skipped"]
+    stage = client.post("/internal/memory/ingest", json={"rfq_id": "RFQ-1", "version": 1, "source": "file_upload"})
+    assert stage.status_code == 200 and stage.json()["accepted"] is False
+    assert spawned == []
 
 
 @pytest.mark.parametrize("bad", [
