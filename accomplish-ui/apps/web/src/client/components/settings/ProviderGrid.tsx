@@ -9,6 +9,7 @@ import { LocalModelQuickStart } from './LocalModelQuickStart';
 import { getAccomplish } from '@/lib/accomplish';
 
 const PROVIDER_ORDER: ProviderId[] = [
+  'openrouter', // the assistant's cloud model: its key is saved here and the Local / OpenRouter switch in the assistant uses it
   'anthropic',
   'ollama',
   'lmstudio',
