@@ -49,6 +49,15 @@ describe('plain talk is a conversation, answered from the guide', () => {
     expect(out.ui).toBeUndefined();
   });
 
+  it('a how-to about the OpenRouter key gets the guide steps AND the Open Settings button; other how-tos get no button', async () => {
+    const { model } = scripted('Open Settings, Providers, pick OpenRouter and paste the key [1].');
+    const keyed = await chatReply({ rfqId: null, messages: user('how do i add my openrouter key?') }, deps(model));
+    expect(keyed.ui).toEqual({ type: 'open_settings', section: 'providers' });
+    expect(keyed.citations.length).toBeGreaterThan(0);
+    const other = await chatReply({ rfqId: null, messages: user('how do i create an RFQ?') }, deps(model));
+    expect(other.ui).toBeUndefined();
+  });
+
   it('shows the guide sections as written when the model is unreachable, never a canned line', async () => {
     const { model } = scripted(null);
     const out = await chatReply({ rfqId: null, messages: user('how do I create an RFQ?') }, deps(model));

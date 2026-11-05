@@ -32,6 +32,9 @@ const EXPORT = /\b(export|download)\b/i;
 const UPLOAD = /\b(upload|attach)\b[^.?!\n]{0,25}\b(files?|bom|volume|workbook|spreadsheet|sheets?|csv|xlsx?|pdf|docx)\b|\badd\s+(?:a|an|another|more)\s+(?:new\s+)?(?:\w+\s+)?(files?|bom|volume)\b/i;
 const SETTINGS = /\b(openrouter|api[- ]?key|settings|providers?)\b|\b(change|switch|use|pick|select)\b[^.?!\n]{0,20}\b(model|provider)\b/i;
 
+/** True when a question is about Settings / the model / the OpenRouter key: a guide answer to it also gets the Open Settings button. */
+export const mentionsSettings = (question: string): boolean => SETTINGS.test(question);
+
 /** Which control the user asked for, or null. Order matters: an explicit id beats the pipeline words, a figure word keeps it a data question. */
 export function controlIntent(question: string): ControlIntent | null {
   if (HOW.test(question) || MAKE.test(question)) {

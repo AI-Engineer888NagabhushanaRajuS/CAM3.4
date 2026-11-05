@@ -16,7 +16,7 @@ import { answerFromResults, type GroundedDeps } from './rfq-chat-grounded.js';
 import { answerFromGuide, loadGuide } from './rfq-chat-guide.js';
 import { converse } from './rfq-chat-general.js';
 import { controlReply, quoted, unknownRfqReply } from './rfq-chat-controls.js';
-import { classify, classifyBase, rfqMentions } from './rfq-chat-intent.js';
+import { classify, classifyBase, mentionsSettings, rfqMentions } from './rfq-chat-intent.js';
 import { answerAcrossRfqs, MAX_RFQS, pickRfqDirective } from './rfq-chat-multi.js';
 import type { ChatActionDeps, ChatScope } from './rfq-chat-contract.js';
 import type { RfqStatus } from './rfq-chat-status.js';
@@ -97,7 +97,8 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
       return talk("The user guide file is missing on this machine (docs/CAM-3.4-USER-GUIDE.md), so I can't answer how-to questions from it.");
     }
     const a = await answerFromGuide({ question, history, sections }, { model: deps.model(), signal: deps.signal });
-    return talk(a.message, { citations: a.citations, model: a.model });
+    // "how do I add my OpenRouter key?": the steps AND the button that opens the place they point to
+    return talk(a.message, { citations: a.citations, model: a.model, ...(mentionsSettings(question) ? { ui: { type: 'open_settings' as const, section: 'providers' as const } } : {}) });
   }
   if (intent === 'create') {
     if (!deps.actions) {
