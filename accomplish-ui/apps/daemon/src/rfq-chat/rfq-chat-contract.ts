@@ -95,6 +95,6 @@ export interface ChatActionDeps {
    * RFQ, row or field is unknown or not editable, or the value does not fit; otherwise returns a confirm_action card
    * (action 'edit_value', params { rfqId, bomItemId, label, field, fieldLabel, before, after }).
    */
-  proposeEditValue(p: { sessionKey: string; rfqId: string; target: string; fieldText: string; value: string }): Promise<{ message: string; ui?: UiDirective }>;
+  proposeEditValue(p: { sessionKey: string; rfqId: string; target: string; fieldText: string; value: string; volume?: number }): Promise<{ message: string; ui?: UiDirective }>;
   confirm(p: { sessionKey: string; req: ActionConfirmRequest }): Promise<ActionConfirmResponse>;
 }

@@ -1551,7 +1551,14 @@ export function App() {
                   onNavigateToStage={goToStage}
                 />
               ) : currentWorkflowStage === 'reportingAnalytics' ? (
-                <SupersetDashboardPanel rfqId={customRfqId.trim() || undefined} />
+                /* A finished RFQ lands here, which is exactly where edits happen: the changes timeline and the kept
+                   versions must be visible next to the dashboard, not only in the progress view. */
+                <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+                  {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
+                  <div className="min-h-0 flex-1">
+                    <SupersetDashboardPanel rfqId={customRfqId.trim() || undefined} />
+                  </div>
+                </div>
               ) : (
                 /* Continuous progress view -- keyed on broad mode only (not
                    currentWorkflowStage), so it never remounts/refades just

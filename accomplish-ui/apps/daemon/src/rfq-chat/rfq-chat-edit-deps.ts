@@ -20,9 +20,10 @@ const REGENERATION_MS = 330_000; // the bridge's own limit is 300 s
 const text = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
 const scalar = (v: unknown): string | number | null => (typeof v === 'number' || typeof v === 'string' ? v : null);
 
-export function toBomRow(r: Record<string, unknown>): BomRow {
+export function toBomRow(r: Record<string, unknown>, volumeNo: number | null = null): BomRow {
   return {
     bomItemId: text(r.bom_item_id),
+    volumeNo: typeof r.volume_no === 'number' ? r.volume_no : volumeNo,
     cpn: text(r.cpn),
     mpn: text(r.mfg_part_number),
     fg: text(r.fg),
@@ -53,7 +54,7 @@ export function realEditDeps({ bridge, authHeader, failure }: Bridge): Pick<Acti
           const body = (await res.json()) as { volume_no?: number; data?: Array<Record<string, unknown>>; next_cursor?: { cursor_fg: string; cursor_cpn: string; cursor_id: string } | null };
           volume = typeof body.volume_no === 'number' ? body.volume_no : (volume ?? 1);
           for (const r of body.data ?? []) {
-            const row = toBomRow(r);
+            const row = toBomRow(r, volume);
             seen += 1;
             if ([row.bomItemId, row.cpn, row.mpn].some((x) => x.toLowerCase() === want)) {
               found.push(row);
@@ -79,7 +80,7 @@ export function realEditDeps({ bridge, authHeader, failure }: Bridge): Pick<Acti
         res = await fetch(`${bridge()}/api/rfq/${encodeURIComponent(rfqId)}/edit-and-regenerate`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ edits: [{ bom_item_id: edit.bomItemId, set: { [edit.field]: edit.value } }], note }),
+          body: JSON.stringify({ edits: [{ bom_item_id: edit.bomItemId, ...(edit.volumeNo !== undefined ? { volume_no: edit.volumeNo } : {}), set: { [edit.field]: edit.value } }], note }),
           signal: AbortSignal.timeout(REGENERATION_MS),
         });
       } catch (err) {

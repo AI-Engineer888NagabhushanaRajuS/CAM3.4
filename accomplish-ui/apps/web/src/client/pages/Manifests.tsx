@@ -67,7 +67,7 @@ export function ManifestsPage() {
           ) : <p className="p-3 text-sm text-muted-foreground">Loading manifests...</p>}
         </nav>
         <section aria-label="Manifest editor" className="min-h-0 min-w-0">
-          <ManifestPane m={m} path={path} />
+          <ManifestPane m={m} path={path} subSkills={tree?.agent?.skills.find((k) => k.path === path)?.subSkills} />
         </section>
       </main>
     </div>

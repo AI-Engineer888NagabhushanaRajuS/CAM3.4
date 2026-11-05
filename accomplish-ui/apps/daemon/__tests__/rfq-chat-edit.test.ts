@@ -7,8 +7,8 @@ import { chatReply, type ChatServiceDeps, type RfqSummary } from '../src/rfq-cha
 import type { ManifestTree } from '../src/rfq-chat/rfq-chat-manifests.js';
 import type { ChatModel } from '../src/rfq-chat/rfq-chat-types.js';
 
-const row = (id: string, cpn: string, over: Partial<BomRow['values']> = {}, fg = 'FG1'): BomRow => ({
-  bomItemId: id, cpn, mpn: `MPN-${cpn}`, fg, description: 'Resistor', values: { final_moq: 100, final_supp_name: 'Mouser', final_price_conv: 0.45, ...over },
+const row = (id: string, cpn: string, over: Partial<BomRow['values']> = {}, fg = 'FG1', volumeNo = 1): BomRow => ({
+  bomItemId: id, volumeNo, cpn, mpn: `MPN-${cpn}`, fg, description: 'Resistor', values: { final_moq: 100, final_supp_name: 'Mouser', final_price_conv: 0.45, ...over },
 });
 const OK: EditResult = { applied: 1, before: { filename: 'CBOM_v1.xlsx' }, after: { filename: 'CBOM_v2.xlsx' }, diff: { total_changed_cells: 14, sheets: [{ sheet: 'CBOM', changed: 9 }, { sheet: 'Summary', changed: 5 }, { sheet: 'Manifest', changed: 0 }] } };
 
@@ -82,7 +82,7 @@ describe('proposeEditValue', () => {
     const s = setup();
     const ui = await card(s);
     expect(ui.action).toBe('edit_value');
-    expect(ui.params).toEqual({ rfqId: 'RFQ-00007', bomItemId: 'b1', label: 'PN-100', field: 'final_moq', fieldLabel: 'MOQ', before: 100, after: 500 });
+    expect(ui.params).toEqual({ rfqId: 'RFQ-00007', bomItemId: 'b1', label: 'PN-100', field: 'final_moq', fieldLabel: 'MOQ', before: 100, after: 500, volumeNo: null, volumes: [{ volumeNo: 1, before: 100 }] });
     expect(ui.expiresAt).toBe('2026-11-05T10:05:00.000Z');
     expect(s.calls).toEqual([]);
     expect(s.audit.map((a) => a.action)).toEqual(['propose']);
@@ -105,11 +105,49 @@ describe('proposeEditValue', () => {
     expect(out.message).toContain('final_moq');
     expect(out.message).toContain('final_lead_time');
   });
-  it('asks for the bom item id when a part matches several rows', async () => {
-    const out = await propose(setup([row('b1', 'PN-100'), row('b2', 'PN-100', {}, 'FG2')]));
+  it('asks for the bom item id only when the matches are different ids, listing distinct ids with FG and description', async () => {
+    const out = await propose(setup([row('b1', 'PN-100'), row('b1', 'PN-100', {}, 'FG1', 2), row('b2', 'PN-100', {}, 'FG2')]));
     expect(out.ui).toBeUndefined();
-    expect(out.message).toContain('matches 2 rows');
-    expect(out.message).toContain('b2');
+    expect(out.message).toContain('matches 2 different bom items');
+    expect(out.message).toContain('b1 (PN-100, FG FG1, Resistor)');
+    expect(out.message).toContain('b2 (PN-100, FG FG2, Resistor)');
+    expect(out.message.match(/b1 \(/g)).toHaveLength(1);
+  });
+  it('one bom item id with a row per volume is ONE target: the card lists each volume and applies to all', async () => {
+    const s = setup([row('b1', '2N7002BK,215', { final_price_conv: 0.1 }), row('b1', '2N7002BK,215', { final_price_conv: 0.2 }, 'FG1', 2)]);
+    const out = await s.actions.proposeEditValue({ sessionKey: 's1', rfqId: 'RFQ-00007', target: '2N7002BK,215', fieldText: 'unit price', value: '0.1222' });
+    if (out.ui?.type !== 'confirm_action') throw new Error(out.message);
+    expect(out.ui.params).toMatchObject({ bomItemId: 'b1', before: 'Volume 1: 0.1; Volume 2: 0.2', after: 0.1222, volumeNo: null, volumes: [{ volumeNo: 1, before: 0.1 }, { volumeNo: 2, before: 0.2 }] });
+    expect(out.ui.summary).toContain('all 2 volume rows');
+    expect(out.message).toContain('every volume row');
+    const done = await confirm(s, out.ui.confirmToken);
+    expect(done.ok).toBe(true);
+    expect(s.calls).toEqual([['RFQ-00007', { bomItemId: 'b1', field: 'final_price_conv', value: 0.1222 }, expect.any(String)]]); // no volumeNo: the bridge edits every volume row
+  });
+  it('an explicit "volume 2" edits that volume only and sends volume_no', async () => {
+    const s = setup([row('b1', 'PN-100'), row('b1', 'PN-100', { final_moq: 120 }, 'FG1', 2)]);
+    const out = await s.actions.proposeEditValue({ sessionKey: 's1', rfqId: 'RFQ-00007', target: 'PN-100', fieldText: 'moq', value: '500', volume: 2 });
+    if (out.ui?.type !== 'confirm_action') throw new Error(out.message);
+    expect(out.ui.params).toMatchObject({ before: 120, volumeNo: 2, volumes: [{ volumeNo: 2, before: 120 }] });
+    await confirm(s, out.ui.confirmToken);
+    expect(s.calls).toEqual([['RFQ-00007', { bomItemId: 'b1', field: 'final_moq', value: 500, volumeNo: 2 }, expect.any(String)]]);
+    const none = await s.actions.proposeEditValue({ sessionKey: 's1', rfqId: 'RFQ-00007', target: 'PN-100', fieldText: 'moq', value: '5', volume: 7 });
+    expect(none.ui).toBeUndefined();
+    expect(none.message).toContain('no volume 7');
+  });
+  it('Confirm re-checks every volume: a change in one volume stops it', async () => {
+    const s = setup([row('b1', 'PN-100'), row('b1', 'PN-100', {}, 'FG1', 2)]);
+    const ui = await card(s);
+    s.setRows([row('b1', 'PN-100'), row('b1', 'PN-100', { final_moq: 999 }, 'FG1', 2)]);
+    const out = await confirm(s, ui.confirmToken);
+    expect(out.ok).toBe(false);
+    expect(out.message).toContain('(volume 2)');
+    expect(s.calls).toEqual([]);
+  });
+  it('a part number with a comma is one token, and "volume N" is read from the sentence', () => {
+    expect(parseEdit('set the unit price of part 2N7002BK,215 to 0.1222 for RFQ-CENTUM-PROOF-24')).toEqual({ fieldText: 'unit price', target: '2N7002BK,215', value: '0.1222' });
+    expect(parseEdit('set the moq of PN-100 in volume 2 to 500 in RFQ-00007')).toEqual({ fieldText: 'moq', target: 'PN-100', value: '500', volume: 2 });
+    expect(parseEdit('set the moq of PN-100 to 500 for vol 2 in RFQ-00007')?.volume).toBe(2);
   });
   it('a bom item id picks its row even when a cpn equals another id', async () => {
     const out = await propose(setup([row('b1', 'b2'), row('b2', 'PN-9')]), '500', 'b2');

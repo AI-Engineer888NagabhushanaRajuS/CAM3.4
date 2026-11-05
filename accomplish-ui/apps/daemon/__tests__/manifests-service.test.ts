@@ -46,6 +46,7 @@ afterAll(() => {
 beforeEach(() => {
   work = mkdtempSync(join(tmpdir(), 'manifests-'));
   cpSync(REAL, work, { recursive: true });
+  rmSync(join(work, '.history'), { recursive: true, force: true }); // the real folder keeps copies of live saves; every test starts with none
   audit = mkdtempSync(join(tmpdir(), 'manifests-audit-'));
   process.env.CAM_MANIFESTS_DIR = work;
   process.env.CAM_CHAT_AUDIT_DIR = audit;

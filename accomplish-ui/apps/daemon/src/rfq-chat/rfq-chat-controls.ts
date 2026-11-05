@@ -120,7 +120,7 @@ export async function controlReply(
     if (!deps.actions || !e) {
       return { ...mine, message: 'Changing a value from the chat is not available here. Edit it in the costed BOM grid instead.' };
     }
-    const r = await deps.actions.proposeEditValue({ sessionKey: deps.sessionKey ?? 'local', rfqId: rfq.rfqId, target: e.target, fieldText: e.fieldText, value: e.value });
+    const r = await deps.actions.proposeEditValue({ sessionKey: deps.sessionKey ?? 'local', rfqId: rfq.rfqId, target: e.target, fieldText: e.fieldText, value: e.value, ...(e.volume !== undefined ? { volume: e.volume } : {}) });
     return { ...mine, message: r.message, ui: r.ui };
   }
   if (!deps.actions) {

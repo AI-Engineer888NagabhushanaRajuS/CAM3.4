@@ -16,7 +16,7 @@ const rowName = (r: BomRow): string => r.cpn || r.mpn || r.description || r.bomI
 
 export async function planEditValue(
   deps: ActionDeps,
-  p: { rfqId: string; target: string; fieldText: string; value: string },
+  p: { rfqId: string; target: string; fieldText: string; value: string; volume?: number },
 ): Promise<{ message: string; params?: EditValueParams; summary?: string }> {
   const field = resolveField(p.fieldText);
   if (!field) {
@@ -33,22 +33,35 @@ export async function planEditValue(
   if (rows.length === 0) {
     return { message: `I can't find "${p.target}" (part number or bom item id) in the costed BOM of ${p.rfqId}, so I can't change it. Nothing was changed.` };
   }
-  const exact = rows.filter((r) => r.bomItemId === p.target);
-  const hit = exact.length === 1 ? exact : rows;
-  if (hit.length > 1) {
-    const list = hit.slice(0, 5).map((r) => `${r.bomItemId} (${rowName(r)}${r.fg ? `, FG ${r.fg}` : ''})`).join('; ');
-    return { message: `"${p.target}" matches ${hit.length} rows in ${p.rfqId}: ${list}${hit.length > 5 ? '; ...' : ''}. Tell me the bom item id of the one you mean. Nothing was changed.` };
+  // One bom item id can have a row per volume: that is ONE target. Different ids are the ambiguous case.
+  const ids = [...new Set(rows.map((r) => r.bomItemId))];
+  const pick = ids.includes(p.target) ? [p.target] : ids;
+  if (pick.length > 1) {
+    const list = pick.slice(0, 5).map((id) => {
+      const r = rows.find((x) => x.bomItemId === id)!;
+      return `${id} (${rowName(r)}${r.fg ? `, FG ${r.fg}` : ''}${r.description ? `, ${r.description}` : ''})`;
+    }).join('; ');
+    return { message: `"${p.target}" matches ${pick.length} different bom items in ${p.rfqId}: ${list}${pick.length > 5 ? '; ...' : ''}. Tell me the bom item id of the one you mean. Nothing was changed.` };
   }
+  const all = rows.filter((r) => r.bomItemId === pick[0]);
+  const hit = p.volume === undefined ? all : all.filter((r) => r.volumeNo === p.volume);
+  if (hit.length === 0) {
+    const have = all.map((r) => r.volumeNo).filter((v) => v !== null).join(', ');
+    return { message: `${rowName(all[0])} has no volume ${p.volume} in ${p.rfqId}${have ? ` (its volumes: ${have})` : ''}. Nothing was changed.` };
+  }
+  const volumes = hit.map((r) => ({ volumeNo: r.volumeNo, before: r.values[field.name] ?? null }));
+  if (volumes.every((v) => v.before === coerced.value)) {
+    return { message: `${field.label} of ${rowName(hit[0])} in ${p.rfqId} is already ${shown(coerced.value)}${hit.length > 1 ? ' in every volume' : ''}, so there is nothing to change.` };
+  }
+  const same = volumes.every((v) => v.before === volumes[0].before);
+  const before = same ? volumes[0].before : volumes.map((v) => `Volume ${v.volumeNo ?? '?'}: ${shown(v.before)}`).join('; ');
   const row = hit[0];
-  const before = row.values[field.name] ?? null;
-  if (before === coerced.value) {
-    return { message: `${field.label} of ${rowName(row)} in ${p.rfqId} is already ${shown(before)}, so there is nothing to change.` };
-  }
-  const params: EditValueParams = { rfqId: p.rfqId, bomItemId: row.bomItemId, label: rowName(row), field: field.name, fieldLabel: field.label, before, after: coerced.value };
+  const params: EditValueParams = { rfqId: p.rfqId, bomItemId: row.bomItemId, label: rowName(row), field: field.name, fieldLabel: field.label, before, after: coerced.value, volumeNo: p.volume ?? null, volumes };
+  const scope = p.volume !== undefined ? ` (volume ${p.volume} only)` : hit.length > 1 ? `, in all ${hit.length} volume rows` : '';
   return {
-    message: `${field.label} of ${params.label} in ${p.rfqId} is ${shown(before)}. Check the change and press Confirm to apply it and regenerate the reports; nothing happens until you do.`,
+    message: `${field.label} of ${params.label} in ${p.rfqId} is ${shown(before)}${hit.length > 1 && p.volume === undefined ? '; the change applies to every volume row of this item (say "volume 2" to change one volume only)' : ''}. Check the change and press Confirm to apply it and regenerate the reports; nothing happens until you do.`,
     params,
-    summary: `Change ${field.label} of ${params.label} (bom item ${params.bomItemId}) in ${p.rfqId} from ${shown(before)} to ${shown(params.after)}, then regenerate the reports as a new version.`,
+    summary: `Change ${field.label} of ${params.label} (bom item ${params.bomItemId}${scope}) in ${p.rfqId} from ${shown(before)} to ${shown(params.after)}, then regenerate the reports as a new version.`,
   };
 }
 
@@ -66,23 +79,27 @@ export async function runEditValue(
 
   // The card may be minutes old: the row must still hold the value the user saw.
   try {
-    const row = (await deps.findBomRows(p.rfqId, p.bomItemId)).find((r) => r.bomItemId === p.bomItemId);
-    if (!row) {
-      return stop('check_row', 'the row no longer exists', `Stopped: the row ${p.bomItemId} is no longer in ${p.rfqId}. Nothing was changed.`);
-    }
-    const now = row.values[p.field] ?? null;
-    if (now !== p.before) {
-      return stop('check_row', `the value is now ${shown(now)}`, `Stopped: ${p.fieldLabel} is now ${shown(now)}, not ${shown(p.before)} as on the card, so it changed since. Ask me again. Nothing was changed.`);
+    const rows = (await deps.findBomRows(p.rfqId, p.bomItemId)).filter((r) => r.bomItemId === p.bomItemId);
+    for (const v of p.volumes) {
+      const row = rows.find((r) => r.volumeNo === v.volumeNo);
+      const vol = v.volumeNo === null ? '' : ` (volume ${v.volumeNo})`;
+      if (!row) {
+        return stop('check_row', `the row${vol} no longer exists`, `Stopped: the row ${p.bomItemId}${vol} is no longer in ${p.rfqId}. Nothing was changed.`);
+      }
+      const now = row.values[p.field] ?? null;
+      if (now !== v.before) {
+        return stop('check_row', `the value${vol} is now ${shown(now)}`, `Stopped: ${p.fieldLabel}${vol} is now ${shown(now)}, not ${shown(v.before)} as on the card, so it changed since. Ask me again. Nothing was changed.`);
+      }
     }
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     return stop('check_row', why, `Stopped at check_row: ${why}. Nothing was changed.`);
   }
-  steps.push({ step: 'check_row', status: 'done', detail: `${p.fieldLabel} still ${shown(p.before)}` });
+  steps.push({ step: 'check_row', status: 'done', detail: `${p.fieldLabel} still ${shown(p.before)} in ${p.volumes.length} row${p.volumes.length === 1 ? '' : 's'}` });
   await audit('edit_value.check_row', 'done');
 
   try {
-    const r = await deps.editAndRegenerate(p.rfqId, { bomItemId: p.bomItemId, field: p.field, value: p.after }, `assistant: ${p.fieldLabel} ${shown(p.before)} -> ${shown(p.after)}`);
+    const r = await deps.editAndRegenerate(p.rfqId, { bomItemId: p.bomItemId, field: p.field, value: p.after, ...(p.volumeNo !== null ? { volumeNo: p.volumeNo } : {}) }, `assistant: ${p.fieldLabel} ${shown(p.before)} -> ${shown(p.after)}`);
     if (r.applied < 1) {
       return stop('edit_and_regenerate', 'the service applied no row', `The service applied no row, so nothing was changed and no new version exists.`);
     }

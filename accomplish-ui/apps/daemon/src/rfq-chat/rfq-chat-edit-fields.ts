@@ -65,20 +65,24 @@ export interface EditRequest {
   /** Part number (CPN or manufacturer part number) or bom item id; empty when the sentence names none. */
   target: string;
   value: string;
+  /** "volume 2" / "vol 2" in the sentence: edit that volume's row only. */
+  volume?: number;
 }
 
 const ID = String.raw`RFQ-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*`;
 const NAMED_RFQ = new RegExp(String.raw`\b(?:in|for|on|of|from)\s+(?:the\s+)?(?:rfq\s+)?${ID}`, 'gi');
+const VOLUME = /\b(?:in\s+|of\s+|for\s+)?(?:volume|vol)\.?\s*#?(?:no\.?\s*)?(\d{1,3})\b/i;
 const EDIT = /^(?:(?:please|can you|could you|would you|i want to|i would like to|i'd like to)\s+)*(?:set|change|update|edit|modify)\s+(?:the\s+)?(.+?)(?:\s+(?:of|for)\s+(?:(?:part|item|bom item|cpn|pn)(?:\s+(?:number|id|no\.?))?\s+)?("[^"]+"|'[^']+'|\S+))?\s+to\s+(.+)$/i;
 
 /** "set the moq of PN-100 to 500 in RFQ-00007" -> { fieldText: 'moq', target: 'PN-100', value: '500' }; null when it is not that shape. */
 export function parseEdit(question: string): EditRequest | null {
-  const q = question.replace(NAMED_RFQ, ' ').replace(/\s+/g, ' ').trim();
+  const vol = VOLUME.exec(question);
+  const q = question.replace(VOLUME, ' ').replace(NAMED_RFQ, ' ').replace(/\s+/g, ' ').trim();
   const m = EDIT.exec(q);
   if (!m) {
     return null;
   }
-  return { fieldText: m[1].trim(), target: (m[2] ?? '').replace(/^["']|["']$/g, ''), value: m[3].trim().replace(/[.!?]+$/, '') };
+  return { fieldText: m[1].trim(), target: (m[2] ?? '').replace(/^["']|["']$/g, ''), value: m[3].trim().replace(/[.!?]+$/, ''), ...(vol ? { volume: Number(vol[1]) } : {}) };
 }
 
 /** An edit when the sentence has the shape and names a known field or a part: "change the model to x" stays a settings question. */

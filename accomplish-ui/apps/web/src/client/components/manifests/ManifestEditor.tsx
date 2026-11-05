@@ -9,6 +9,8 @@ export interface EditorHandle {
 interface Props {
   path: string;
   kind: string;
+  /** Defaults to json; the generated-tool preview uses python. */
+  language?: string;
   schema: object | null;
   value: string;
   readOnly: boolean;
@@ -18,7 +20,7 @@ interface Props {
 
 const isDark = () => document.documentElement.classList.contains('dark');
 
-export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestEditor({ path, kind, schema, value, readOnly, onChange, onSave }, ref) {
+export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestEditor({ path, kind, language = 'json', schema, value, readOnly, onChange, onSave }, ref) {
   const editor = useRef<Parameters<OnMount>[0] | null>(null);
   const save = useRef(onSave);
   save.current = onSave;
@@ -46,7 +48,7 @@ export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestE
   return (
     <Editor
       height="100%"
-      language="json"
+      language={language}
       path={modelPath(path)}
       value={value}
       theme={dark ? 'vs-dark' : 'light'}
@@ -58,7 +60,7 @@ export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestE
       }}
       options={{
         readOnly, tabSize: 2, insertSpaces: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false,
-        automaticLayout: true, wordWrap: 'on', ariaLabel: `JSON manifest editor: ${path}`, formatOnPaste: false,
+        automaticLayout: true, wordWrap: 'on', ariaLabel: `${language === 'json' ? 'JSON manifest' : 'Generated ' + language} editor: ${path}`, formatOnPaste: false,
         domReadOnly: readOnly, fixedOverflowWidgets: true,
       }}
     />

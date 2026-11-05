@@ -43,13 +43,20 @@ export interface EditValueParams {
   label: string;
   field: string;
   fieldLabel: string;
+  /** The value on the card: the one shared by every row, or "Volume 1: x; Volume 2: y" when the volumes differ. */
   before: string | number | null;
   after: string | number;
+  /** Set when the user named one volume ("volume 2"); null = every volume row of the bom item id. */
+  volumeNo: number | null;
+  /** Current value per volume row the edit touches; Confirm checks each one again. */
+  volumes: Array<{ volumeNo: number | null; before: string | number | null }>;
 }
 
 /** One costed-BOM row as the preview endpoint returns it, reduced to what the edit needs. */
 export interface BomRow {
   bomItemId: string;
+  /** Volume the row belongs to (the same bom item id can have a row per volume); null when the bridge does not say. */
+  volumeNo: number | null;
   cpn: string;
   mpn: string;
   fg: string;
@@ -115,7 +122,7 @@ export interface ActionDeps {
   /** Costed-BOM rows of an RFQ whose bom item id, CPN or manufacturer part number equals `target` (case-insensitive). */
   findBomRows(rfqId: string, target: string): Promise<BomRow[]>;
   /** POST {bridge}/api/rfq/{rfqId}/edit-and-regenerate; throws UnknownOutcomeError when the answer is unknown, Error with the bridge's detail on a refusal. */
-  editAndRegenerate(rfqId: string, edit: { bomItemId: string; field: string; value: string | number }, note: string): Promise<EditResult>;
+  editAndRegenerate(rfqId: string, edit: { bomItemId: string; field: string; value: string | number; volumeNo?: number }, note: string): Promise<EditResult>;
 }
 
 /** JSON with sorted keys, so the same parameters always hash the same. */

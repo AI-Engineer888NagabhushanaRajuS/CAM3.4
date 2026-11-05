@@ -1,8 +1,9 @@
 import { useRef } from 'react';
 import { ArrowCounterClockwise, BracketsCurly, FloppyDisk, LockSimple, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { shortHash } from '@/lib/manifestsApi';
+import { shortHash, type SubSkill } from '@/lib/manifestsApi';
 import { ManifestEditor, type EditorHandle } from './ManifestEditor';
+import { PreviewTabs } from './PreviewTabs';
 import { StatusBadge } from './StatusBadge';
 import { ValidationList } from './ValidationList';
 import { offsetForPath, positionAt } from './jsonPath';
@@ -11,7 +12,7 @@ import type { useManifestFile } from './useManifestFile';
 type State = ReturnType<typeof useManifestFile>;
 
 /** Right-hand pane: toolbar, status line, banners, Monaco editor, validation list. */
-export function ManifestPane({ m, path }: { m: State; path: string | null }) {
+export function ManifestPane({ m, path, subSkills = [] }: { m: State; path: string | null; subSkills?: SubSkill[] }) {
   const editor = useRef<EditorHandle>(null);
   const { file } = m;
 
@@ -32,6 +33,26 @@ export function ManifestPane({ m, path }: { m: State; path: string | null }) {
     const { line, column } = positionAt(m.text, offsetForPath(m.text, errPath));
     editor.current?.jumpTo(line, column);
   };
+
+  const json = (
+    <>
+      <div className="min-h-[240px] flex-1">
+        <ManifestEditor
+          ref={editor}
+          path={file.path}
+          kind={file.kind}
+          schema={m.schema}
+          value={m.text}
+          readOnly={file.readOnly}
+          onChange={m.setText}
+          onSave={() => void m.save()}
+        />
+      </div>
+      <div className="border-t border-border">
+        <ValidationList validation={m.validation} onJump={jump} />
+      </div>
+    </>
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -79,21 +100,9 @@ export function ManifestPane({ m, path }: { m: State; path: string | null }) {
         </p>
       )}
 
-      <div className="min-h-[240px] flex-1">
-        <ManifestEditor
-          ref={editor}
-          path={file.path}
-          kind={file.kind}
-          schema={m.schema}
-          value={m.text}
-          readOnly={file.readOnly}
-          onChange={m.setText}
-          onSave={() => void m.save()}
-        />
-      </div>
-      <div className="border-t border-border">
-        <ValidationList validation={m.validation} onJump={jump} />
-      </div>
+      {file.kind === 'agent' ? json : (
+        <PreviewTabs key={file.path} kind={file.kind} text={m.text} subSkills={subSkills} json={json} onJump={jump} />
+      )}
     </div>
   );
 }

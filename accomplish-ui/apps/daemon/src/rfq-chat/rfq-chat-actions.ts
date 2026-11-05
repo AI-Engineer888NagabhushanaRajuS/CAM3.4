@@ -121,9 +121,9 @@ export function makeChatActions(
       }
     },
 
-    async proposeEditValue({ sessionKey, rfqId, target, fieldText, value }) {
+    async proposeEditValue({ sessionKey, rfqId, target, fieldText, value, volume }) {
       try {
-        const plan = await planEditValue(deps, { rfqId, target, fieldText, value });
+        const plan = await planEditValue(deps, { rfqId, target, fieldText, value, volume });
         if (!plan.params || !plan.summary) {
           await audit(sessionKey, 'propose.refused', '-', `${rfqId}: ${plan.message}`);
           return { message: plan.message };

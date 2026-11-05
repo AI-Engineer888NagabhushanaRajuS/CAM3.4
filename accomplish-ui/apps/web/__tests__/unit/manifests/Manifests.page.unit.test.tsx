@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 const editorSpies = vi.hoisted(() => ({ jumpTo: vi.fn(), format: vi.fn() }));
 
 vi.mock('@/lib/session', () => ({ getSessionToken: () => 'tok', clearSession: vi.fn() }));
-vi.mock('@/config/endpoints', () => ({ backendUrl: (p: string) => `http://daemon${p}` }));
+vi.mock('@/config/endpoints', () => ({ backendUrl: (p: string) => `http://daemon${p}`, PYTHON_BRIDGE_URL: 'http://bridge' }));
 vi.mock('@/components/ui/ThemeToggle', () => ({ ThemeToggle: () => null }));
 // Monaco does not run in jsdom: a textarea with the same props and handle stands in for it.
 vi.mock('@/components/manifests/ManifestEditor', async () => {
