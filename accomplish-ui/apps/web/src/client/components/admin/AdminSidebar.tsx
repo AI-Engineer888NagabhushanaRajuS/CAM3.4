@@ -2,6 +2,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router';
 import { Buildings, Calculator, Kanban, X } from '@phosphor-icons/react';
+import { BrandMark } from '@/components/BrandMark';
 
 const NAV_ITEMS = [
   { to: '/organization', label: 'Organization Master', icon: Buildings },
@@ -13,7 +14,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-4 dark:border-white/10">
-        <img src="/assets/bullmquote-logo.png" alt="BuLLMQuote" className="h-6 w-auto object-contain" />
+        <BrandMark className="text-lg" />
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">

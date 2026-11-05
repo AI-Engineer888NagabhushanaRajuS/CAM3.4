@@ -33,6 +33,10 @@ x-python-env: &python-env
   CAM_TEMPORAL_HOST: temporal:7233
   CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
   CAM_HITL_ROUTER_URL: http://hitl-router:5102
+  # rfq-memory-server's ingest/reset listener (fastapi-router/rfq_memory_client.py). It has no JWT: the
+  # network is its boundary. Inside the stack only containers on cam34-net reach it by this name; on the
+  # host it is published on 127.0.0.1 only, so nothing off this machine can open a connection to it.
+  RFQ_MEMORY_INTERNAL_URL: http://rfq-memory-server:8109
 
 networks:
   default:
@@ -133,10 +137,12 @@ services:
     build:
       context: .
       dockerfile: docker/python-service.Dockerfile
-      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: duck_db_api.py }
+      # ClamAV: engine 1 of the twin scan of files attached in the RFQ assistant (scan_engines.py)
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: duck_db_api.py, INSTALL_CLAMAV: "true" }
     environment:
       <<: *python-env
       REPORTING_EXPORTS_DIR: /app/exports
+      CLAMSCAN_PATH: clamscan
     volumes:
       - ./database:/app/database
       - inbox:/app/fastapi-router/staged/inbox
@@ -244,11 +250,26 @@ services:
     build:
       context: .
       dockerfile: docker/python-service.Dockerfile
-      args: { SERVICE_DIR: mcp-tools/rfq-memory, ENTRYPOINT: memory_service.py }
+      args:
+        SERVICE_DIR: mcp-tools/rfq-memory
+        ENTRYPOINT: memory_service.py
+        EXTRA_REQUIREMENTS: mcp-tools/rfq-memory/requirements.txt   # cognee 1.4.2 + its litellm pin
     environment:
       <<: *python-env
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
-    ports: ["18108:8108", "18109:8109"]
+      # Inside the container both listeners bind all interfaces; exposure is decided by `ports` below.
+      RFQ_MEMORY_CHAT_HOST: 0.0.0.0
+      RFQ_MEMORY_INTERNAL_HOST: 0.0.0.0
+      # Cognee's LLM + embeddings run on the host's Ollama (config.py defaults: ollama/qwen3:8b,
+      # nomic-embed-text; both must be pulled).
+      OLLAMA_ENDPOINT: http://host.docker.internal:11434
+      # Optional. The owner's OpenRouter key lives in the app's Settings, and the .env value is often a
+      # placeholder: config.py would switch Cognee to OpenRouter for ANY non-empty key and every cognify
+      # would 401. So Ollama is forced unless .env sets RFQ_MEMORY_LLM_PROVIDER=openrouter next to a real key.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      RFQ_MEMORY_LLM_PROVIDER: ${RFQ_MEMORY_LLM_PROVIDER:-ollama}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    # Chat (JWT on every route) is published for the host daemon; ingest/reset only on host loopback.
+    ports: ["18108:8108", "127.0.0.1:18109:8109"]
 
 volumes:
   postgres-data:

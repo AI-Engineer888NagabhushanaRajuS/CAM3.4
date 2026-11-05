@@ -13,7 +13,7 @@ import ConversationListItem from './ConversationListItem';
 import SettingsDialog from './SettingsDialog';
 import { Gear, ChatText, MagnifyingGlass } from '@phosphor-icons/react';
 import { DaemonStatusDot } from '@/components/DaemonStatusDot';
-import logoImage from '/assets/bullmquote-logo.png';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -110,11 +110,7 @@ export default function Sidebar() {
         <div className="px-3 py-4 border-t border-border flex items-center justify-between">
           {/* Logo - Bottom Left */}
           <div className="flex items-center gap-2 pl-1.5">
-            <img
-              src={logoImage}
-              alt="BuLLMQuote"
-              style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
-            />
+            <BrandMark className="text-base" />
           </div>
 
           {/* Settings Button + Daemon Status - Bottom Right */}

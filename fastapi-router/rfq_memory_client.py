@@ -34,6 +34,19 @@ def queue_ingestion(rfq_id: str, version: int, source: str, tool_result: dict | 
         print(f"[MEMORY INGEST TRIGGER ERROR] rfq_id={rfq_id} source={source}: {e}")
 
 
+def queue_attachment_ingestion(rfq_id: str, attachment_id: str, filename: str, text: str) -> None:
+    """Best-effort trigger for a chat attachment's text (memory_service.py accepts with 202 and does
+    add+cognify in the background). Same 2s timeout: only the request body upload is synchronous."""
+    try:
+        requests.post(
+            f"{RFQ_MEMORY_INTERNAL_URL}/internal/memory/ingest-attachment",
+            json={"rfq_id": rfq_id, "attachment_id": attachment_id, "filename": filename, "text": text},
+            timeout=_TIMEOUT_SECONDS,
+        )
+    except Exception as e:
+        print(f"[MEMORY ATTACHMENT TRIGGER ERROR] rfq_id={rfq_id} file={filename}: {e}")
+
+
 def reset_memory(rfq_id: str) -> None:
     """Best-effort trigger for a full dataset prune -- see
     versioning.prune_rfq_dataset's own docstring for when this is expected

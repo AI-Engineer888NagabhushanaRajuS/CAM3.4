@@ -49,3 +49,6 @@ manifests/*.tmp
 
 # run-cam34.ps1 logs
 .run/
+
+# Cognee local data
+database/cognee_data/

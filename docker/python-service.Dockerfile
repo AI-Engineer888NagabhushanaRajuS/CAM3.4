@@ -38,6 +38,14 @@ RUN if [ "$INSTALL_LIBREOFFICE" = "true" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
+# Service-specific pins on top of the shared layer (rfq-memory-server only: its cognee/litellm pins).
+# Empty by default; the COPY then just re-copies the root requirements.txt and the RUN is a no-op.
+ARG EXTRA_REQUIREMENTS=
+COPY ${EXTRA_REQUIREMENTS:-requirements.txt} /tmp/extra-requirements.txt
+RUN if [ -n "$EXTRA_REQUIREMENTS" ]; then \
+        pip install --no-cache-dir --default-timeout=300 --retries 5 -r /tmp/extra-requirements.txt; \
+    fi
+
 COPY . /app
 
 WORKDIR /app/${SERVICE_DIR}

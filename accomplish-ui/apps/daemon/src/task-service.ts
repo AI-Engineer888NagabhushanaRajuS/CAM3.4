@@ -25,16 +25,13 @@ import {
 } from './task-config-builder.js';
 import { OpenCodeServerManager } from './opencode/server-manager.js';
 import { log } from './logger.js';
-import { retrieveRfqContext, rememberTurn } from './rfq-chat/rfq-chat-client.js';
-import { routeRfqChatQuestion } from './rfq-chat/rfq-chat-heuristic.js';
-import { hasUsableContext, synthesizeAnswer } from './rfq-chat/rfq-chat-prompt.js';
+import { chatReply } from './rfq-chat/rfq-chat-service.js';
+import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 
 import { type TaskServiceEvents, type TaskServiceOptions } from './task-service-events.js';
 
 export type { TaskServiceEvents, TaskServiceOptions };
 
-const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/$/, '');
-const OLLAMA_MODEL    = process.env.OLLAMA_MODEL ?? 'qwen3:8b';
 
 export class TaskService extends EventEmitter {
   private taskManager: TaskManagerAPI;
@@ -218,105 +215,27 @@ export class TaskService extends EventEmitter {
       return this._completeWithScriptedAnswer(params, scriptedAnswer);
     }
 
-    // RFQ-scoped chat (read-only, narrow, purpose-built path -- see
-    // rfq-chat/rfq-chat-prompt.ts's own docstring for why this is NOT the
-    // generic OpenCode/agent-core tool-calling flow). Gated by both the
-    // feature flag and rfqId being present -- either being absent falls
-    // straight through to COMING_SOON_MESSAGE, unchanged from today.
-    if (process.env.ACCOMPLISH_ENABLE_RFQ_CHAT === '1' && params.rfqId) {
-      const rfqChatAnswer = await this._tryRfqChatAnswer(params, params.rfqId);
-      if (rfqChatAnswer !== null) {
-        return this._completeWithRfqChatAnswer(params, rfqChatAnswer.answer, rfqChatAnswer.citations);
-      }
-    }
-
-    const ollamaAnswer = await this._tryOllamaAnswer(params.prompt);
-    return this._completeWithScriptedAnswer(params, ollamaAnswer ?? 'Ollama is not reachable — make sure it is running on port 11434.');
+    // Everything else is answered from RFQ results too, never from a model's own memory: rfq-chat/rfq-chat-service.ts.
+    const grounded = await this._groundedAnswer([{ role: 'user', content: params.prompt }], params.rfqId);
+    return this._completeWithRfqChatAnswer(params, grounded.message, grounded.citations);
   }
 
-  /** Direct Ollama chat — non-streaming, single-shot. Returns null if Ollama is down/errors. */
-  private async _tryOllamaAnswer(prompt: string): Promise<string | null> {
+  /** The one way a chat question is answered: from the RFQ's results (or the RFQ list), verified, never a bare model. */
+  private async _groundedAnswer(
+    messages: Array<{ role: string; content: string }>,
+    rfqId?: string,
+  ): Promise<{ message: string; citations: import('@accomplish_ai/agent-core').MessageCitation[] }> {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60_000);
-      let res: Response;
-      try {
-        res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: OLLAMA_MODEL,
-            messages: [{ role: 'user', content: prompt }],
-            stream: false,
-          }),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeout);
-      }
-      if (!res.ok) {
-        log.warn(`[OllamaChat] HTTP ${res.status}`);
-        return null;
-      }
-      const data = (await res.json()) as { message?: { content?: string } };
-      return data.message?.content ?? null;
+      return await chatReply(
+        { rfqId: rfqId ?? null, messages },
+        makeChatDeps(
+          { getApiKey: (p) => this.storage.getApiKey(p), getSelectedModel: () => this.storage.getSelectedModel() },
+          'task',
+        ),
+      );
     } catch (err) {
-      log.warn(`[OllamaChat] failed: ${err}`);
-      return null;
-    }
-  }
-
-  /**
-   * RFQ-scoped chat answer path (BuLLMQuote-SRIM). Self-contained -- does
-   * NOT reach into taskManager/OpenCodeAdapter/opencode serve at all; the
-   * model is a single-shot text-synthesis call with no tool-calling
-   * capability (see rfq-chat-prompt.ts's own docstring). Returns null on
-   * any failure/timeout/no-match, which the caller treats identically to
-   * "fall through to COMING_SOON_MESSAGE" -- this path can never throw an
-   * uncaught exception or leave a task hanging.
-   */
-  private async _tryRfqChatAnswer(
-    params: { prompt: string; taskId?: string },
-    rfqId: string,
-  ): Promise<{ answer: string; citations: import('@accomplish_ai/agent-core').MessageCitation[] } | null> {
-    try {
-      const taskId = params.taskId || createTaskId();
-      const sessionId = `${rfqId}:${taskId}`;
-
-      const retrieval = await retrieveRfqContext({ rfqId, question: params.prompt, sessionId });
-      if (retrieval === null) {
-        return null;
-      }
-
-      const routing = routeRfqChatQuestion(params.prompt);
-      // Structured/numeric questions (price, qty, supplier, CPN lookups)
-      // should be answered from authoritative DuckDB/Postgres data via
-      // existing MCP tools, never from Cognee's semantic retrieval alone
-      // (plan §10) -- deferred to a follow-up increment; for now this
-      // routing decision is computed and logged so the split is visible,
-      // but both routings currently use retrieval-only context. Reusing
-      // existing MCP tools for structured answers (rather than
-      // reimplementing their business logic here) is tracked separately.
-      log.info(`[RfqChat] rfqId=${rfqId} routing=${routing} matched=${retrieval.matched}`);
-
-      if (!hasUsableContext({ chunks: retrieval.chunks })) {
-        return null;
-      }
-
-      const synthesis = await synthesizeAnswer({
-        question: params.prompt,
-        chunks: retrieval.chunks,
-        sessionRecall: retrieval.sessionRecall,
-      });
-      if (synthesis.answer === null) {
-        return null;
-      }
-
-      rememberTurn({ rfqId, sessionId, question: params.prompt, answer: synthesis.answer });
-      return { answer: synthesis.answer, citations: synthesis.citations };
-    } catch (err) {
-      log.warn(`[RfqChat] _tryRfqChatAnswer failed for rfqId=${rfqId}: ${err}`);
-      return null;
+      log.warn(`[RfqChat] grounded answer failed: ${err}`);
+      return { message: "I couldn't answer that right now. Nothing was guessed; please try again in a moment.", citations: [] };
     }
   }
 
@@ -532,14 +451,11 @@ export class TaskService extends EventEmitter {
       if (scriptedAnswer !== null) {
         return this._completeFollowUp(existingTaskId, scriptedAnswer);
       }
-      if (process.env.ACCOMPLISH_ENABLE_RFQ_CHAT === '1' && rfqId) {
-        const rfqChatAnswer = await this._tryRfqChatAnswer({ prompt, taskId: existingTaskId }, rfqId);
-        if (rfqChatAnswer !== null) {
-          return this._completeFollowUp(existingTaskId, rfqChatAnswer.answer, rfqChatAnswer.citations);
-        }
-      }
-      const ollamaFollowUp = await this._tryOllamaAnswer(prompt);
-      return this._completeFollowUp(existingTaskId, ollamaFollowUp ?? 'Ollama is not reachable — make sure it is running on port 11434.');
+      const prior = (this.storage.getTask(existingTaskId)?.messages ?? [])
+        .filter((m) => m.type === 'user' || m.type === 'assistant')
+        .map((m) => ({ role: m.type as string, content: m.content }));
+      const grounded = await this._groundedAnswer(prior.length ? prior : [{ role: 'user', content: prompt }], rfqId);
+      return this._completeFollowUp(existingTaskId, grounded.message, grounded.citations);
     }
 
     const activeModel = this.storage.getActiveProviderModel();

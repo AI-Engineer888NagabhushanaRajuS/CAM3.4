@@ -1,0 +1,51 @@
+/**
+ * Wires the RFQ assistant to what the daemon owns: the OpenRouter key and model chosen in Settings, the RFQ tables in
+ * Postgres, and the optional Cognee memory service. The route and the task path both build their deps here, so there is
+ * one definition of "which model answers" and "what is an RFQ".
+ */
+import { log } from '../logger.js';
+import { resolveChatModel } from './rfq-chat-models.js';
+import { rememberTurn, retrieveRfqContext } from './rfq-chat-client.js';
+import type { ChatServiceDeps, RfqSummary } from './rfq-chat-service.js';
+
+export interface ChatDepsSource {
+  getApiKey: (provider: string) => string | null;
+  getSelectedModel: () => { provider: string; model: string } | null;
+}
+
+async function listRfqs(): Promise<RfqSummary[]> {
+  try {
+    const { fileMetadataPool } = await import('../db.js'); // loaded on first use: db.ts refuses to load without its env vars
+    const { rows } = await fileMetadataPool.query(
+      `SELECT COALESCE(p.rfq_id, t.rfq_id) AS rfq_id, p.customer_name, p.project_name, t.rfq_process_stage, t.hitl_required
+         FROM rfq_project_tracking p
+         FULL OUTER JOIN (SELECT * FROM rfq_process_tracking WHERE is_active) t ON t.rfq_id = p.rfq_id
+        ORDER BY 1 DESC LIMIT 50`,
+    );
+    return rows.map((r) => ({
+      rfqId: String(r.rfq_id),
+      customer: r.customer_name ?? null,
+      project: r.project_name ?? null,
+      stage: typeof r.rfq_process_stage === 'number' ? r.rfq_process_stage : null,
+      reviewPending: r.hitl_required === true,
+    }));
+  } catch (err) {
+    log.warn(`[RfqChat] could not list RFQs: ${err}`);
+    return [];
+  }
+}
+
+/** `sessionKey` keeps two people's conversations about the same RFQ apart in Cognee's session memory. */
+export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: AbortSignal): ChatServiceDeps {
+  const sessionId = (rfqId: string) => `rfq-chat-${rfqId}-${sessionKey}`;
+  return {
+    model: () => resolveChatModel({ settingsKey: src.getApiKey('openrouter'), selected: src.getSelectedModel() }),
+    listRfqs,
+    signal,
+    memory: async ({ rfqId, question }) => {
+      const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 4000 });
+      return r ? { chunks: r.chunks.map((c) => ({ text: c.text, citation: { ...c.citation } })), sessionRecall: r.sessionRecall } : null;
+    },
+    remember: ({ rfqId, question, answer }) => rememberTurn({ rfqId, sessionId: sessionId(rfqId), question, answer }),
+  };
+}

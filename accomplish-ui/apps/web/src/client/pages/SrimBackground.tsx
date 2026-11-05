@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import bullmquoteLogo from '/assets/bullmquote-logo.png';
+import { BrandMark } from '@/components/BrandMark';
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -21,17 +21,9 @@ export function SrimBackground() {
       {/* Center branding stack */}
       <div className="relative z-10 flex flex-col items-center gap-8 text-center">
 
-        {/* BuLLMQuote logo -- a wide wordmark, sized by height with width left
-            auto so it doesn't overflow the half-viewport-width panel. The
-            wordmark's "Quote" half is rendered in solid black, so on a dark
-            background it disappears entirely -- the dark:bg-white plate
-            below gives it a light backdrop to stay legible without touching
-            the source image. */}
-        <motion.div
-          {...fadeUp(0.1)}
-          className="rounded-2xl drop-shadow-[0_0_40px_rgba(34,211,238,0.35)] dark:bg-white dark:px-6 dark:py-3.5 dark:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
-        >
-          <img src={bullmquoteLogo} alt="BuLLMQuote" className="h-16 w-auto object-contain" />
+        {/* Product name as text, so it stays legible on both themes. */}
+        <motion.div {...fadeUp(0.1)} className="drop-shadow-[0_0_40px_rgba(34,211,238,0.35)]">
+          <BrandMark className="text-6xl" />
         </motion.div>
 
         {/* Tagline */}
@@ -39,7 +31,7 @@ export function SrimBackground() {
           {...fadeUp(0.6)}
           className="text-sm font-semibold uppercase tracking-[0.28em] text-muted-foreground dark:text-white/40"
         >
-          Powered by SRIM
+          BOM automation for Centum
         </motion.p>
       </div>
 

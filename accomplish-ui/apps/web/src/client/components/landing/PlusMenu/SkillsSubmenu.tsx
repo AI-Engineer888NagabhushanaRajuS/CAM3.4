@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { Skill } from '@accomplish_ai/agent-core/common';
 import { Input } from '@/components/ui/input';
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import digibullLogo from '/assets/bullmquote-logo.png';
+import { BrandMark } from '@/components/BrandMark';
 
 interface SkillsSubmenuProps {
   skills: Skill[];
@@ -77,7 +77,7 @@ export function SkillsSubmenu({
                 <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
                   {skill.source === 'official' && (
                     <>
-                      <img src={digibullLogo} alt="" className="h-2.5 w-auto" />
+                      <BrandMark className="text-[10px]" />
                       {t('skills.byAccomplish')}
                     </>
                   )}

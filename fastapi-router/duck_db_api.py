@@ -55,7 +55,7 @@ import helpers as reporting_helpers
 from db import (
     get_active_version, versioned_key, get_routing_sequence,
     advance_skill_index_to_at_least, increment_skill_index, set_hitl_required,
-    duckdb_file_lock,
+    duckdb_file_lock, get_metadata_connection,
 )
 from highlight_style import MANUAL_EDIT_FILL_ARGB
 
@@ -1215,6 +1215,219 @@ def download_gerber_report(rfq_id: str, token: dict = Depends(auth.verify_token)
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="Gerber_Report_{rfq_id}.xlsx"'},
     )
+
+
+class ChatEvidenceRequest(BaseModel):
+    question: str
+    top_k: int = 12
+
+
+@app.post("/api/rfq/{rfq_id}/chat/evidence")
+def chat_evidence(rfq_id: str, body: ChatEvidenceRequest, token: dict = Depends(auth.verify_token)):
+    """The RFQ assistant's grounding: this RFQ's own results (the latest exported workbook, with its stored values)
+    and its live state, as citable chunks ranked against the question. See chat_evidence.py. Read-only."""
+    import chat_evidence
+
+    extra, warning = [], None
+    try:
+        with get_metadata_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT version, rfq_process_stage, hitl_required FROM rfq_process_tracking "
+                        "WHERE rfq_id = %s AND is_active", (rfq_id,))
+            tracking = cur.fetchone()
+            cur.execute("SELECT file_role, file_path, scan_status FROM rfq_file_telemetry "
+                        "WHERE rfq_id = %s AND is_active ORDER BY file_role", (rfq_id,))
+            files = cur.fetchall()
+        if tracking:
+            extra.append(chat_evidence.state_chunk(rfq_id, tracking[0], tracking[1], tracking[2], files))
+        else:
+            warning = f"No RFQ named {rfq_id!r} is known to the pipeline."
+    except Exception as e:  # the workbook may still answer
+        print(f"[CHAT EVIDENCE] state lookup failed for {rfq_id}: {e}")
+
+    path = _find_latest_export(_resolve_cbom_key(rfq_id)) or _find_latest_rfqflow_export(rfq_id)
+    if path is None:
+        warning = warning or "This RFQ has no exported results yet (the pipeline has not finished its export step)."
+        index = {"chunks": [], "squashed": "", "workbook": None, "warning": None}
+    else:
+        index = chat_evidence.workbook_index(path)
+    attachment_chunks, attachment_squashed = _attachment_evidence(rfq_id)   # released attachments are evidence too
+    if attachment_chunks:
+        extra += attachment_chunks
+        index = {**index, "squashed": index["squashed"] + attachment_squashed}   # never mutate the cached index
+    found = chat_evidence.retrieve(index, body.question, extra=extra, top_k=max(1, min(body.top_k, 30)), rfq_id=rfq_id)
+    return {"rfq_id": rfq_id, "workbook": index["workbook"], "warning": warning or index.get("warning"), **found}
+
+
+# ---- RFQ assistant attachments: twin-engine scan (scan_engines.py), released files become chat evidence ----------
+# Layout: <inbox>/<rfq_id>/attachments/<sha256[:12]>-<safe name> plus audit.jsonl (one line per scanned/deleted file).
+# Nothing that is not released by BOTH engines is ever written there; quarantined bytes are deleted.
+import functools
+import shutil
+import tempfile
+from fastapi import File, Request, UploadFile
+
+ATTACHMENT_INBOX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "staged", "inbox")
+MAX_ATTACHMENT_FILES = 10
+MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+MAX_ATTACHMENT_TOTAL = 60 * 1024 * 1024
+_SAFE_RFQ_ID = re.compile(r"[A-Za-z0-9_\-]{1,64}")   # the intake service's _validate_id rule
+_ATTACHMENT_FILE = re.compile(r"([0-9a-f]{12})-(.+)")
+
+
+def _attachment_dir(rfq_id: str) -> str:
+    # /auth/token mints a token for any rfq_id, so the id is untrusted path input
+    if not _SAFE_RFQ_ID.fullmatch(rfq_id):
+        raise HTTPException(status_code=400, detail="Invalid RFQ id")
+    return os.path.join(ATTACHMENT_INBOX, rfq_id, "attachments")
+
+
+def _audit(folder: str, record: dict) -> None:
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "audit.jsonl"), "a", encoding="utf-8") as f:
+        f.write(json.dumps({"time": datetime.utcnow().isoformat() + "Z", **record}) + "\n")
+
+
+def _released_files(folder: str):
+    """[(attachment_id, name, path)] of what is stored now."""
+    if not os.path.isdir(folder):
+        return []
+    found = []
+    for entry in sorted(os.listdir(folder)):
+        m = _ATTACHMENT_FILE.fullmatch(entry)
+        if m and os.path.isfile(os.path.join(folder, entry)):
+            found.append((m.group(1), m.group(2), os.path.join(folder, entry)))
+    return found
+
+
+@functools.lru_cache(maxsize=64)
+def _attachment_chunks(path: str, mtime: float, attachment_id: str, name: str):
+    import attachment_text
+    import chat_evidence
+    chunks = [{"text": c["text"],
+               "citation": {"sourceType": "attachment", "label": c["label"],
+                            "identifier": {"file": name, "attachment_id": attachment_id}},
+               "tokens": chat_evidence._tokens(c["text"]), "always": False, "pinned": False}
+              for c in attachment_text.chunks(path, name)]
+    return chunks, chat_evidence._squash("\n".join(c["text"] for c in chunks))
+
+
+def _attachment_evidence(rfq_id: str):
+    """(chunks, squashed text) of every released attachment of this RFQ, parsed once per file version."""
+    if not _SAFE_RFQ_ID.fullmatch(rfq_id):
+        return [], ""
+    chunks, squashed = [], []
+    for attachment_id, name, path in _released_files(_attachment_dir(rfq_id)):
+        try:
+            c, s = _attachment_chunks(path, os.path.getmtime(path), attachment_id, name)
+        except Exception as e:
+            print(f"[ATTACHMENTS] could not read {path}: {e}")
+            continue
+        chunks += c
+        squashed.append(s)
+    return chunks, "".join(squashed)
+
+
+def _queue_attachment_memory(rfq_id: str, attachment_id: str, name: str, path: str) -> None:
+    try:
+        import rfq_memory_client
+        hook = getattr(rfq_memory_client, "queue_attachment_ingestion", None)
+        if hook is None:
+            return
+        chunks, _ = _attachment_chunks(path, os.path.getmtime(path), attachment_id, name)
+        hook(rfq_id, attachment_id, name, "\n".join(c["text"] for c in chunks)[:200000])
+    except Exception as e:  # memory is best-effort; the scan result stands
+        print(f"[ATTACHMENTS] memory ingestion not queued for {name}: {e}")
+
+
+@app.post("/api/rfq/{rfq_id}/attachments/scan")
+def scan_attachments(rfq_id: str, request: Request, files: list[UploadFile] = File(...),
+                     token: dict = Depends(auth.verify_token)):
+    """Scan files attached in the RFQ assistant with BOTH engines (BuLL*Sav ClamAV + Repel Shield). Released only
+    when both say clean; a threat is quarantined (deleted), an engine error holds the file (deleted, not released)."""
+    import scan_engines
+
+    folder = _attachment_dir(rfq_id)
+    if int(request.headers.get("content-length") or 0) > MAX_ATTACHMENT_TOTAL + 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Attachments are limited to 60 MB per request")
+    if not files:
+        raise HTTPException(status_code=400, detail="Attach at least one file")
+    if len(files) > MAX_ATTACHMENT_FILES:
+        raise HTTPException(status_code=400, detail=f"{len(files)} files sent; at most {MAX_ATTACHMENT_FILES} per request")
+    quarantine = tempfile.mkdtemp(prefix="cam-quarantine-")
+    try:
+        items, total = [], 0
+        for i, upload in enumerate(files):
+            name = scan_engines.safe_name(upload.filename)
+            qpath = os.path.join(quarantine, f"{i}{os.path.splitext(name)[1].lower()}")
+            size = 0
+            with open(qpath, "wb") as out:
+                for block in iter(lambda: upload.file.read(1 << 20), b""):
+                    size += len(block)
+                    if size > MAX_ATTACHMENT_BYTES:
+                        raise HTTPException(status_code=413, detail=f"{name} is larger than 25 MB")
+                    out.write(block)
+            if size == 0:
+                raise HTTPException(status_code=400, detail=f"{name} is empty")
+            total += size
+            if total > MAX_ATTACHMENT_TOTAL:
+                raise HTTPException(status_code=413, detail="Attachments are limited to 60 MB per request")
+            items.append((qpath, upload.filename or name))
+
+        results = []
+        for (qpath, original), result in zip(items, scan_engines.scan_files(items)):
+            result["attachment_id"] = None
+            if result["decision"] == "released":
+                os.makedirs(folder, exist_ok=True)
+                attachment_id = result["sha256"][:12]
+                dest = os.path.join(folder, f"{attachment_id}-{result['name']}")
+                if not os.path.realpath(dest).startswith(os.path.realpath(folder) + os.sep):
+                    raise HTTPException(status_code=400, detail="Invalid file name")
+                for old_id, _, old_path in _released_files(folder):   # same bytes again: one copy
+                    if old_id == attachment_id:
+                        os.remove(old_path)
+                shutil.move(qpath, dest)
+                result["attachment_id"] = attachment_id
+            _audit(folder, {"name": result["name"], "size": result["size"], "sha256": result["sha256"],
+                            "attachment_id": result["attachment_id"], "clamav": result["clamav"],
+                            "repel": {k: result["repel"][k] for k in ("verdict", "score", "flags")},
+                            "decision": result["decision"], "reason": result["reason"]})
+            if result["attachment_id"]:
+                _queue_attachment_memory(rfq_id, result["attachment_id"], result["name"], dest)
+            results.append(result)
+        return {"rfq_id": rfq_id, "engines": [scan_engines.clamav_status(), scan_engines.repel_status()],
+                "results": results}
+    finally:
+        shutil.rmtree(quarantine, ignore_errors=True)   # quarantined and held bytes never outlive the request
+
+
+@app.get("/api/rfq/{rfq_id}/attachments")
+def list_attachments(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    folder = _attachment_dir(rfq_id)
+    audit = {}
+    if os.path.isfile(os.path.join(folder, "audit.jsonl")):
+        with open(os.path.join(folder, "audit.jsonl"), encoding="utf-8") as f:
+            for line in f:
+                rec = json.loads(line)
+                if rec.get("decision") == "released":
+                    audit[rec["attachment_id"]] = rec
+    return [{"attachment_id": attachment_id, "name": name, "size": os.path.getsize(path),
+             "sha256": audit.get(attachment_id, {}).get("sha256"),
+             "released_at": audit.get(attachment_id, {}).get("time")}
+            for attachment_id, name, path in _released_files(folder)]
+
+
+@app.delete("/api/rfq/{rfq_id}/attachments/{attachment_id}")
+def delete_attachment(rfq_id: str, attachment_id: str, token: dict = Depends(auth.verify_token)):
+    folder = _attachment_dir(rfq_id)
+    if not re.fullmatch(r"[0-9a-f]{12}", attachment_id):
+        raise HTTPException(status_code=400, detail="Invalid attachment id")
+    gone = [(name, path) for aid, name, path in _released_files(folder) if aid == attachment_id]
+    if not gone:
+        raise HTTPException(status_code=404, detail="No such attachment")
+    for name, path in gone:
+        os.remove(path)
+        _audit(folder, {"name": name, "attachment_id": attachment_id, "decision": "deleted"})
+    return {"rfq_id": rfq_id, "attachment_id": attachment_id, "deleted": True}
 
 
 if __name__ == '__main__':

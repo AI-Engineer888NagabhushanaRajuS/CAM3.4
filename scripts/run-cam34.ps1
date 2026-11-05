@@ -10,9 +10,9 @@
     .\scripts\run-cam34.ps1 -Status    show what is up, change nothing
     .\scripts\run-cam34.ps1 -Stop      stop the UI, the daemon and the containers (volumes are kept)
 
-  Needs: Docker Desktop, Node + pnpm, Ollama on the host with qwen2.5-coder:7b, and CAM-Source\.env
-  (copy .env.example; POSTGRES_PASSWORD, JWT_SECRET and OPENROUTER_API_KEY must be set - the key may be a
-  placeholder unless the RFQ chat memory service is used). Logs: CAM-Source\.run\.
+  Needs: Docker Desktop, Node + pnpm, Ollama on the host with qwen2.5-coder:7b (BOM mapping) plus qwen3:8b and
+  nomic-embed-text (RFQ chat memory), and CAM-Source\.env (copy .env.example; POSTGRES_PASSWORD and JWT_SECRET
+  must be set; the OpenRouter key is entered in the app's Settings). Logs: CAM-Source\.run\.
   If scripts are blocked: powershell -ExecutionPolicy Bypass -File scripts\run-cam34.ps1
 #>
 param(
@@ -94,12 +94,14 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { throw 'pnpm not fou
 $envFile = Join-Path $root '.env'
 if (-not (Test-Path -LiteralPath $envFile)) { throw "Missing $envFile. Copy .env.example to .env and fill POSTGRES_PASSWORD, JWT_SECRET, OPENROUTER_API_KEY." }
 $envText = Get-Content -LiteralPath $envFile -Raw
-foreach ($key in 'POSTGRES_PASSWORD', 'JWT_SECRET', 'OPENROUTER_API_KEY') {
+foreach ($key in 'POSTGRES_PASSWORD', 'JWT_SECRET') {
     if ($envText -notmatch "(?m)^$key=\S") { throw ".env has no value for $key." }
 }
 try {
     $tags = (Invoke-RestMethod -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5).models.name
-    if (-not ($tags -contains 'qwen2.5-coder:7b')) { Write-Warning 'Ollama is up but qwen2.5-coder:7b is missing: run  ollama pull qwen2.5-coder:7b' }
+    foreach ($m in 'qwen2.5-coder:7b', 'qwen3:8b', 'nomic-embed-text:latest') {
+        if (-not ($tags -contains $m)) { Write-Warning "Ollama is up but $m is missing: run  ollama pull $m" }
+    }
 } catch {
     Write-Warning 'Ollama is not answering on :11434. BOM header mapping needs it (ollama serve).'
 }

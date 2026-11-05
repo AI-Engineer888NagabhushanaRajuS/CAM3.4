@@ -14,10 +14,10 @@
 import { log } from '../logger.js';
 import type { MessageCitation } from '@accomplish_ai/agent-core';
 
-// NetBird mesh IP (stable regardless of physical LAN IP changes), matching
-// manage_backend.py's SERVICES entries for python_bridge/rfq_memory_server.
-const PYTHON_BRIDGE_URL = (process.env.PYTHON_BRIDGE_URL ?? 'http://100.121.36.255:3110').replace(/\/$/, '');
-const RFQ_MEMORY_CHAT_URL = (process.env.RFQ_MEMORY_CHAT_URL ?? 'http://100.121.36.255:8108').replace(/\/$/, '');
+// The Python bridge (JWT minting, results evidence) and the optional Cognee memory service. The defaults are the
+// local bare-metal ports; run-cam34.ps1 / the daemon .env point PYTHON_SERVICE_URL at the compose-published port.
+const PYTHON_BRIDGE_URL = (process.env.PYTHON_BRIDGE_URL ?? process.env.PYTHON_SERVICE_URL ?? 'http://localhost:3110').replace(/\/$/, '');
+const RFQ_MEMORY_CHAT_URL = (process.env.RFQ_MEMORY_CHAT_URL ?? 'http://localhost:8108').replace(/\/$/, '');
 
 export type { MessageCitation };
 
@@ -45,6 +45,59 @@ async function mintRfqToken(rfqId: string, timeoutMs = 5000): Promise<string> {
     return data.token;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+export interface RfqEvidence {
+  chunks: Array<{ text: string; citation: MessageCitation; score?: number }>;
+  namedIdentifiers: string[];
+  missingIdentifiers: string[];
+  /** Rows of the results that matched the question, out of how many the results hold (a list is partial when more matched than were shown). */
+  matchedRows: number;
+  rowsInResults: number;
+  workbook: string | null;
+  warning: string | null;
+}
+
+/**
+ * The RFQ's own results as citable rows (the latest exported workbook's stored values + the RFQ's live state), ranked
+ * against the question by the Python bridge (fastapi-router/chat_evidence.py). Null when the bridge cannot be reached.
+ */
+export async function retrieveRfqEvidence(params: { rfqId: string; question: string; topK?: number; timeoutMs?: number }): Promise<RfqEvidence | null> {
+  const { rfqId, question, topK = 12, timeoutMs = 20000 } = params;
+  try {
+    const token = await mintRfqToken(rfqId);
+    const res = await fetch(`${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/chat/evidence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ question, top_k: topK }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) {
+      log.warn(`[RfqChat] evidence HTTP ${res.status} for rfqId=${rfqId}`);
+      return null;
+    }
+    const d = (await res.json()) as {
+      chunks?: RfqEvidence['chunks'];
+      named_identifiers?: string[];
+      missing_identifiers?: string[];
+      matched_rows?: number;
+      rows_in_results?: number;
+      workbook?: string | null;
+      warning?: string | null;
+    };
+    return {
+      chunks: d.chunks ?? [],
+      namedIdentifiers: d.named_identifiers ?? [],
+      missingIdentifiers: d.missing_identifiers ?? [],
+      matchedRows: d.matched_rows ?? 0,
+      rowsInResults: d.rows_in_results ?? 0,
+      workbook: d.workbook ?? null,
+      warning: d.warning ?? null,
+    };
+  } catch (err) {
+    log.warn(`[RfqChat] evidence failed for rfqId=${rfqId}: ${err}`);
+    return null;
   }
 }
 

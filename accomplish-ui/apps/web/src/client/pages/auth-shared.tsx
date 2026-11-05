@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { SpinnerGap, ShieldCheck } from '@phosphor-icons/react';
 import { SrimBackground } from './SrimBackground';
-import bullmquoteLogo from '/assets/bullmquote-logo.png';
+import { BrandMark } from '@/components/BrandMark';
 
 export const DIGIBULL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -146,14 +146,12 @@ export function AuthLayout({
           <section className="flex min-h-screen flex-col items-center justify-center border-l border-border bg-muted/20 px-6 py-10 backdrop-blur-none dark:border-white/[0.07] dark:bg-black/25">
             {/* Mobile-only branding */}
             <div className="mb-8 flex flex-col items-center gap-2 lg:hidden">
-              <div className="rounded-xl dark:bg-white dark:px-4 dark:py-2 dark:shadow-[0_12px_30px_-14px_rgba(0,0,0,0.7)]">
-                <img src={bullmquoteLogo} alt="BuLLMQuote" className="h-10 w-auto object-contain" />
-              </div>
+              <BrandMark className="text-4xl" />
               <motion.p
                 {...fadeUp(0.25)}
                 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground dark:text-white/40"
               >
-                Powered by SRIM
+                BOM automation for Centum
               </motion.p>
             </div>
 

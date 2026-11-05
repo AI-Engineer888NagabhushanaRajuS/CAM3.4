@@ -82,6 +82,16 @@ def store_citation(text: str, rfq_id: str, citation: dict) -> None:
         conn.commit()
 
 
+def delete_citations(rfq_id: str) -> int:
+    """Drops every citation recorded for one RFQ (called by /internal/memory/reset with the dataset prune)."""
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rfq_memory_citations WHERE rfq_id = %s", (rfq_id,))
+            deleted = cur.rowcount
+        conn.commit()
+    return deleted
+
+
 def lookup_citation(text: str) -> dict | None:
     """Returns None (not a fabricated fallback) when no real source record
     is found for this exact text -- the caller must drop the chunk, not

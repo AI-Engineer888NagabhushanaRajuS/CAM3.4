@@ -16,7 +16,7 @@ import { GeneralTab } from '@/components/settings/GeneralTab';
 import { SandboxSection } from '@/components/settings/SandboxSection';
 import { cn } from '@/lib/utils';
 import { logout, isAdmin } from '@/lib/session';
-import logoImage from '/assets/bullmquote-logo.png';
+import { BrandMark } from '@/components/BrandMark';
 import { SETTINGS_TABS, type SettingsTabId } from './settings-tabs';
 import { useSettingsDialog } from './useSettingsDialog';
 
@@ -78,11 +78,7 @@ export function SettingsDialog({
         <nav className="w-48 shrink-0 border-r border-border bg-muted/30 p-3 flex flex-col h-full">
           <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0">
             <div className="px-3 py-2 mb-1 flex items-center gap-2">
-              <img
-                src={logoImage}
-                alt="BuLLMQuote"
-                style={{ height: '18px', width: 'auto', objectFit: 'contain' }}
-              />
+              <BrandMark className="text-sm" />
             </div>
             {SETTINGS_TABS.filter((tab) => (tab.id !== 'users' && tab.id !== 'currencies') || isAdmin()).map((tab) => (
               <button

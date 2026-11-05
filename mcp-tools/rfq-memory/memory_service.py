@@ -21,7 +21,7 @@ import asyncio
 import logging
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uvicorn
 
 # config MUST be imported before cognee -- see ingest.py's identical comment
@@ -131,7 +131,34 @@ async def internal_ingest(body: IngestRequest):
     # immediately, do the actual cognee.add()/cognify() as a background
     # task so this HTTP response returns fast regardless of Cognee's own
     # LLM-call-heavy latency (plan §9/§18).
-    asyncio.create_task(ingest.ingest_stage(body.rfq_id, body.version, body.source, body.tool_result))
+    _spawn(ingest.ingest_stage(body.rfq_id, body.version, body.source, body.tool_result))
+    return {"accepted": True}
+
+
+# The event loop only keeps weak references to tasks; holding them here stops a long cognify from being
+# garbage-collected mid-run.
+_background_tasks: set = set()
+
+
+def _spawn(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
+class AttachmentIngestRequest(BaseModel):
+    """A file the user attached in the RFQ assistant, already reduced to text by the caller."""
+    rfq_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_\-]+$")
+    attachment_id: str = Field(min_length=1, max_length=128)
+    filename: str = Field(min_length=1, max_length=255)
+    text: str = Field(min_length=1, max_length=2_000_000)
+
+
+@internal_app.post("/internal/memory/ingest-attachment", status_code=202)
+async def internal_ingest_attachment(body: AttachmentIngestRequest):
+    if not body.text.strip():
+        raise HTTPException(status_code=422, detail="text is blank")
+    _spawn(ingest.ingest_attachment(body.rfq_id, body.attachment_id, body.filename, body.text))
     return {"accepted": True}
 
 
@@ -142,7 +169,8 @@ class ResetRequest(BaseModel):
 @internal_app.post("/internal/memory/reset")
 async def internal_reset(body: ResetRequest):
     await versioning.prune_rfq_dataset(body.rfq_id)
-    return {"ok": True}
+    deleted = citation_store.delete_citations(body.rfq_id)
+    return {"ok": True, "citations_deleted": deleted}
 
 
 @internal_app.get("/health")

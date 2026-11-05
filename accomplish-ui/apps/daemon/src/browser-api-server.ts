@@ -17,8 +17,8 @@ import type { SkillsService } from './skills-service.js';
 import { log } from './logger.js';
 import { matchTestLogin } from './test-login.js';
 import type { OpenAiOauthManager } from './opencode/auth-openai.js';
-import { retrieveRfqContext, rememberTurn } from './rfq-chat/rfq-chat-client.js';
-import { synthesizeAnswer, hasUsableContext } from './rfq-chat/rfq-chat-prompt.js';
+import { chatReply } from './rfq-chat/rfq-chat-service.js';
+import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
 
@@ -2373,42 +2373,40 @@ export class BrowserApiServer {
           });
           return;
         }
-        // ── CAM 3.4: RFQ assistant chat — daemon-side RAG pipeline ──────────
-        // Uses rfq-memory service for retrieval + Ollama for synthesis.
-        // rfq-chat-client.ts mints JWT scoped to rfqId; rfq-chat-prompt.ts
-        // calls Ollama with the retrieved context. Read-only: no mutations.
-        const chatMatch = method === 'POST' && (url ?? '').match(/^\/api\/rfq\/([^/?]+)\/chat$/);
+        // ── CAM 3.4: RFQ assistant chat ──────────────────────────────────────
+        // POST /api/rfq/:id/chat answers from that RFQ's results; POST /api/chat answers from the RFQ list or routes to
+        // an RFQ the question names. Every answer is built from rows and verified (rfq-chat/*); read-only, no mutations.
+        const chatMatch = method === 'POST' && (url ?? '').match(/^\/api\/(?:rfq\/([^/?]+)\/)?chat$/);
         if (chatMatch) {
-          const rfqId = chatMatch[1];
           let body = '';
           req.on('data', (c: Buffer) => { body += c; });
           req.on('end', () => {
             void (async () => {
+              const stop = new AbortController();
+              res.on('close', () => { if (!res.writableEnded) stop.abort(); }); // the user pressed Stop or left
               try {
                 const parsed = JSON.parse(body) as { messages?: Array<{ role: string; content: string }> };
-                const msgs = parsed.messages ?? [];
-                const question = [...msgs].reverse().find((m) => m.role === 'user')?.content ?? '';
-                if (!question) {
-                  res.writeHead(400, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ error: 'No user message found' }));
-                  return;
-                }
-                const sessionId = `rfq-chat-${rfqId}`;
-                const retrieval = await retrieveRfqContext({ rfqId, question, sessionId });
-                const chunks = retrieval?.chunks ?? [];
-                if (!hasUsableContext({ chunks })) {
-                  res.writeHead(200, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ rfq_id: rfqId, message: 'No relevant context found for this RFQ.', citations: [] }));
-                  return;
-                }
-                const { answer, citations } = await synthesizeAnswer({ question, chunks, sessionRecall: retrieval?.sessionRecall ?? null });
-                if (answer) rememberTurn({ rfqId, sessionId, question, answer });
+                const messages = (Array.isArray(parsed.messages) ? parsed.messages : []).filter(
+                  (m) => m && typeof m.role === 'string' && typeof m.content === 'string',
+                );
+                const session = this.getSession(req);
+                const deps = makeChatDeps(
+                  { getApiKey: (p) => this.svc.secretsService.getApiKey(p), getSelectedModel: () => this.svc.settingsService.getSelectedModel() },
+                  session?.email ?? 'local',
+                  stop.signal,
+                );
+                const reply = await chatReply(
+                  { rfqId: chatMatch[1] ? decodeURIComponent(chatMatch[1]) : null, messages },
+                  deps,
+                );
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ rfq_id: rfqId, message: answer ?? 'Could not generate an answer from available context.', citations }));
+                res.end(JSON.stringify(reply));
               } catch (e) {
-                log.error(`[RFQChat] pipeline error: ${e}`);
-                res.writeHead(503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: `Chat backend unreachable: ${e instanceof Error ? e.message : String(e)}` }));
+                const badRequest = e instanceof SyntaxError || (e instanceof Error && e.message === 'No user message found');
+                if (!badRequest) log.error(`[RFQChat] pipeline error: ${e}`);
+                if (res.writableEnded || res.destroyed) return;
+                res.writeHead(badRequest ? 400 : 503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e instanceof SyntaxError ? 'Invalid JSON' : badRequest ? 'No user message found' : `Chat backend error: ${e instanceof Error ? e.message : String(e)}` }));
               }
             })();
           });

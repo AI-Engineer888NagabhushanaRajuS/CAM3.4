@@ -1,372 +1,194 @@
-import { useState, useRef, useEffect } from 'react';
-import {
-  useExternalStoreRuntime,
-  AssistantRuntimeProvider,
-  type ThreadMessageLike,
-  type AppendMessage,
-} from '@assistant-ui/react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowClockwise, ChatCircle, Plus, ShieldCheck, X } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  ChatCircle,
-  X,
-  Database,
-  Rows,
-  Brain,
-  FileText,
-} from '@phosphor-icons/react';
-import type { MessageCitation } from '@accomplish_ai/agent-core';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type RFQMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: MessageCitation[];
-};
-
-// ── KT-derived suggestions (from Extras encyclopedias) ────────────────────────
-// Vocabulary: A-class (>$1.25), uncosted, MOQ excess, price control split
-// (Centum/CONTRACT/CNP), lead time weeks, quote-age buckets (Enc. 1-4).
-
-const RFQ_SUGGESTIONS = [
-  { title: 'A-class spend',    prompt: 'Which A-class parts have the highest spend percentage in this RFQ?' },
-  { title: 'Uncosted parts',   prompt: 'Which parts have no pricing (uncosted) in this RFQ?' },
-  { title: 'Lead time risks',  prompt: 'Which parts have lead times over 20 weeks?' },
-  { title: 'MOQ excess cost',  prompt: 'What is the total excess inventory cost driven by MOQ rounding?' },
-  { title: 'Price control',    prompt: 'What is the split between Centum, CONTRACT, and CNP pricing?' },
-  { title: 'Stale quotes',     prompt: 'Are there any supplier quotes older than 2 months in this RFQ?' },
-];
-
-const SOURCE_ICON: Record<MessageCitation['sourceType'], React.ElementType> = {
-  cbom_row:         Database,
-  bom_row:          Rows,
-  cognee_memory:    Brain,
-  gerber_checklist: FileText,
-  excel_export:     FileText,
-  file_telemetry:   FileText,
-};
-
-// ── Runtime hook ──────────────────────────────────────────────────────────────
-
-function useRFQChatRuntime(rfqId: string) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [messages, setMessages] = useState<RFQMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content:
-        `Hi! I can answer **read-only** questions about **RFQ ${rfqId}**.\n\n` +
-        `Ask about A-class spend, uncosted parts, lead time risks, MOQ excess, ` +
-        `price control split, or stale quotes. I can't approve HITL gates or change any data.`,
-    },
-  ]);
-
-  // Keep a stable ref so onNew can read current messages without stale closure.
-  const messagesRef = useRef(messages);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-
-  const onNew = async (msg: AppendMessage) => {
-    if (msg.content[0]?.type !== 'text') return;
-    const text = msg.content[0].text;
-
-    const userMsg: RFQMessage = { id: crypto.randomUUID(), role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsRunning(true);
-
-    try {
-      const resp = await fetch(`/api/rfq/${rfqId}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messagesRef.current, userMsg].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      const data = (await resp.json()) as {
-        message?: string;
-        error?: string;
-        citations?: MessageCitation[];
-      };
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: data.message ?? data.error ?? 'No response.',
-          citations: data.citations?.length ? data.citations : undefined,
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: "Couldn't reach the chat service. Please try again.",
-        },
-      ]);
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const runtime = useExternalStoreRuntime<RFQMessage>({
-    isRunning,
-    messages,
-    convertMessage: (m): ThreadMessageLike => ({
-      id: m.id,
-      role: m.role,
-      content: [{ type: 'text', text: m.content }],
-    }),
-    onNew,
-  });
-
-  return { runtime, messages, isRunning };
-}
-
-// ── Citation chip ─────────────────────────────────────────────────────────────
-
-function CitationChip({ citation }: { citation: MessageCitation }) {
-  const Icon = SOURCE_ICON[citation.sourceType] ?? FileText;
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-foreground/80">
-      <Icon className="h-2.5 w-2.5 shrink-0" />
-      {citation.label}
-    </span>
-  );
-}
-
-// ── Message bubble ────────────────────────────────────────────────────────────
-
-function MessageBubble({ msg }: { msg: RFQMessage }) {
-  const isUser = msg.role === 'user';
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[84%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-        <div
-          className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-            isUser
-              ? 'rounded-br-sm bg-primary text-primary-foreground'
-              : 'rounded-bl-sm bg-muted text-foreground'
-          }`}
-        >
-          {isUser ? (
-            msg.content
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                // Keep tables readable inside the narrow bubble
-                table: ({ children }) => (
-                  <div className="overflow-x-auto">
-                    <table className="text-xs border-collapse">{children}</table>
-                  </div>
-                ),
-                th: ({ children }) => (
-                  <th className="border border-border px-2 py-1 bg-muted font-semibold">{children}</th>
-                ),
-                td: ({ children }) => (
-                  <td className="border border-border px-2 py-1">{children}</td>
-                ),
-                // Tighter spacing for lists
-                ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-4 space-y-0.5">{children}</ol>,
-                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                code: ({ children }) => (
-                  <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-[11px]">{children}</code>
-                ),
-              }}
-            >
-              {msg.content}
-            </ReactMarkdown>
-          )}
-        </div>
-        {msg.citations && msg.citations.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-1">
-            {msg.citations.map((c, i) => (
-              <CitationChip key={i} citation={c} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Pane inner (must be inside AssistantRuntimeProvider) ──────────────────────
-
-interface PaneInnerProps {
-  rfqId: string;
-  messages: RFQMessage[];
-  isRunning: boolean;
-  runtime: ReturnType<typeof useExternalStoreRuntime<RFQMessage>>;
-  onClose?: () => void;
-  inline: boolean;
-}
-
-function PaneInner({ rfqId, messages, isRunning, runtime, onClose, inline }: PaneInnerProps) {
-  const [input, setInput] = useState('');
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
-    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [messages, isRunning]);
-
-  const send = (text: string) => {
-    void runtime.thread.append({
-      parentId: null,
-      role: 'user',
-      content: [{ type: 'text', text }],
-    });
-  };
-
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text || isRunning) return;
-    setInput('');
-    send(text);
-  };
-
-  const rootClass = inline
-    ? 'flex h-full min-h-0 w-full flex-col overflow-hidden bg-background'
-    : 'fixed bottom-4 right-4 z-50 flex h-[min(580px,calc(100vh-2rem))] h-[min(580px,calc(100dvh-2rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl';
-
-  return (
-    <div className={rootClass}>
-
-      {/* ── Header ── */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-4 py-3 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <ChatCircle className="h-4 w-4 text-primary" weight="fill" />
-          <span className="text-sm font-semibold text-foreground">RFQ Assistant</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground/80">
-            {rfqId}
-          </span>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Close chat"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* ── Messages ── */}
-      <ScrollArea className="flex-1 px-4 py-3">
-        <div className="space-y-3" role="log" aria-live="polite" aria-relevant="additions">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
-          ))}
-          {isRunning && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-sm bg-muted px-3.5 py-2.5">
-                <span className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="h-1.5 w-1.5 animate-bounce motion-reduce:animate-none rounded-full bg-muted-foreground"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
-                </span>
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-
-      {/* ── KT-derived suggestion chips (always visible) ── */}
-      <div className="flex shrink-0 gap-1.5 overflow-x-auto border-t border-border px-4 py-2 scrollbar-none">
-        {RFQ_SUGGESTIONS.map((s) => (
-          <button
-            key={s.title}
-            type="button"
-            disabled={isRunning}
-            onClick={() => send(s.prompt)}
-            className="shrink-0 min-h-[24px] rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-          >
-            {s.title}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Composer ── */}
-      <div className="flex shrink-0 gap-2 border-t border-border px-4 py-3">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          aria-label="Ask about this RFQ"
-          placeholder="Ask about this RFQ…"
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && handleSend()}
-          disabled={isRunning}
-          className="flex-1 rounded-xl text-sm"
-        />
-        <Button
-          onClick={handleSend}
-          disabled={isRunning || !input.trim()}
-          size="sm"
-          className="rounded-xl"
-        >
-          Send
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Public exports ─────────────────────────────────────────────────────────────
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TaskInputBar } from '@/components/landing/TaskInputBar';
+import { ACCEPTED_EXTENSIONS, deleteAttachment, listAttachments, type Attachment } from '@/lib/rfqAttachments';
+import { AssistantMessages } from './AssistantMessages';
+import { AttachFilesDialog } from './AttachFilesDialog';
+import { useAssistantChat } from './useAssistantChat';
 
 interface RFQChatPaneProps {
-  rfqId: string;
+  /** The RFQ the assistant answers about; null = the assistant that lists RFQs and routes to the one named. */
+  rfqId: string | null;
   isOpen: boolean;
   onClose?: () => void;
   /** Render in the page's middle column instead of the floating corner pane. */
   inline?: boolean;
+  onOpenModelSettings?: () => void;
+  onOpenSpeechSettings?: () => void;
 }
 
-export function RFQChatPane({ rfqId, isOpen, onClose, inline = false }: RFQChatPaneProps) {
-  const { runtime, messages, isRunning } = useRFQChatRuntime(rfqId);
+/**
+ * The assistant. One persistent conversation: it never closes after an answer, a refusal or an error. Answers come from
+ * the RFQ's results (daemon rfq-chat service), each with the cells they came from. Files are added through a review
+ * popup and two security engines; only released files become context.
+ */
+export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenModelSettings, onOpenSpeechSettings }: RFQChatPaneProps) {
+  const chat = useAssistantChat(rfqId);
+  const [draft, setDraft] = useState('');
+  const [picked, setPicked] = useState<File[] | null>(null);
+  const [context, setContext] = useState<Attachment[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    if (!rfqId) {
+      setContext([]);
+      return;
+    }
+    try {
+      setContext(await listAttachments(rfqId));
+    } catch {
+      setContext([]); // the scan service may be down or older: show no files rather than guess
+    }
+  }, [rfqId]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   if (!isOpen && !inline) return null;
 
+  const submit = () => {
+    if (chat.running) {
+      chat.stop();
+      return;
+    }
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    void chat.send(text);
+  };
+
+  const remove = async (a: Attachment) => {
+    if (!rfqId) return;
+    try {
+      await deleteAttachment(rfqId, a.attachment_id);
+    } finally {
+      void refresh();
+    }
+  };
+
+  const model = [...chat.messages].reverse().find((m) => m.model)?.model;
+  const rootClass = inline
+    ? 'flex h-full min-h-0 w-full flex-col overflow-hidden bg-background'
+    : 'fixed bottom-4 right-4 z-50 flex h-[min(640px,calc(100dvh-2rem))] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl';
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <PaneInner
-        rfqId={rfqId}
-        messages={messages}
-        isRunning={isRunning}
-        runtime={runtime}
-        onClose={onClose}
-        inline={inline}
-      />
-    </AssistantRuntimeProvider>
+    <div className={rootClass}>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <ChatCircle className="h-4 w-4 shrink-0 text-primary" weight="fill" />
+            <h2 className="truncate text-sm font-semibold text-foreground">RFQ Assistant</h2>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{rfqId ?? 'All RFQs'}</span>
+          </div>
+          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+            <ShieldCheck className="h-3 w-3 shrink-0 text-primary" weight="fill" />
+            Answers come only from the RFQ’s results, with their sources{model ? ` · ${model}` : ''}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="outline" size="icon" aria-label="Reset conversation" onClick={() => { chat.reset(); setDraft(''); }}>
+                <ArrowClockwise className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Reset conversation</TooltipContent>
+          </Tooltip>
+          {onClose && (
+            <Button type="button" variant="ghost" size="icon" aria-label="Close chat" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <AssistantMessages messages={chat.messages} running={chat.running} rfqId={rfqId} onPick={(p) => void chat.send(p)} />
+
+      <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-4 sm:px-6">
+        {context.length > 0 && (
+          <ul className="mb-2 flex flex-wrap gap-1.5" aria-label="Files the assistant can read">
+            {context.map((a) => (
+              <li key={a.attachment_id} className="inline-flex max-w-[260px] items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-foreground">
+                <ShieldCheck className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" weight="fill" aria-hidden />
+                <span className="truncate" title={`${a.name}: cleared by both security engines`}>{a.name}</span>
+                <button type="button" aria-label={`Remove ${a.name}`} className="-my-1 -mr-1.5 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-background/60 hover:text-foreground" onClick={() => void remove(a)}>
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div
+          onDropCapture={(e) => {
+            const files = Array.from(e.dataTransfer?.files ?? []);
+            if (rfqId && files.length) setPicked(files);
+          }}
+        >
+          <TaskInputBar
+            value={draft}
+            onChange={setDraft}
+            onSubmit={submit}
+            isLoading={chat.running}
+            placeholder={rfqId ? 'Ask about this RFQ’s results…' : 'Ask which RFQs you have, or name one…'}
+            autoFocus={inline}
+            autoSubmitOnTranscription={false}
+            onOpenSpeechSettings={onOpenSpeechSettings}
+            onOpenModelSettings={onOpenModelSettings}
+            hideModelWhenNoModel
+            toolbarLeft={
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* the span carries the hint: a disabled button shows no tooltip of its own */}
+                  <span className="inline-flex" title={rfqId ? undefined : 'Pick an RFQ to add files'}>
+                    <button
+                      type="button"
+                      disabled={!rfqId || chat.running}
+                      onClick={() => fileInput.current?.click()}
+                      aria-label="Add files"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Plus className="h-4 w-4" weight="light" aria-hidden />
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{rfqId ? 'Add files: checked by two security engines first' : 'Pick an RFQ to add files'}</TooltipContent>
+              </Tooltip>
+            }
+          />
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          accept={ACCEPTED_EXTENSIONS.join(',')}
+          data-testid="assistant-file-input"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = '';
+            if (files.length) setPicked(files);
+          }}
+        />
+      </div>
+
+      {rfqId && picked && (
+        <AttachFilesDialog
+          open
+          rfqId={rfqId}
+          files={picked}
+          alreadyAttached={context.map((a) => a.name)}
+          onClose={() => setPicked(null)}
+          onReleased={() => void refresh()}
+        />
+      )}
+    </div>
   );
 }
 
 /** Floating trigger button shown in ExecutionHeader when the pane is closed. */
 export function RFQChatButton({ rfqId, onClick }: { rfqId: string; onClick: () => void }) {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      className="gap-1.5"
-      title={`Open RFQ assistant for ${rfqId}`}
-    >
+    <Button variant="outline" size="sm" onClick={onClick} className="gap-1.5" title={`Open RFQ assistant for ${rfqId}`}>
       <ChatCircle className="h-4 w-4" weight="fill" />
       Ask Assistant
     </Button>

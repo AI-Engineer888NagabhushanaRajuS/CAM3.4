@@ -13,8 +13,10 @@ fact. What gets indexed here deliberately excludes exact prices/quantities
 time via MCP tools, not pre-indexed into Cognee.
 """
 
+import asyncio
 import logging
-import sys
+import os
+import time
 from pathlib import Path
 
 import duckdb
@@ -31,21 +33,90 @@ import citation_store
 _THIS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _THIS_DIR.parent.parent
 
-# Reuses the SAME DuckDB path resolution every other tool server already
-# uses (mcp-tools/shared/db_config.py) -- not a second, possibly-divergent
-# copy of that path.
-sys.path.insert(0, str(_REPO_ROOT / "mcp-tools"))
-from shared.db_config import DB_PATH as BOM_STORAGE_DB_PATH  # noqa: E402
-
-# reporting/superset's own config.py resolves CBOM_DB_PATH -- same
-# REPORTING_DATABASE_DIR-env-var-override gap bom_qa_lookup_server.py
-# already documents; this service's manage_backend.py SERVICES entry must
-# pass the same env override (see plan task for wiring into
-# manage_backend.py).
-sys.path.insert(0, str(_REPO_ROOT / "mcp-tools" / "reporting" / "superset"))
-import config as reporting_config  # noqa: E402
+# Same DuckDB files and env vars as the tool servers (mcp-tools/intake/config.py DB_PATH,
+# mcp-tools/reporting/superset/config.py CBOM_DB_PATH). 3.3's mcp-tools/shared/db_config.py no longer
+# exists, and `import config` from reporting/superset would return THIS service's config (already in
+# sys.modules), so the paths are resolved here from the env the compose python-env anchor sets.
+_DATABASE_DIR = os.environ.get("REPORTING_DATABASE_DIR", str(_REPO_ROOT / "database"))
+BOM_STORAGE_DB_PATH = os.environ.get("BOM_STORAGE_DB", os.path.join(_DATABASE_DIR, "bom_storage.duckdb"))
+CBOM_DB_PATH = os.environ.get("REPORTING_CBOM_DB", os.path.join(_DATABASE_DIR, "cbom.duckdb"))
 
 logger = logging.getLogger("rfq_memory.ingest")
+
+# One add+cognify at a time: local Ollama (qwen3:8b) is shared with the live RFQ pipeline, and parallel
+# cognify runs are what made it hang mid-ingestion. ponytail: process-wide lock, per-RFQ queue if
+# throughput ever matters (a cloud LLM via RFQ_MEMORY_LLM_PROVIDER removes the contention instead).
+COGNIFY_LOCK = asyncio.Semaphore(1)
+
+# Attachment text is split into pieces well below Cognee's chunk size, so each piece comes back from
+# SearchType.CHUNKS verbatim and its sha256 still finds the citation stored for it (a longer text
+# would be re-chunked by Cognee and every chunk would be dropped as uncited by query.py).
+ATTACHMENT_PIECE_CHARS = 1200
+
+
+def split_attachment_text(text: str, max_chars: int = ATTACHMENT_PIECE_CHARS) -> list[str]:
+    """Paragraph-packed pieces of at most max_chars; an oversized paragraph is hard-cut."""
+    pieces, current = [], ""
+    for para in (p.strip() for p in text.split("\n")):
+        if not para:
+            continue
+        while len(para) > max_chars:
+            if current:
+                pieces.append(current)
+                current = ""
+            pieces.append(para[:max_chars])
+            para = para[max_chars:].strip()
+        if current and len(current) + 1 + len(para) > max_chars:
+            pieces.append(current)
+            current = ""
+        current = f"{current}\n{para}" if current else para
+    if current:
+        pieces.append(current)
+    return pieces
+
+
+def build_attachment_content(rfq_id: str, attachment_id: str, filename: str, text: str) -> list[tuple[str, dict]]:
+    """Each piece is prefixed with the file and RFQ, which both tells the answering LLM where the text
+    came from and makes the content hash unique per RFQ/file (rfq_memory_citations is keyed by hash)."""
+    pieces = split_attachment_text(text)
+    items = []
+    for i, piece in enumerate(pieces, start=1):
+        body = f"Attachment {filename} (RFQ {rfq_id}, part {i}/{len(pieces)}):\n{piece}"
+        citation = {
+            "sourceType": "file_telemetry",
+            "identifier": {"rfq_id": rfq_id, "attachment_id": attachment_id, "filename": filename, "part": i},
+            "label": f"Attachment — {filename}" + (f" (part {i}/{len(pieces)})" if len(pieces) > 1 else ""),
+        }
+        items.append((body, citation))
+    return items
+
+
+async def ingest_attachment(rfq_id: str, attachment_id: str, filename: str, text: str) -> dict:
+    """Background job for POST /internal/memory/ingest-attachment. No version check: chat attachments
+    are not versioned uploads (rfq_process_tracking has no row for them); a re-upload's prune of the
+    RFQ dataset removes them along with everything else."""
+    if not config.RFQ_MEMORY_ENABLED:
+        return {"status": "disabled"}
+    items = build_attachment_content(rfq_id, attachment_id, filename, text)
+    if not items:
+        return {"status": "empty"}
+    dataset_name = config.dataset_name_for(rfq_id)
+    rfq_tag = config.node_set_tag_for(rfq_id)
+    started = time.monotonic()
+    try:
+        async with COGNIFY_LOCK:
+            for body, citation in items:
+                await cognee.add(data=body, dataset_name=dataset_name, node_set=[rfq_tag, "attachment"])
+                citation_store.store_citation(body, rfq_id, citation)
+            await cognee.cognify(datasets=[dataset_name])
+        logger.info(
+            "[MEMORY ATTACHMENT] rfq_id=%s file=%s: %d piece(s) added+cognified in %.1fs",
+            rfq_id, filename, len(items), time.monotonic() - started,
+        )
+        return {"status": "ok", "items": len(items)}
+    except Exception:
+        logger.exception("[MEMORY ATTACHMENT ERROR] rfq_id=%s file=%s after %.1fs", rfq_id, filename, time.monotonic() - started)
+        return {"status": "error"}
 
 
 def _bom_storage_conn():
@@ -53,7 +124,7 @@ def _bom_storage_conn():
 
 
 def _cbom_conn():
-    return duckdb.connect(reporting_config.CBOM_DB_PATH, read_only=True)
+    return duckdb.connect(CBOM_DB_PATH, read_only=True)
 
 
 # ---------------------------------------------------------------------------
@@ -219,26 +290,27 @@ async def ingest_stage(rfq_id: str, version: int, source: str, tool_result: dict
 
         dataset_name = config.dataset_name_for(rfq_id)
         rfq_tag = config.node_set_tag_for(rfq_id)
-        for text, citation in items:
-            # rfq_tag is the ACTUAL enforced isolation boundary at search
-            # time (see node_set_tag_for's own docstring) -- node_set is
-            # never a single shared value across RFQs. The content-type tag
-            # (node_set, e.g. "cbom") rides alongside it on the same node;
-            # that's safe at ADD time (a node can carry multiple tags), the
-            # risk is only ever at SEARCH time if both were combined into
-            # one node_name filter list (node_name_filter_operator defaults
-            # to "OR", which would widen instead of narrow) -- query.py
-            # never does that.
-            await cognee.add(
-                data=text,
-                dataset_name=dataset_name,
-                node_set=[rfq_tag, node_set],
-            )
-            # Citation integrity (plan §0.D): recorded HERE, at ingest time,
-            # from the real row this text was built from -- never
-            # reconstructed or guessed at retrieval time.
-            citation_store.store_citation(text, rfq_id, citation)
-        await cognee.cognify(datasets=[dataset_name])
+        async with COGNIFY_LOCK:
+            for text, citation in items:
+                # rfq_tag is the ACTUAL enforced isolation boundary at search
+                # time (see node_set_tag_for's own docstring) -- node_set is
+                # never a single shared value across RFQs. The content-type tag
+                # (node_set, e.g. "cbom") rides alongside it on the same node;
+                # that's safe at ADD time (a node can carry multiple tags), the
+                # risk is only ever at SEARCH time if both were combined into
+                # one node_name filter list (node_name_filter_operator defaults
+                # to "OR", which would widen instead of narrow) -- query.py
+                # never does that.
+                await cognee.add(
+                    data=text,
+                    dataset_name=dataset_name,
+                    node_set=[rfq_tag, node_set],
+                )
+                # Citation integrity (plan §0.D): recorded HERE, at ingest time,
+                # from the real row this text was built from -- never
+                # reconstructed or guessed at retrieval time.
+                citation_store.store_citation(text, rfq_id, citation)
+            await cognee.cognify(datasets=[dataset_name])
 
         logger.info(
             "[MEMORY INGEST] rfq_id=%s version=%s source=%s: %d item(s) added+cognified",
