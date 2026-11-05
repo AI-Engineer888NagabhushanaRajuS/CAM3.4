@@ -14,12 +14,14 @@ import { createContext, useContext, type ReactNode } from 'react';
  */
 export interface RfqContextValue {
   activeRfqId: string;
+  /** Select an RFQ exactly like clicking it in the left list (the assistant's "Open RFQ-x" button). */
+  selectRfq?: (rfqId: string) => void;
 }
 
 const RfqContext = createContext<RfqContextValue>({ activeRfqId: '' });
 
-export function RfqProvider({ activeRfqId, children }: { activeRfqId: string; children: ReactNode }) {
-  return <RfqContext.Provider value={{ activeRfqId }}>{children}</RfqContext.Provider>;
+export function RfqProvider({ activeRfqId, selectRfq, children }: { activeRfqId: string; selectRfq?: (rfqId: string) => void; children: ReactNode }) {
+  return <RfqContext.Provider value={{ activeRfqId, selectRfq }}>{children}</RfqContext.Provider>;
 }
 
 export function useRfqContext(): RfqContextValue {

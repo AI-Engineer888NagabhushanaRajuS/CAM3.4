@@ -59,6 +59,8 @@ function setup(over: Partial<ActionDeps> = {}, released = files) {
     appendAudit: async (l) => {
       audit.push(l);
     },
+    pipelineState: async (rfqId) => ({ rfqId, exists: true, customer: null, project: null, started: true, stage: 3, reviewPending: false, finished: false, steps: [] }),
+    startPipeline: async () => ({ status: 'TRIGGERED' }),
     ...over,
   };
   // After a scan the released files are listed under the new id too.

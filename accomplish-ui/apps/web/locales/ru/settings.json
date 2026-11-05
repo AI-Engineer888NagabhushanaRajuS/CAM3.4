@@ -1,6 +1,6 @@
 {
   "title": "Настройки",
-  "setupTitle": "Настройка Accomplish",
+  "setupTitle": "Настройка CAM 3.4",
   "model": {
     "title": "Модель",
     "cloudProviders": "Облачные провайдеры",
@@ -60,9 +60,9 @@
     "fireworks": "Fireworks AI",
     "groq": "Groq",
     "huggingface-local": "HuggingFace Local",
-    "accomplish-ai": "Accomplish AI",
+    "accomplish-ai": "CAM 3.4 AI",
     "accomplishAi": {
-      "description": "Используйте встроенную модель на базе Accomplish — API-ключ не требуется.\nВключает 200 бесплатных кредитов в месяц.",
+      "description": "Используйте встроенную модель на базе CAM 3.4 — API-ключ не требуется.\nВключает 200 бесплатных кредитов в месяц.",
       "disconnect": "Отключить",
       "exhaustedMessage": "Кредиты исчерпаны. Они будут сброшены {{date}}.",
       "exhaustedMessageSoon": "Кредиты исчерпаны. Они будут сброшены в ближайшее время."
@@ -334,7 +334,7 @@
   },
   "integrations": {
     "title": "Интеграции мессенджеров",
-    "description": "Подключайте мессенджеры для удалённого запуска задач Accomplish. После подключения вы сможете запускать и отслеживать задачи с телефона или любого устройства.",
+    "description": "Подключайте мессенджеры для удалённого запуска задач CAM 3.4. После подключения вы сможете запускать и отслеживать задачи с телефона или любого устройства.",
     "enabled": "Включено",
     "messaging": "Мессенджеры",
     "comingSoon": "Скоро",
@@ -347,14 +347,14 @@
     "platforms": {
       "whatsapp": "Запускать задачи и получать обновления через WhatsApp",
       "slack": "Подключить рабочее пространство Slack для управления задачами",
-      "telegram": "Использовать Telegram-бота для взаимодействия с Accomplish",
+      "telegram": "Использовать Telegram-бота для взаимодействия с CAM 3.4",
       "teams": "Интегрировать с каналами и чатами Teams"
     },
     "whatsapp": {
       "connect": "Подключить WhatsApp",
       "scanQr": "Отсканируйте QR-код ниже в приложении WhatsApp для подключения этого устройства. Перейдите в WhatsApp > Настройки > Связанные устройства > Привязать устройство.",
       "qrPlaceholder": "QR-код появится здесь после запуска сервиса WhatsApp",
-      "securityNotice": "Подключая WhatsApp, вы предоставляете Accomplish доступ к своим сообщениям. Все данные остаются на вашем устройстве и не передаются третьим лицам."
+      "securityNotice": "Подключая WhatsApp, вы предоставляете CAM 3.4 доступ к своим сообщениям. Все данные остаются на вашем устройстве и не передаются третьим лицам."
     },
     "tabs": {
       "messaging": "Сообщения",
@@ -365,13 +365,13 @@
   },
   "appearance": {
     "title": "Тема",
-    "description": "Выберите внешний вид Accomplish. Выберите «Система» для соответствия настройкам ОС.",
+    "description": "Выберите внешний вид CAM 3.4. Выберите «Система» для соответствия настройкам ОС.",
     "ariaLabel": "Настройка темы",
     "system": "Система",
     "light": "Светлая",
     "dark": "Тёмная",
     "themeTitle": "Тема",
-    "themeDescription": "Выберите внешний вид Accomplish. Выберите «Система» для соответствия настройкам ОС.",
+    "themeDescription": "Выберите внешний вид CAM 3.4. Выберите «Система» для соответствия настройкам ОС.",
     "themeSystem": "Системная",
     "themeLight": "Светлая",
     "themeDark": "Тёмная"
@@ -409,7 +409,7 @@
       "connecting": "Connecting...",
       "disconnect": "Disconnect",
       "disconnecting": "Disconnecting...",
-      "authHint": "Accomplish will open your browser to authorize access.",
+      "authHint": "CAM 3.4 will open your browser to authorize access.",
       "pendingHint": "Authorization was started but not finished. Reconnect to try again.",
       "connectedHint": "Connected and ready for the agent to use.",
       "waitingForBrowser": "Ожидание браузера…"
@@ -424,7 +424,7 @@
       "restartAuth": "Перезапустить авторизацию",
       "disconnect": "Отключить Slack",
       "disconnecting": "Отключение...",
-      "authHint": "Accomplish откроет браузер для подтверждения доступа к Slack.",
+      "authHint": "CAM 3.4 откроет браузер для подтверждения доступа к Slack.",
       "pendingHint": "Авторизация Slack была начата, но не завершена. Перезапустите её.",
       "connectedHint": "Slack подключён и готов к использованию агентом.",
       "authFailed": "Не удалось подключить Slack",
@@ -450,7 +450,7 @@
     "monday": {
       "title": "monday.com",
       "description": "Let the agent manage boards, items, and updates in your monday.com workspace.",
-      "marketplaceHint": "Install the Accomplish app from the monday.com marketplace first.",
+      "marketplaceHint": "Install the CAM 3.4 app from the monday.com marketplace first.",
       "marketplaceLink": "Open marketplace"
     },
     "lightdash": {
@@ -539,7 +539,7 @@
     "showInFolder": "Показать в папке",
     "delete": "Удалить",
     "add": "Добавить",
-    "buildWithAccomplish": "Build with DigiBull.ai",
+    "buildWithAccomplish": "Build with CAM 3.4",
     "buildDescription": "Создавайте навыки через диалог",
     "uploadSkill": "Загрузить навык",
     "uploadDescription": "Выберите папку с навыком для импорта",
@@ -569,7 +569,7 @@
     "exported": "Экспортировано",
     "exportFailed": "Ошибка экспорта",
     "exportDialogTitle": "Экспорт логов приложения",
-    "exportHeader": "Логи приложения Accomplish\nЭкспортировано: {{timestamp}}\nКаталог логов: {{logDir}}\n\nЗаписи пока отсутствуют.\n"
+    "exportHeader": "Логи приложения CAM 3.4\nЭкспортировано: {{timestamp}}\nКаталог логов: {{logDir}}\n\nЗаписи пока отсутствуют.\n"
   },
   "language": {
     "title": "Язык",
@@ -584,13 +584,18 @@
   "about": {
     "title": "О программе",
     "version": "Версия {{version}}",
-    "description": "Accomplish — это локальный ИИ-агент для вашего Mac, который читает файлы, создаёт документы и автоматизирует рутинную работу — всё с открытым исходным кодом и вашими моделями ИИ.",
+    "description": "CAM 3.4 for Centum automates RFQ costing: it reads the files for an RFQ, runs each workflow stage and produces the quote reports.",
+    "buildLabel": "App build",
+    "panesTitle": "How the screen is laid out",
+    "paneLeft": "Left: workflow stages. The steps an RFQ moves through, in order.",
+    "paneMiddle": "Middle: Assistant. Ask about your RFQs and get answers in plain language.",
+    "paneRight": "Right: events and output. Live progress from the server, then the finished results and reports.",
     "contact": "Есть вопросы или предложения? Нажмите здесь, чтобы связаться с нами",
     "visitUs": "Наш сайт",
     "haveQuestion": "Есть вопрос?",
     "versionLabel": "Версия",
     "loading": "Загрузка...",
-    "allRightsReserved": "Accomplish™ Все права защищены.",
+    "allRightsReserved": "CAM 3.4 Все права защищены.",
     "developedBy": "Разработано"
   },
   "warnings": {

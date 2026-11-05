@@ -32,14 +32,18 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: DisambiguateOption[] }
   | {
       type: 'confirm_action';
-      action: 'create_rfq';
+      action: 'create_rfq' | 'start_pipeline';
       summary: string;
-      /** Exactly what will be done: customer, project, files, flow profile. */
+      /** Exactly what will be done: customer, project, files, flow profile. start_pipeline: { rfqId, stage, customer, project }. */
       params: Record<string, unknown>;
       confirmToken: string;
       expiresAt: string;
     }
-  | { type: 'ask_upload'; accept: string[]; purpose: string };
+  | { type: 'ask_upload'; accept: string[]; purpose: string }
+  /** Buttons only: the user presses them, the UI never acts alone. open_rfq selects the RFQ like the left list does. */
+  | { type: 'open_rfq'; rfqId: string }
+  | { type: 'open_export'; rfqId: string }
+  | { type: 'open_settings'; section: 'providers' };
 
 export interface ChatResponse {
   message: string;
@@ -134,6 +138,11 @@ export function parseUi(value: unknown): UiDirective | undefined {
       return typeof ui.confirmToken === 'string' && ui.params && typeof ui.params === 'object' ? (ui as unknown as UiDirective) : undefined;
     case 'ask_upload':
       return Array.isArray(ui.accept) ? (ui as unknown as UiDirective) : undefined;
+    case 'open_rfq':
+    case 'open_export':
+      return typeof ui.rfqId === 'string' && ui.rfqId.trim() ? (ui as unknown as UiDirective) : undefined;
+    case 'open_settings':
+      return ui.section === 'providers' ? (ui as unknown as UiDirective) : undefined;
     default:
       return undefined;
   }

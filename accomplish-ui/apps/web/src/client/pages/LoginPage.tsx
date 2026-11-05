@@ -115,7 +115,7 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout subtitle="Welcome back" title="Login to SRIM" badge="Secure">
+    <AuthLayout subtitle="Welcome back" title="Login to CAM 3.4" badge="Secure">
       {/* Login Type selector -- a UX indicator of intended destination only;
           it never grants privileges by itself (see routeAfterLogin above). */}
       <div className="mt-5">

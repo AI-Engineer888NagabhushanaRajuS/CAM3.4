@@ -918,11 +918,11 @@ export class BrowserApiServer {
       // it loses the credit, it does not break anything.
       case 'system:about': {
         return {
-          app: 'SRIM',
+          app: 'CAM 3.4',
           brand: 'DigiBull.ai',
           author: 'Nagabhushana Raju S',
           location: 'Mysore, Karnataka, India',
-          build: 'SRIM / DigiBull build of Accomplish',
+          build: 'CAM 3.4 (Centum), built on the open-source Accomplish base',
         };
       }
 

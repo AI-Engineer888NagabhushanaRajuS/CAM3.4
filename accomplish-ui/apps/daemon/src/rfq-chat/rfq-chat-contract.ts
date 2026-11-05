@@ -25,7 +25,7 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: Array<{ id: string; label: string; detail?: string }> }
   | {
       type: 'confirm_action';
-      action: 'create_rfq';
+      action: 'create_rfq' | 'start_pipeline';
       summary: string;
       /** Exactly what will be done: customer, project, files, flow profile. Shown to the user before Confirm. */
       params: Record<string, unknown>;
@@ -33,7 +33,11 @@ export type UiDirective =
       confirmToken: string;
       expiresAt: string;
     }
-  | { type: 'ask_upload'; accept: string[]; purpose: string };
+  | { type: 'ask_upload'; accept: string[]; purpose: string }
+  // Buttons the user presses in the bubble (assistant controls the app, 2026-11-05): the UI never navigates by itself.
+  | { type: 'open_rfq'; rfqId: string }
+  | { type: 'open_export'; rfqId: string }
+  | { type: 'open_settings'; section: 'providers' };
 
 export interface ChatRequest {
   messages: Array<{ role: string; content: string }>;
@@ -76,5 +80,11 @@ export interface ChatActionDeps {
     request: string;
     fileRefs: Array<{ attachmentId: string; name: string }>;
   }): Promise<{ message: string; ui?: UiDirective }>;
+  /**
+   * Resume / start the pipeline of an existing RFQ (same GET /api/dify/start the UI uses). Refuses with a plain message
+   * when the RFQ is unknown, not started, finished or waiting for a human review; otherwise returns a confirm_action card
+   * (action 'start_pipeline', params { rfqId, stage, customer, project }).
+   */
+  proposeStartPipeline(p: { sessionKey: string; rfqId: string }): Promise<{ message: string; ui?: UiDirective }>;
   confirm(p: { sessionKey: string; req: ActionConfirmRequest }): Promise<ActionConfirmResponse>;
 }

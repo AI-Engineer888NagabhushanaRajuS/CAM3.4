@@ -90,3 +90,16 @@ Open Settings with the gear icon at the top right. The tabs include: Providers (
 - Many cells have no stored value: the workbook was exported before values were stored. Export the RFQ again.
 - The assistant is slow: the local model needs a while on a small graphics card; add an OpenRouter key in Settings for faster answers, or press the stop button and ask again.
 - An upload is rejected: check the file type and the 25 MB limit, and that both the BOM and the volume file are chosen.
+
+## 15. What the assistant can do for you
+
+Besides answering questions, the assistant can work the app for you. It never changes the screen or writes anything by itself: it shows a button or a confirmation card and you press it. Say it in plain words, for example "open RFQ-00007".
+
+- **Open an RFQ**: "open RFQ-00007", "go to RFQ-00007". The assistant shows an **Open RFQ-00007** button (named after the RFQ); pressing it opens that RFQ in the left and right panes. An RFQ ID that does not exist is refused and the real ones are offered.
+- **Check progress**: "what stage is RFQ-00007 at?", "is it stuck?", "is it waiting for review?". The assistant answers from the database: stage n of 9 with its name, whether a review is pending, and the last steps with a tag ([DONE], [RUNNING]). With one RFQ chosen you can leave the ID out ("what stage is it at?"). This is the pipeline, not the workbook: "what is the go / no-go status?" is a question about the results and is answered from the workbook with cited cells.
+- **Resume or start the pipeline**: "resume the pipeline for RFQ-00007", "continue RFQ-00007". The assistant shows a confirmation card; nothing runs until you press **Confirm**, and **Cancel** starts nothing. It refuses, in plain words and without starting anything, when the RFQ does not exist, has not been uploaded yet, has already finished, or is waiting for a person to review it (resolve that on the review screen in the right pane).
+- **Download the reports**: "export the reports for RFQ-00007", "download the workbook". When the RFQ has exported reports the assistant shows a **Download reports for RFQ-00007** button; otherwise it says that none exist yet.
+- **Upload files**: "upload a file", "attach the BOM". The assistant shows a **Choose files** button (accepted: .xlsx, .xls, .csv, .pdf, .docx, .txt). Both security engines scan every file first, and only clean files reach the chat. To create an RFQ from the files, say so (section 12).
+- **Create an RFQ**: "create an RFQ for customer X, project Y" with the files attached (section 12), again behind a confirmation card.
+- **Open Settings**: "change the model", "OpenRouter API key", "settings". The assistant shows an **Open Settings** button that opens Settings, Providers. The **Local / OpenRouter / Auto** switch for the language model is in the assistant header, not in Settings.
+- **Answer how-to questions**: "what can you do", "how do I upload the BOM file", answered from this guide.

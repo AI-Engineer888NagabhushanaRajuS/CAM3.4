@@ -2,7 +2,9 @@
  * One entry point for every assistant message (HTTP routes and task path). It is a normal chat first (SPEC-019):
  *
  *   greeting / how-to / help        -> the user guide, cited (rfq-chat-guide.ts); no RFQ facts
- *   create an RFQ / upload          -> the action service, which answers with a confirmation card (never writes here)
+ *   create an RFQ                   -> the action service, which answers with a confirmation card (never writes here)
+ *   open / status / resume / export / upload / settings of an RFQ -> the controls (rfq-chat-controls.ts): database answers,
+ *                                      buttons for the user to press, and a confirmation card for the one write (resume)
  *   report or data question         -> needs a scope: none -> RFQ picker; one RFQ -> grounded answer (rfq-chat-grounded.ts);
  *                                      several or all -> per-RFQ table (rfq-chat-multi.ts); unknown RFQ -> choose
  *   anything else                   -> ordinary conversation by the model, checked for data claims (rfq-chat-general.ts)
@@ -13,9 +15,11 @@
 import { answerFromResults, type GroundedDeps } from './rfq-chat-grounded.js';
 import { answerFromGuide, loadGuide } from './rfq-chat-guide.js';
 import { converse } from './rfq-chat-general.js';
-import { classify, rfqMentions } from './rfq-chat-intent.js';
+import { controlReply, quoted, unknownRfqReply } from './rfq-chat-controls.js';
+import { classify, classifyBase, rfqMentions } from './rfq-chat-intent.js';
 import { answerAcrossRfqs, MAX_RFQS, pickRfqDirective } from './rfq-chat-multi.js';
 import type { ChatActionDeps, ChatScope } from './rfq-chat-contract.js';
+import type { RfqStatus } from './rfq-chat-status.js';
 import type { ChatModel, ChatReply, RfqSummary, Turn } from './rfq-chat-types.js';
 
 export type { ChatReply, RfqSummary } from './rfq-chat-types.js';
@@ -32,6 +36,8 @@ export interface ChatServiceDeps extends Omit<GroundedDeps, 'model'> {
   actions?: ChatActionDeps;
   /** Who is chatting: binds confirmation tokens to the session. */
   sessionKey?: string;
+  /** Pipeline progress of one RFQ from the database (rfq-chat-status.ts). Absent = "where is it?" cannot be answered here. */
+  pipelineStatus?: (rfqId: string) => Promise<RfqStatus>;
 }
 
 export interface ChatParams {
@@ -45,8 +51,6 @@ export interface ChatParams {
 const MAX_QUESTION = 4000; // characters: a question is a sentence, not a document
 const LIST_QUESTION = /\b(which|list|how many|show)\b[^.?!]*\brfqs?\b/i;
 
-const quoted = (items: string[]) => items.map((i) => `\`${i}\``).join(', ');
-const detail = (r: RfqSummary) => [r.customer, r.project].filter(Boolean).join(' · ') || undefined;
 
 function table(rfqs: RfqSummary[]): string {
   const rows = rfqs.slice(0, 15).map((r) => `| ${r.rfqId} | ${r.customer ?? '-'} | ${r.project ?? '-'} | ${r.stage ?? '-'} | ${r.reviewPending ? 'yes' : 'no'} |`);
@@ -79,7 +83,14 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
     message, citations: [], model: null, scope: incoming, ...over,
   });
 
-  const intent = classify(question);
+  let intent = classify(question);
+  if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings') {
+    const done = await controlReply(intent, { deps, question, incoming });
+    if (done) {
+      return talk(done.message, done);
+    }
+    intent = classifyBase(question); // nothing to act on (for example a list question): the earlier rules decide
+  }
   if (intent === 'guide') {
     const sections = loadGuide();
     if (!sections) {
@@ -118,11 +129,8 @@ async function dataReply({ deps, question, history, incoming, talk }: Ctx): Prom
   const ids = rfqs.map((r) => r.rfqId);
   const mention = rfqMentions(question, ids);
   if (mention.unknown.length > 0) {
-    return talk(`I can't find ${quoted(mention.unknown)} in the RFQ list. Choose one of these, or check the spelling.`, {
-      rfq_id: null,
-      scope: { mode: 'none' },
-      ui: ids.length ? { type: 'disambiguate', prompt: 'Which RFQ do you mean?', options: rfqs.slice(0, 8).map((r) => ({ id: r.rfqId, label: r.rfqId, detail: detail(r) })) } : undefined,
-    });
+    const u = unknownRfqReply(mention.unknown, rfqs);
+    return talk(u.message, u);
   }
 
   // an RFQ the question names wins over the chips; otherwise the chips; otherwise one named earlier ("and the MOQ again?")
@@ -148,7 +156,7 @@ async function dataReply({ deps, question, history, incoming, talk }: Ctx): Prom
 
   if (scope.mode === 'rfqs' && scope.rfqIds.length === 1) {
     const rfqId = scope.rfqIds[0];
-    const { model, listRfqs: _list, withExports: _w, remember, actions: _actions, sessionKey: _key, ...rest } = deps;
+    const { model, listRfqs: _list, withExports: _w, remember, actions: _actions, sessionKey: _key, pipelineStatus: _status, ...rest } = deps;
     const answer = await answerFromResults({ rfqId, question, history }, { ...rest, model: model() });
     if (answer.citations.length > 0) {
       remember?.({ rfqId, question, answer: answer.message });

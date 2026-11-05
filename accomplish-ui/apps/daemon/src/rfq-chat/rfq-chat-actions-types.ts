@@ -4,6 +4,7 @@
  * loads db.ts lazily (it throws at import without its env vars).
  */
 import { createHash } from 'node:crypto';
+import type { RfqStatus } from './rfq-chat-status.js';
 
 export type FileRole = 'BOM' | 'VOLUME';
 
@@ -23,6 +24,15 @@ export interface CreateRfqParams {
   project: { id: string; name: string };
   files: FileParam[];
   profile: string;
+}
+
+/** The parameters of a confirmed "resume the pipeline" card. */
+export interface StartPipelineParams {
+  rfqId: string;
+  /** Stage n of 9 when the card was issued. */
+  stage: number | null;
+  customer: string | null;
+  project: string | null;
 }
 
 export interface Attachment {
@@ -67,6 +77,10 @@ export interface ActionDeps {
   /** Removes the tracking and file rows of an RFQ this run created. */
   deleteRfqRows(rfqId: string): Promise<void>;
   appendAudit(line: AuditLine): Promise<void>;
+  /** Pipeline progress of an RFQ from the database (rfq-chat-status.ts). */
+  pipelineState(rfqId: string): Promise<RfqStatus>;
+  /** GET {RFQ_UPLOAD_URL}/api/dify/start/{rfqId}, the call the UI makes to resume; throws UnknownOutcomeError when the answer is unknown. */
+  startPipeline(rfqId: string): Promise<{ status: string; outcome?: string }>;
 }
 
 /** JSON with sorted keys, so the same parameters always hash the same. */

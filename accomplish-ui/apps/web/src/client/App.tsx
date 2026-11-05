@@ -415,7 +415,7 @@ export function App() {
   // handles resuming from where it left off). Shared by pressing Enter on the
   // RFQ-ID textbox, clicking a live search result, and the mount-time restore
   // effect below.
-  const resumeRfq = useCallback(async (rfqId: string) => {
+  const resumeRfq = useCallback(async (rfqId: string, { start = true }: { start?: boolean } = {}) => {
     try {
       const accomplish = getAccomplish();
       setExportStatus(null); // clear any previous RFQ's stale artifacts before this one resolves
@@ -435,9 +435,13 @@ export function App() {
           // forward-only guard, so that's a real reachable state on reopen.
           if (stage >= 8) { void refreshExportStatus(rfqId); }
         }
-        authFetch(`${RFQ_UPLOAD}/api/dify/start/${encodeURIComponent(rfqId)}`, rfqId).catch((err) => {
-          logger.error('Failed to resume workflow via /api/dify/start', { err });
-        });
+        // The assistant's "Open RFQ" only looks (start: false): starting a run is a write, and the assistant asks for it
+        // through its own confirmation card.
+        if (start) {
+          authFetch(`${RFQ_UPLOAD}/api/dify/start/${encodeURIComponent(rfqId)}`, rfqId).catch((err) => {
+            logger.error('Failed to resume workflow via /api/dify/start', { err });
+          });
+        }
       } else {
         // Exists (e.g. created via Project Tracking's Create RFQ flow) but
         // has no rfq_process_tracking row yet -- nothing has been uploaded,
@@ -474,6 +478,15 @@ export function App() {
     setRfqSearchResults([]);
     setActiveRfqId(rfqId);
     void resumeRfq(rfqId);
+  }, [resumeRfq, setCustomRfqId]);
+
+  // The assistant's "Open RFQ" button: show the RFQ (stage, progress, scope) without starting or resuming a run.
+  const handleAssistantSelectRfq = useCallback((rfqId: string) => {
+    setCustomRfqId(rfqId);
+    setShowRfqDropdown(false);
+    setRfqSearchResults([]);
+    setActiveRfqId(rfqId);
+    void resumeRfq(rfqId, { start: false });
   }, [resumeRfq, setCustomRfqId]);
 
   // "Ingest BOM and Volume file" sub-skill -- same version-check flow the
@@ -1457,7 +1470,7 @@ export function App() {
                   }
                 />
               ) : (
-                <RfqProvider activeRfqId={activeRfqId}>
+                <RfqProvider activeRfqId={activeRfqId} selectRfq={handleAssistantSelectRfq}>
                   <AnimatedOutletWrapper />
                 </RfqProvider>
               )}

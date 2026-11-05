@@ -115,8 +115,8 @@ export function AssistantMessages({ messages, running, rfqId, onPick, actions }:
               <h3 className="text-base font-semibold text-foreground">{rfqId ? `Ask about ${rfqId}` : 'Ask anything about CAM 3.4'}</h3>
               <p className="mx-auto max-w-md text-sm text-muted-foreground">
                 {rfqId
-                  ? 'Answers about this RFQ come from its results and show the cells they came from.'
-                  : 'Ask how to use the tool, or ask about an RFQ: you will be asked which RFQs to use. RFQ answers show the cells they came from.'}
+                  ? 'Answers about this RFQ come from its results and show the cells they came from. You can also ask me to check progress, resume it, upload a file or download its reports.'
+                  : 'Ask how to use the tool, or ask about an RFQ: you will be asked which RFQs to use. You can also ask me to open an RFQ, upload a file or download its reports.'}
               </p>
             </div>
             <div className="grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">

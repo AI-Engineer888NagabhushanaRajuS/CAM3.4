@@ -1,6 +1,6 @@
 {
   "title": "Settings",
-  "setupTitle": "Set up SRIM",
+  "setupTitle": "Set up CAM 3.4",
   "model": {
     "title": "Model",
     "cloudProviders": "Cloud Providers",
@@ -60,9 +60,9 @@
     "together": "Together AI",
     "fireworks": "Fireworks AI",
     "groq": "Groq",
-    "accomplish-ai": "SRIM AI",
+    "accomplish-ai": "CAM 3.4 AI",
     "accomplishAi": {
-      "description": "Use the built-in model powered by SRIM - no API key required.\nIncludes 200 free credits per month to get you started.",
+      "description": "Use the built-in model powered by CAM 3.4 - no API key required.\nIncludes 200 free credits per month to get you started.",
       "disconnect": "Disconnect",
       "exhaustedMessage": "Credits exhausted. They will reset on {{date}}.",
       "exhaustedMessageSoon": "Credits exhausted. They will reset soon."
@@ -334,20 +334,20 @@
   },
   "appearance": {
     "title": "Theme",
-    "description": "Choose how SRIM looks. Select System to match your operating system setting.",
+    "description": "Choose how CAM 3.4 looks. Select System to match your operating system setting.",
     "ariaLabel": "Theme preference",
     "system": "System",
     "light": "Light",
     "dark": "Dark",
     "themeTitle": "Theme",
-    "themeDescription": "Choose how SRIM looks. Select System to match your operating system setting.",
+    "themeDescription": "Choose how CAM 3.4 looks. Select System to match your operating system setting.",
     "themeSystem": "System",
     "themeLight": "Light",
     "themeDark": "Dark"
   },
   "connectors": {
     "title": "Connectors",
-    "description": "Connect built-in and custom MCP servers so SRIM can use external tools.",
+    "description": "Connect built-in and custom MCP servers so CAM 3.4 can use external tools.",
     "loading": "Loading connectors...",
     "placeholder": "https://mcp-server.example.com",
     "add": "Add",
@@ -378,7 +378,7 @@
       "connecting": "Connecting...",
       "disconnect": "Disconnect",
       "disconnecting": "Disconnecting...",
-      "authHint": "SRIM will open your browser to authorize access.",
+      "authHint": "CAM 3.4 will open your browser to authorize access.",
       "pendingHint": "Authorization was started but not finished. Reconnect to try again.",
       "connectedHint": "Connected and ready for the agent to use.",
       "waitingForBrowser": "Waiting for browser…"
@@ -393,7 +393,7 @@
       "restartAuth": "Restart authentication",
       "disconnect": "Disconnect Slack",
       "disconnecting": "Disconnecting...",
-      "authHint": "SRIM will open your browser so you can approve Slack access.",
+      "authHint": "CAM 3.4 will open your browser so you can approve Slack access.",
       "pendingHint": "A Slack sign-in was started earlier but not finished. Restart it to try again.",
       "connectedHint": "Slack is authenticated and ready for the agent to use.",
       "authFailed": "Failed to authenticate Slack",
@@ -419,7 +419,7 @@
     "monday": {
       "title": "monday.com",
       "description": "Let the agent manage boards, items, and updates in your monday.com workspace.",
-      "marketplaceHint": "Install the SRIM app from the monday.com marketplace first.",
+      "marketplaceHint": "Install the CAM 3.4 app from the monday.com marketplace first.",
       "marketplaceLink": "Open marketplace"
     },
     "lightdash": {
@@ -516,7 +516,7 @@
     "showInFolder": "Show in Folder",
     "delete": "Delete",
     "add": "Add",
-    "buildWithAccomplish": "Build with DigiBull.ai",
+    "buildWithAccomplish": "Build with CAM 3.4",
     "buildDescription": "Create skills through conversation",
     "uploadSkill": "Upload a skill",
     "uploadDescription": "Select a skill folder to import",
@@ -546,7 +546,7 @@
     "exported": "Exported",
     "exportFailed": "Export Failed",
     "exportDialogTitle": "Export Application Logs",
-    "exportHeader": "SRIM Application Logs\nExported: {{timestamp}}\nLog Directory: {{logDir}}\n\nNo logs recorded yet.\n"
+    "exportHeader": "CAM 3.4 Application Logs\nExported: {{timestamp}}\nLog Directory: {{logDir}}\n\nNo logs recorded yet.\n"
   },
   "language": {
     "title": "Language",
@@ -561,13 +561,18 @@
   "about": {
     "title": "About",
     "version": "Version {{version}}",
-    "description": "SRIM is a local computer-use AI agent for your Mac that reads your files, creates documents, and automates repetitive knowledge work—all open-source with your AI models of choice.",
+    "description": "CAM 3.4 for Centum automates RFQ costing: it reads the files for an RFQ, runs each workflow stage and produces the quote reports.",
+    "buildLabel": "App build",
+    "panesTitle": "How the screen is laid out",
+    "paneLeft": "Left: workflow stages. The steps an RFQ moves through, in order.",
+    "paneMiddle": "Middle: Assistant. Ask about your RFQs and get answers in plain language.",
+    "paneRight": "Right: events and output. Live progress from the server, then the finished results and reports.",
     "contact": "Any questions or feedback? Click here to contact us",
     "visitUs": "Visit us",
     "haveQuestion": "Have a question?",
     "versionLabel": "Version",
     "loading": "Loading...",
-    "allRightsReserved": "SRIM™ All rights reserved.",
+    "allRightsReserved": "CAM 3.4 (for Centum). All rights reserved.",
     "developedBy": "Developed by"
   },
   "warnings": {
@@ -600,7 +605,7 @@
   },
   "integrations": {
     "title": "Messaging Integrations",
-    "description": "Connect messaging platforms to trigger SRIM tasks remotely. When enabled, you can start and monitor tasks from your phone or any device.",
+    "description": "Connect messaging platforms to trigger CAM 3.4 tasks remotely. When enabled, you can start and monitor tasks from your phone or any device.",
     "enabled": "Enabled",
     "messaging": "Messaging",
     "comingSoon": "Coming Soon",
@@ -613,14 +618,14 @@
     "platforms": {
       "whatsapp": "Trigger tasks and receive updates via WhatsApp messages",
       "slack": "Connect Slack workspace for task management",
-      "telegram": "Use Telegram bot to interact with SRIM",
+      "telegram": "Use Telegram bot to interact with CAM 3.4",
       "teams": "Integrate with Teams channels and chats"
     },
     "whatsapp": {
       "connect": "Connect WhatsApp",
       "scanQr": "Scan the QR code below with your WhatsApp app to connect this device. Go to WhatsApp > Settings > Linked Devices > Link a Device.",
       "qrPlaceholder": "QR code will appear here when the WhatsApp service starts",
-      "securityNotice": "By connecting WhatsApp, you grant SRIM access to your WhatsApp messages. All data remains on your device and is not shared externally."
+      "securityNotice": "By connecting WhatsApp, you grant CAM 3.4 access to your WhatsApp messages. All data remains on your device and is not shared externally."
     },
     "tabs": {
       "messaging": "Messaging",

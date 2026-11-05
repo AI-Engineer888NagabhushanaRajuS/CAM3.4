@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import type { DisambiguateOption } from '@/lib/chatContract';
 import { ConfirmActionCard } from './ConfirmActionCard';
+import { OpenExportDirective, OpenRfqDirective, OpenSettingsDirective } from './OpenDirectives';
 import type { ChatMsg, ConfirmOutcome } from './useAssistantChat';
 
 export interface DirectiveActions {
@@ -8,6 +9,10 @@ export interface DirectiveActions {
   onOpenPicker: (msgId: string) => void;
   onUpload: (accept: string[]) => void;
   onSettle: (msgId: string, outcome: ConfirmOutcome) => void;
+  /** Select the RFQ like the left list; absent when the host cannot (the button is then not drawn). */
+  onOpenRfq?: (msgId: string, rfqId: string) => void;
+  /** Settings -> Providers; absent when the host cannot. */
+  onOpenSettings?: () => void;
 }
 
 /** What the daemon asked the UI to draw under an assistant message. The UI only shows it; the user decides. */
@@ -58,6 +63,14 @@ export function Directive({ msg, actions, busy }: { msg: ChatMsg; actions: Direc
       );
     case 'confirm_action':
       return <ConfirmActionCard ui={ui} outcome={msg.confirm} onSettle={(o) => actions.onSettle(msg.id, o)} />;
+    case 'open_rfq': {
+      const { onOpenRfq } = actions;
+      return <OpenRfqDirective msg={msg} rfqId={ui.rfqId} busy={busy} onOpen={onOpenRfq && (() => onOpenRfq(msg.id, ui.rfqId))} />;
+    }
+    case 'open_export':
+      return <OpenExportDirective rfqId={ui.rfqId} busy={busy} />;
+    case 'open_settings':
+      return <OpenSettingsDirective busy={busy} onOpen={actions.onOpenSettings} />;
     default:
       return null;
   }

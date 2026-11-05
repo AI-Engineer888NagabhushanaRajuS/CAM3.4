@@ -102,11 +102,11 @@
     "tryAgain": "Please try again"
   },
   "app": {
-    "mustRunInDesktop": "This application must be run inside the SRIM desktop app.",
+    "mustRunInDesktop": "This application must be run inside the CAM 3.4 desktop app.",
     "unableToStart": "Unable to Start",
     "updateRequired": "Update Required",
-    "schemaNewerMessage": "This data was created by a newer version of SRIM (schema v{{version}}).",
-    "schemaNewerDetail": "Your app supports up to schema v{{version}}. Please update SRIM to continue."
+    "schemaNewerMessage": "This data was created by a newer version of CAM 3.4 (schema v{{version}}).",
+    "schemaNewerDetail": "Your app supports up to schema v{{version}}. Please update CAM 3.4 to continue."
   },
   "auth": {
     "sessionExpired": "{{provider}} Session Expired",

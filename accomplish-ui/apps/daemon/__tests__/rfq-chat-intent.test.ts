@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classify, rfqMentions } from '../src/rfq-chat/rfq-chat-intent.js';
+import { classify, classifyBase, rfqMentions } from '../src/rfq-chat/rfq-chat-intent.js';
 import { dataClaims } from '../src/rfq-chat/rfq-chat-general.js';
 import { parseScope } from '../src/rfq-chat/rfq-chat-scope.js';
 import { findConflicts, parseRow } from '../src/rfq-chat/rfq-chat-conflicts.js';
@@ -34,6 +34,33 @@ describe('intent rules (no model involved)', () => {
 
   it.each(['tell me a joke', 'thanks!', 'ok cool', 'what is the capital of France'])('"%s" is left to the ordinary conversation', (text) => {
     expect(classify(text)).toBe('unsure');
+  });
+});
+
+describe('control intents (assistant works the app; rules only)', () => {
+  it.each([
+    ['open RFQ-00007', 'open'], ['show RFQ-CENTUM-PROOF-24', 'open'], ['go to rfq-00007 please', 'open'], ['switch to RFQ-00007.', 'open'], ['select RFQ-00007', 'open'],
+    ['start the pipeline for RFQ-00007', 'resume'], ['resume the pipeline', 'resume'], ['continue RFQ-00007', 'resume'], ['restart the workflow for RFQ-00007', 'resume'], ['run the pipeline', 'resume'], ['start RFQ-00007', 'resume'],
+    ['what stage is RFQ-00007 at?', 'status'], ['what stage is it at?', 'status'], ['is RFQ-00007 stuck?', 'status'], ['where is RFQ-00007', 'status'], ['is it waiting for review?', 'status'], ['how far is RFQ-00007', 'status'], ['is the pipeline running?', 'status'],
+    ['export the reports for RFQ-00007', 'export'], ['download the workbook', 'export'], ['download cbom for RFQ-00007', 'export'],
+    ['upload a file', 'upload'], ['attach the BOM', 'upload'], ['add a volume file', 'upload'],
+    ['open settings', 'settings'], ['use the openrouter api key', 'settings'], ['change model', 'settings'], ['switch the model to openrouter', 'settings'],
+  ])('"%s" is %s', (text, intent) => {
+    expect(classify(text)).toBe(intent);
+  });
+
+  it.each([
+    ['what is the go / no-go status?', 'data'], ['show RFQ-00007 costs', 'data'], ['show me the total export cost', 'data'], ['which RFQs have been exported?', 'data'],
+    ['what is the status of RFQ-00007 pricing', 'data'], ['which RFQs are waiting for review?', 'status'], ['MOQ of UBR03225?', 'data'], ['how many parts have no price', 'data'],
+    ['start a new RFQ', 'create'], ['create an RFQ and start the pipeline', 'create'], ['open a new RFQ', 'create'], ['upload this bom for a new RFQ', 'create'], ['upload this file and create the rfq', 'create'],
+    ['where can I download the reports?', 'guide'], ['where is the export button?', 'guide'], ['help me change the model', 'guide'], ['where do I upload a file?', 'guide'],
+    ['how do I export the reports', 'guide'], ['how do I change the model', 'guide'], ['how do I resume the pipeline', 'guide'], ['what can you do', 'guide'],
+  ])('"%s" keeps its earlier route: %s', (text, intent) => {
+    expect(classify(text)).toBe(intent);
+  });
+
+  it('a control the service cannot act on falls back to the earlier rules', () => {
+    expect(classifyBase('which RFQs are waiting for review?')).toBe('data');
   });
 });
 
@@ -101,6 +128,11 @@ describe('the user guide', () => {
     expect(sections!.map((s) => s.heading).join('|')).toContain('Create an RFQ');
     const picked = pickSections('how do I upload the BOM and volume file', sections!);
     expect(picked[0].heading).toMatch(/Upload the BOM/);
+  });
+  it('has the section on what the assistant can do, and "what can you do" shows it first', () => {
+    const sections = loadGuide()!;
+    expect(sections.map((s) => s.heading).join('|')).toContain('What the assistant can do for you');
+    expect(pickSections('what can you do', sections)[0].heading).toMatch(/What the assistant can do/);
   });
   it('falls back to the overview and the assistant section for a bare greeting', () => {
     const picked = pickSections('hai', loadGuide()!);

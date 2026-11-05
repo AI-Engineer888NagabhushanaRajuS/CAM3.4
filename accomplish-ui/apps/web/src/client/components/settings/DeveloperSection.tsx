@@ -133,7 +133,7 @@ export function DeveloperSection() {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            MCP connections &amp; integration tools for wiring Accomplish into other workflows.
+            MCP connections &amp; integration tools for wiring CAM 3.4 into other workflows.
           </p>
         </div>
         <button
@@ -170,7 +170,7 @@ export function DeveloperSection() {
 
             <div className="space-y-1">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Quick-add · SRIM stack (edit URL after)
+                Quick-add · CAM 3.4 stack (edit URL after)
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {SRIM_MCP_PRESETS.map((p) => (

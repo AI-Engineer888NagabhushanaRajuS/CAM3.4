@@ -262,7 +262,7 @@ describe('create-RFQ intent goes to the action path, never writes in the chat', 
   it('asks the action service with the session and the attached files, and returns its card', async () => {
     const { model, calls } = scripted('x');
     const proposeCreateRfq = vi.fn(async () => ({ message: 'Ready to create RFQ-00003.', ui: card }));
-    const actions: ChatActionDeps = { proposeCreateRfq, confirm: vi.fn() };
+    const actions: ChatActionDeps = { proposeCreateRfq, proposeStartPipeline: vi.fn(), confirm: vi.fn() };
     const fileRefs = [{ attachmentId: 'a1', name: 'bom.xlsx' }];
     const out = await chatReply({ rfqId: null, fileRefs, messages: user('create an RFQ from this BOM for Centum, project Alpha') }, deps(model, { actions, sessionKey: 'tester@x' }));
     expect(proposeCreateRfq).toHaveBeenCalledWith({ sessionKey: 'tester@x', request: 'create an RFQ from this BOM for Centum, project Alpha', fileRefs });
@@ -274,7 +274,7 @@ describe('create-RFQ intent goes to the action path, never writes in the chat', 
 
   it('passes the action service its refusal or question as the message', async () => {
     const { model } = scripted('x');
-    const actions: ChatActionDeps = { proposeCreateRfq: async () => ({ message: 'To create the RFQ I still need the customer.' }), confirm: vi.fn() };
+    const actions: ChatActionDeps = { proposeCreateRfq: async () => ({ message: 'To create the RFQ I still need the customer.' }), proposeStartPipeline: vi.fn(), confirm: vi.fn() };
     const out = await chatReply({ rfqId: null, messages: user('make a new RFQ') }, deps(model, { actions }));
     expect(out.message).toContain('still need the customer');
     expect(out.ui).toBeUndefined();

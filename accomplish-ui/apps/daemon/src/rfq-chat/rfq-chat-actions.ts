@@ -1,20 +1,22 @@
 /**
- * SPEC-019 Create-RFQ action. The assistant never writes anything by itself: proposeCreateRfq validates and returns a
- * confirmation card; only confirm() with that card's single-use token runs createRfq -> files -> pipeline, and every
+ * SPEC-019 actions (create_rfq, start_pipeline). The assistant never writes anything by itself: a propose* call validates
+ * and returns a confirmation card; only confirm() with that card's single-use token runs the steps, and every
  * step is audited. Tokens live in memory (a daemon restart voids pending cards, which is the safe direction).
  */
 import { log } from '../logger.js';
 import type { ActionConfirmRequest, ActionConfirmResponse, ChatActionDeps } from './rfq-chat-contract.js';
 import { realActionDeps } from './rfq-chat-actions-deps.js';
 import { resolveFiles, resolveParties } from './rfq-chat-actions-parse.js';
+import { planStartPipeline, runStartPipeline } from './rfq-chat-actions-pipeline.js';
 import { runCreateRfq } from './rfq-chat-actions-run.js';
-import { chatStagingId, hashParams, type ActionDeps, type CreateRfqParams } from './rfq-chat-actions-types.js';
+import { chatStagingId, hashParams, type ActionDeps, type CreateRfqParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
 
 export const TOKEN_TTL_MS = 5 * 60 * 1000;
 
 interface Pending {
   sessionKey: string;
-  params: CreateRfqParams;
+  action: 'create_rfq' | 'start_pipeline';
+  params: CreateRfqParams | StartPipelineParams;
   paramHash: string;
   expiresAt: number;
 }
@@ -38,9 +40,24 @@ export function makeChatActions(
     }
   };
 
-  const refuse = async (sessionKey: string, hash: string, why: string): Promise<ActionConfirmResponse> => {
+  const refuse = async (sessionKey: string, hash: string, why: string, action: Pending['action'] = 'create_rfq'): Promise<ActionConfirmResponse> => {
     await audit(sessionKey, 'confirm.refused', hash, why);
-    return { ok: false, message: `Refused: ${why}. Nothing was created.`, steps: [] };
+    return { ok: false, message: `Refused: ${why}. ${action === 'create_rfq' ? 'Nothing was created.' : 'Nothing was started.'}`, steps: [] };
+  };
+
+  /** One token per card: single use, bound to the session and to the exact params (hash), valid 5 minutes. */
+  const issue = async (sessionKey: string, action: Pending['action'], params: Pending['params'], note: string) => {
+    const paramHash = hashParams(params);
+    const confirmToken = deps.newToken();
+    const expiresAt = deps.now() + TOKEN_TTL_MS;
+    for (const [t, p] of pending) {
+      if (p.expiresAt <= deps.now()) {
+        pending.delete(t);
+      }
+    }
+    pending.set(confirmToken, { sessionKey, action, params: structuredClone(params), paramHash, expiresAt });
+    await audit(sessionKey, 'propose', paramHash, note);
+    return { confirmToken, expiresAt: new Date(expiresAt).toISOString() };
   };
 
   return {
@@ -64,16 +81,7 @@ export function makeChatActions(
           // The modal sends no profile, so the pipeline uses CAM_DEFAULT_PROFILE; the action does the same.
           profile: 'default (CAM_DEFAULT_PROFILE)',
         };
-        const paramHash = hashParams(params);
-        const confirmToken = deps.newToken();
-        const expiresAt = deps.now() + TOKEN_TTL_MS;
-        for (const [t, p] of pending) {
-          if (p.expiresAt <= deps.now()) {
-            pending.delete(t);
-          }
-        }
-        pending.set(confirmToken, { sessionKey, params: structuredClone(params), paramHash, expiresAt });
-        await audit(sessionKey, 'propose', paramHash, `card issued for ${params.rfqId}`);
+        const card = await issue(sessionKey, 'create_rfq', params, `card issued for ${params.rfqId}`);
         const [bom, vol] = [files.files.find((f) => f.role === 'BOM'), files.files.find((f) => f.role === 'VOLUME')];
         return {
           message: `Ready to create ${params.rfqId}. Check the details and press Confirm; nothing happens until you do.`,
@@ -82,13 +90,30 @@ export function makeChatActions(
             action: 'create_rfq',
             summary: `Create ${params.rfqId} for ${params.customer.name} / ${params.project.name}, upload BOM ${bom?.name} and Volume ${vol?.name}, then start the pipeline.`,
             params: params as unknown as Record<string, unknown>,
-            confirmToken,
-            expiresAt: new Date(expiresAt).toISOString(),
+            ...card,
           },
         };
       } catch (err) {
         log.warn(`[RfqChatActions] propose failed: ${err}`);
         return { message: `I can't prepare the RFQ right now (${err instanceof Error ? err.message : String(err)}). Nothing was created.` };
+      }
+    },
+
+    async proposeStartPipeline({ sessionKey, rfqId }) {
+      try {
+        const plan = await planStartPipeline(deps, rfqId);
+        if (!plan.params || !plan.summary) {
+          await audit(sessionKey, 'propose.refused', '-', `${rfqId}: ${plan.message}`);
+          return { message: plan.message };
+        }
+        const card = await issue(sessionKey, 'start_pipeline', plan.params, `card issued to resume ${rfqId}`);
+        return {
+          message: plan.message,
+          ui: { type: 'confirm_action', action: 'start_pipeline', summary: plan.summary, params: plan.params as unknown as Record<string, unknown>, ...card },
+        };
+      } catch (err) {
+        log.warn(`[RfqChatActions] start proposal failed: ${err}`);
+        return { message: `I can't check ${rfqId} right now (${err instanceof Error ? err.message : String(err)}). Nothing was started.` };
       }
     },
 
@@ -99,27 +124,29 @@ export function makeChatActions(
       }
       if (p.sessionKey !== sessionKey) {
         // Not consumed: another session must not be able to burn the owner's card.
-        return refuse(sessionKey, p.paramHash, 'this confirmation belongs to another session');
+        return refuse(sessionKey, p.paramHash, 'this confirmation belongs to another session', p.action);
       }
       pending.delete(req.confirmToken); // single use from here, whatever happens next
       if (deps.now() > p.expiresAt) {
-        return refuse(sessionKey, p.paramHash, 'this confirmation expired (valid 5 minutes); ask me again');
+        return refuse(sessionKey, p.paramHash, 'this confirmation expired (valid 5 minutes); ask me again', p.action);
       }
       if (hashParams(p.params) !== p.paramHash || (req.params && hashParams(req.params) !== p.paramHash)) {
-        return refuse(sessionKey, p.paramHash, 'the parameters changed after the confirmation was issued');
+        return refuse(sessionKey, p.paramHash, 'the parameters changed after the confirmation was issued', p.action);
       }
       if (req.decision === 'cancel') {
-        await audit(sessionKey, 'confirm.cancel', p.paramHash, 'cancelled; nothing created');
-        return { ok: true, message: 'Cancelled. Nothing was created.', steps: [] };
+        const none = p.action === 'create_rfq' ? 'created' : 'started';
+        await audit(sessionKey, 'confirm.cancel', p.paramHash, `cancelled; nothing ${none}`);
+        return { ok: true, message: `Cancelled. Nothing was ${none}.`, steps: [] };
       }
       try {
         await deps.appendAudit({ who: sessionKey, when: new Date(deps.now()).toISOString(), action: 'confirm.start', paramHash: p.paramHash, result: p.params.rfqId });
       } catch (err) {
         // No audit trail, no write.
-        log.warn(`[RfqChatActions] audit unavailable, create refused: ${err}`);
-        return { ok: false, message: 'Refused: the audit log is not writable, so nothing was created.', steps: [] };
+        log.warn(`[RfqChatActions] audit unavailable, ${p.action} refused: ${err}`);
+        return { ok: false, message: `Refused: the audit log is not writable, so nothing was ${p.action === 'create_rfq' ? 'created' : 'started'}.`, steps: [] };
       }
-      return runCreateRfq(deps, p.params, (action, result) => audit(sessionKey, action, p.paramHash, result));
+      const auditStep = (action: string, result: string) => audit(sessionKey, action, p.paramHash, result);
+      return p.action === 'create_rfq' ? runCreateRfq(deps, p.params as CreateRfqParams, auditStep) : runStartPipeline(deps, p.params as StartPipelineParams, auditStep);
     },
   };
 }

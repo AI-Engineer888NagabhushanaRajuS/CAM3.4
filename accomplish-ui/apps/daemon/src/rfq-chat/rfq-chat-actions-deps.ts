@@ -8,6 +8,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { UnknownOutcomeError, type ActionDeps } from './rfq-chat-actions-types.js';
+import { fetchRfqStatus } from './rfq-chat-status.js';
 
 const bridge = (): string => (process.env.PYTHON_BRIDGE_URL ?? process.env.PYTHON_SERVICE_URL ?? 'http://localhost:3110').replace(/\/$/, '');
 // Compose publishes upload-server on 13100; the bare-metal default is 3100 (same as the web client's RFQ_UPLOAD_URL).
@@ -134,6 +135,22 @@ export function realActionDeps(): ActionDeps {
       for (const t of ['rfq_file_telemetry', 'rfq_process_tracking', 'rfq_project_tracking']) {
         await db.query(`DELETE FROM ${t} WHERE rfq_id = $1`, [rfqId]);
       }
+    },
+    pipelineState: (rfqId) => fetchRfqStatus(rfqId),
+    async startPipeline(rfqId) {
+      const headers = await authHeader(rfqId); // a failed mint means nothing was sent
+      let res: Response;
+      try {
+        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers, signal: AbortSignal.timeout(60000) });
+      } catch (err) {
+        // The server may have started the run before the connection dropped.
+        throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);
+      }
+      if (!res.ok) {
+        throw await failure(res, 'the upload service');
+      }
+      const out = (await res.json()) as { success?: boolean; dify_status?: string; dify_response?: { outcome?: string } };
+      return { status: out.dify_status ?? (out.success ? 'SUCCESS' : ''), outcome: out.dify_response?.outcome };
     },
     async appendAudit(line) {
       const file = auditFile();

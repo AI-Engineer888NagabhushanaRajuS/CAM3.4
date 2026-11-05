@@ -42,7 +42,7 @@ describe('Header Integration', () => {
       );
 
       // Assert
-      const brandLink = screen.getByRole('link', { name: /accomplish|srim|centum/i });
+      const brandLink = screen.getByRole('link', { name: /cam 3.4|centum/i });
       expect(brandLink).toBeInTheDocument();
       expect(brandLink).toHaveAttribute('href', '/');
     });
@@ -56,7 +56,7 @@ describe('Header Integration', () => {
       );
 
       // Assert
-      expect(screen.getByText(/Accomplish|SRIM|Centum/i)).toBeInTheDocument();
+      expect(screen.getByText(/CAM 3.4|Centum/i)).toBeInTheDocument();
     });
   });
 
@@ -226,7 +226,7 @@ describe('Header Integration', () => {
       );
 
       // Assert
-      const brandLink = screen.getByRole('link', { name: /accomplish|srim|centum/i });
+      const brandLink = screen.getByRole('link', { name: /cam 3.4|centum/i });
       expect(brandLink.className).toContain('no-drag');
     });
 
@@ -252,7 +252,7 @@ describe('Header Integration', () => {
       );
 
       // Assert
-      const brandLink = screen.getByRole('link', { name: /accomplish|srim|centum/i });
+      const brandLink = screen.getByRole('link', { name: /cam 3.4|centum/i });
       const svg = brandLink.querySelector('svg');
       expect(svg).toBeInTheDocument();
     });

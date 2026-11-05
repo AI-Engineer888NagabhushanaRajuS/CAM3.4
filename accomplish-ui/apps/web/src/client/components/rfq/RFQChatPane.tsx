@@ -22,6 +22,8 @@ interface RFQChatPaneProps {
   inline?: boolean;
   onOpenModelSettings?: () => void;
   onOpenSpeechSettings?: () => void;
+  /** Select an RFQ exactly as picking it in the left list (the assistant's "Open RFQ-x" button). */
+  onSelectRfq?: (rfqId: string) => void;
 }
 
 /**
@@ -30,7 +32,7 @@ interface RFQChatPaneProps {
  * (RFQ picker, option buttons, confirmation card, upload) are drawn here and never acted on without the user. Files are
  * added through a review popup and two security engines; only released files become context.
  */
-export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenModelSettings, onOpenSpeechSettings }: RFQChatPaneProps) {
+export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenModelSettings, onOpenSpeechSettings, onSelectRfq }: RFQChatPaneProps) {
   const [context, setContext] = useState<Attachment[]>([]);
   const contextRef = useRef<{ files: Attachment[]; at: string }>({ files: [], at: '' });
   const getFileRefs = useCallback(
@@ -63,6 +65,12 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
     onChoose: choose,
     onOpenPicker: openPicker,
     onSettle: (id, outcome) => settle(id, { confirm: outcome }),
+    // marked done first: selecting switches the conversation, and the mark must land on this one
+    onOpenRfq: onSelectRfq && ((id, target) => {
+      settle(id, { done: target });
+      onSelectRfq(target);
+    }),
+    onOpenSettings: onOpenModelSettings,
     onUpload: (accept) => {
       setNotice(null);
       if (fileInput.current) {
@@ -70,7 +78,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         fileInput.current.click();
       }
     },
-  }), [choose, openPicker, settle]);
+  }), [choose, openPicker, settle, onSelectRfq, onOpenModelSettings]);
 
   if (!isOpen && !inline) return null;
 

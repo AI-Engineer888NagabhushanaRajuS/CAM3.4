@@ -29,6 +29,23 @@ const text = (v: unknown): string => {
 };
 const label = (key: string) => key.replace(/[_-]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
+const NOT_SET = 'Not set';
+const str = (v: unknown): string => (typeof v === 'string' && v.trim() ? v : NOT_SET);
+
+/** What the card lists. start_pipeline has fixed, named rows (null = shown in words); create_rfq lists whatever the daemon sent. */
+function rowsOf(ui: Confirm): Array<[string, unknown]> {
+  if (ui.action !== 'start_pipeline') {
+    return Object.entries(ui.params).map(([k, v]) => [label(k), v]);
+  }
+  const { rfqId, stage, customer, project } = ui.params;
+  return [
+    ['RFQ id', str(rfqId)],
+    ['Stage', typeof stage === 'number' ? `Stage ${stage}` : 'Not started yet'],
+    ['Customer', str(customer)],
+    ['Project', str(project)],
+  ];
+}
+
 function Value({ value }: { value: unknown }) {
   if (!Array.isArray(value)) return <>{text(value)}</>;
   if (value.length === 0) return <>None</>;
@@ -84,11 +101,14 @@ export function ConfirmActionCard({ ui, outcome, onSettle }: ConfirmActionCardPr
   const until = Number.isNaN(expiry) ? null : new Date(expiry).toLocaleTimeString();
   return (
     <section className="mt-3 space-y-3 rounded-xl border border-border bg-background/60 p-3" aria-label="Confirm action">
+      {ui.action === 'start_pipeline' && (
+        <h4 className="text-sm font-semibold text-foreground">Start or resume the pipeline for {str(ui.params.rfqId)}</h4>
+      )}
       <p className="text-sm font-medium text-foreground">{ui.summary}</p>
       <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[max-content_1fr]">
-        {Object.entries(ui.params).map(([k, v]) => (
+        {rowsOf(ui).map(([k, v]) => (
           <div key={k} className="contents">
-            <dt className="text-muted-foreground">{label(k)}</dt>
+            <dt className="text-muted-foreground">{k}</dt>
             <dd className="min-w-0 break-words text-foreground"><Value value={v} /></dd>
           </div>
         ))}

@@ -53,10 +53,10 @@ export function PermissionDialog({ permissionRequest, onRespond }: PermissionDia
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
-                  DigiBull Question
+                  Assistant Question
                 </div>
                 <h3 className="mt-1 text-lg font-semibold text-foreground">
-                  {permissionRequest.header || 'DigiBull needs one detail'}
+                  {permissionRequest.header || 'The assistant needs one detail'}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   The AI paused here because it wants your answer before it continues.

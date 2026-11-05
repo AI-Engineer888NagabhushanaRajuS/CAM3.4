@@ -4,7 +4,9 @@
  * question (rfq-chat-general.ts), so the model "classifies" inside the one call it makes anyway.
  */
 
-export type Intent = 'guide' | 'create' | 'data' | 'unsure';
+/** The first six are the assistant's controls over the app (rfq-chat-controls.ts); each is answered from rules and the database, no model. */
+export type ControlIntent = 'open' | 'status' | 'resume' | 'export' | 'upload' | 'settings';
+export type Intent = 'guide' | 'create' | 'data' | 'unsure' | ControlIntent;
 
 // "hai" is how this team writes hi. A greeting is answered from the guide (what I can do); thanks and the like are plain talk.
 const GREETING = /^\s*(hi+|hai|hello|hey|yo|hola|namaste|good (morning|afternoon|evening))\b/i;
@@ -17,7 +19,52 @@ const PART_LIKE = /(?<![A-Za-z0-9])(?=[A-Za-z0-9._/-]*\d)(?=[A-Za-z0-9._/-]*[A-Z
 /** An RFQ id as written in text: RFQ-00001, RFQ-CENTUM-PROOF-24. */
 const RFQ_TOKEN = /\bRFQ-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/gi;
 
+const ID = String.raw`RFQ-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*`;
+const HOW = /\bhow (do|to|can|should|does|would|did)\b/i; // a how-to question goes to the guide, whatever it mentions
+const MAKE = /\b(create|make|raise|register|set ?up)\b|\bnew rfq\b/i; // a create request stays the create action
+// Words of a figure question: "total export cost" is a workbook question, not a download request.
+const FIGURES = /\b(total|spend|costs?|prices?|margin|moq|lead[- ]?times?|suppliers?|qty|quantity|how (many|much))\b/i;
+// "open RFQ-x" and nothing else after the id: "show RFQ-x costs" is a data question.
+const OPEN = new RegExp(String.raw`\b(open|show|go to|select|switch to|take me to|load)\s+(?:me\s+)?(?:the\s+)?(?:rfq\s+)?(${ID})\s*(?:please|now|again)?\s*[.!?]*\s*$`, 'i');
+const RESUME = new RegExp(String.raw`\b(resume|restart|re-?run|continue|kick off|trigger)\b[^.?!\n]{0,40}\b(pipeline|workflow|run|processing)\b|\b(start|run|begin|resume|restart|continue)\b[^.?!\n]{0,25}\b(pipeline|workflow)\b|\b(start|run|begin|resume|restart|continue)\s+(?:the\s+)?${ID}`, 'i');
+const STATUS = /\b(pipeline|workflow|hitl|stuck|progress|waiting (for|on) (a |the )?(human |my )?(review|approval)|(which|what|current|at what) (stage|step)|stage (is|of|are)|(is|still|currently|has) (it |this |that |the \w+ )?(running|finished|stopped)|where (is|are) (it|this|that|rfq|the rfq)|how far)\b/i;
+const EXPORT = /\b(export|download)\b/i;
+const UPLOAD = /\b(upload|attach)\b[^.?!\n]{0,25}\b(files?|bom|volume|workbook|spreadsheet|sheets?|csv|xlsx?|pdf|docx)\b|\badd\s+(?:a|an|another|more)\s+(?:new\s+)?(?:\w+\s+)?(files?|bom|volume)\b/i;
+const SETTINGS = /\b(openrouter|api[- ]?key|settings|providers?)\b|\b(change|switch|use|pick|select)\b[^.?!\n]{0,20}\b(model|provider)\b/i;
+
+/** Which control the user asked for, or null. Order matters: an explicit id beats the pipeline words, a figure word keeps it a data question. */
+export function controlIntent(question: string): ControlIntent | null {
+  if (HOW.test(question) || MAKE.test(question)) {
+    return null;
+  }
+  const hasId = new RegExp(ID, 'i').test(question);
+  if (OPEN.test(question)) {
+    return 'open';
+  }
+  if (RESUME.test(question)) {
+    return 'resume';
+  }
+  if (STATUS.test(question)) {
+    return 'status';
+  }
+  if (!hasId && HOW_TO.test(question)) {
+    return null; // "where can I download the reports?", "help me change the model": the guide answers (status above keeps "where is it?")
+  }
+  if (EXPORT.test(question) && !FIGURES.test(question)) {
+    return 'export';
+  }
+  if (UPLOAD.test(question) && !FIGURES.test(question)) {
+    return 'upload';
+  }
+  return SETTINGS.test(question) && !hasId ? 'settings' : null;
+}
+
+/** The full route: a control when one is asked for, else the earlier rules. A control the service cannot carry out falls back to classifyBase. */
 export function classify(question: string): Intent {
+  return controlIntent(question) ?? classifyBase(question);
+}
+
+export function classifyBase(question: string): Intent {
   const hasId = RFQ_TOKEN.test(question) || PART_LIKE.test(question);
   RFQ_TOKEN.lastIndex = 0; // a global regex keeps its position between test() calls
   if (!hasId && HOW_TO.test(question)) {

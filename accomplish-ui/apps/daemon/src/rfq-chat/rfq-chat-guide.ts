@@ -58,6 +58,10 @@ const STOP = new Set(['the', 'and', 'how', 'what', 'can', 'you', 'this', 'that',
 
 /** The sections whose words overlap the question most; with no overlap (a greeting) the overview and the assistant section. */
 export function pickSections(question: string, sections: GuideSection[]): GuideSection[] {
+  const abilities = sections.find((s) => /what the assistant can do/i.test(s.heading));
+  if (abilities && /what (can|do) you do|what are you able/i.test(question)) {
+    return [abilities, sections[0]];
+  }
   const words = (question.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter((w) => !STOP.has(w));
   const scored = sections.map((s) => {
     const head = s.heading.toLowerCase();

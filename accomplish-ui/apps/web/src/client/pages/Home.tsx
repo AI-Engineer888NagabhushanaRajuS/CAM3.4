@@ -14,7 +14,7 @@ const SettingsDialog = lazy(async () => {
  * (the earlier one-shot task launcher closed the conversation after the first message).
  */
 export function HomePage() {
-  const { activeRfqId } = useRfqContext();
+  const { activeRfqId, selectRfq } = useRfqContext();
   const {
     showSettingsDialog,
     settingsInitialTab,
@@ -44,6 +44,7 @@ export function HomePage() {
           inline
           onOpenModelSettings={handleOpenModelSettings}
           onOpenSpeechSettings={handleOpenSpeechSettings}
+          onSelectRfq={selectRfq}
         />
       </div>
     </>
