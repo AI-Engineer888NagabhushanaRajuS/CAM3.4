@@ -29,6 +29,15 @@ RUN if [ "$INSTALL_CLAMAV" = "true" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
+# LibreOffice for the reporting service only: export_reports recalculates the workbook headless so every formula
+# stores its value (Protected View and previews show numbers; see mcp-tools/reporting/superset/cached_values.py).
+ARG INSTALL_LIBREOFFICE=false
+RUN if [ "$INSTALL_LIBREOFFICE" = "true" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends libreoffice-calc \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 COPY . /app
 
 WORKDIR /app/${SERVICE_DIR}

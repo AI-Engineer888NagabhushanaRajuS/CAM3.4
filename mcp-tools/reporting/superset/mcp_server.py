@@ -31,6 +31,7 @@ if _THIS_DIR not in sys.path:
 
 from fastmcp import FastMCP
 
+import cached_values
 import exporter
 import reporting_pipeline
 from logging_utils import logger
@@ -163,7 +164,12 @@ def export_reports(rfq_id: str) -> dict:
     currency.clear_cache()  # long-lived server: pick up admin rate edits per call
     try:
         with db.duckdb_file_lock():
-            return exporter.export_excel(rfq_id)
+            result = exporter.export_excel(rfq_id)
+        if result.get("status") == "success":
+            # Outside the DuckDB lock: it takes seconds and needs no database. Stores each formula's value so
+            # Protected View, previews and phones show numbers; never fails the export (see cached_values.py).
+            result["cached_values"] = cached_values.add_cached_values(result["workbook_path"])
+        return result
     except Exception as e:
         logger.exception(f"export_reports tool failed for rfq_id={rfq_id!r}")
         return {"status": "failed", "rfq_id": rfq_id, "error": str(e)}

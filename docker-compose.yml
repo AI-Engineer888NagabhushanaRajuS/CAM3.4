@@ -88,13 +88,13 @@ services:
       start_period: 30s
 
   temporal-ui:
-    image: temporalio/ui:2.26
+    image: temporalio/ui:2.26.0   # the 2.26 tag does not exist
     restart: unless-stopped
     depends_on: [temporal]
     environment:
       TEMPORAL_ADDRESS: temporal:7233
     ports:
-      - "8080:8080"
+      - "8082:8080"   # 8080 is Keycloak on the dev machine
 
   # fastapi-router/* services
   upload-server:
@@ -177,10 +177,11 @@ services:
     build:
       context: .
       dockerfile: docker/python-service.Dockerfile
-      args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py }
+      args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py, INSTALL_LIBREOFFICE: "true" }
     environment:
       <<: *python-env
       REPORTING_EXPORTS_DIR: /app/exports
+      LIBREOFFICE_BIN: soffice
     volumes:
       - ./database:/app/database
       - inbox:/app/fastapi-router/staged/inbox
@@ -196,6 +197,9 @@ services:
     environment:
       <<: *python-env
       CLAMSCAN_PATH: clamscan
+      # bom_processing maps BOM headers with a local model; Ollama runs on the host.
+      CAM_OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["18002:8002"]
 
   distributor-pricing-mcp-server:

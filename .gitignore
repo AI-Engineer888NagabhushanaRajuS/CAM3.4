@@ -46,3 +46,6 @@ accomplish-ui/**/.turbo/
 # SPEC-013 registry-writer receipts (operational state, not source)
 manifests/_receipts/
 manifests/*.tmp
+
+# run-cam34.ps1 logs
+.run/
