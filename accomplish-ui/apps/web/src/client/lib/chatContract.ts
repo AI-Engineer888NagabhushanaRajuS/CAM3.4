@@ -25,6 +25,8 @@ export interface DisambiguateOption {
   id: string;
   label: string;
   detail?: string;
+  /** Text sent when pressed (default: the label), so a button can say "customer X" while showing "X". */
+  send?: string;
 }
 
 export type UiDirective =

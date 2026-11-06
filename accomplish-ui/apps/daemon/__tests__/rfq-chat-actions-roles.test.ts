@@ -16,10 +16,35 @@ describe('create_rfq file choice by role', () => {
 
   it('takes a recognised volume file as the volume, and ignores other files', async () => {
     const out = await run([att('a1', 'scrub.xlsx', 'scrub_bom'), att('a2', 'v.xlsx', 'volume'), att('a3', 'notes.txt', 'document')]);
-    // notes.txt is not a spreadsheet extension: it is turned away before roles matter
-    expect(out.blocked).toEqual([expect.stringContaining('notes.txt is not .xlsx')]);
-    const ok = await run([att('a1', 'scrub.xlsx', 'scrub_bom'), att('a2', 'v.xlsx', 'volume')]);
-    expect(ok.files.map((f) => [f.role, f.name])).toEqual([['BOM', 'scrub.xlsx'], ['VOLUME', 'v.xlsx']]);
+    // notes.txt is not a spreadsheet: it is left out as reference, it does not block the others
+    expect(out.blocked).toEqual([]);
+    expect(out.files.map((f) => [f.role, f.name])).toEqual([['BOM', 'scrub.xlsx'], ['VOLUME', 'v.xlsx']]);
+    expect(out.note).toContain('Left out as reference only: notes.txt');
+  });
+
+  it('picks the one BOM workbook out of a folder dump and says what it left out', async () => {
+    const out = await run([
+      att('d1', 'QCAD - Download.pdf', 'document'), att('d2', 'WORK_REPORT.md', 'document'), att('d3', 'Gerber_Files_1_pcb_info.pdf', 'document'),
+      att('x1', 'Master Capture Checklists.xlsx', 'unknown'), att('b1', 'Triode_Master.xlsx', 'scrub_bom'), att('q1', 'quote_export.xlsx', 'quotewin'),
+    ]);
+    expect(out.missing).toEqual([]);
+    expect(out.files.map((f) => f.name)).toEqual(['Triode_Master.xlsx', 'Triode_Master.xlsx']);
+    expect(out.note).toContain('Not used: Master Capture Checklists.xlsx, quote_export.xlsx');
+    expect(out.note).toContain('Left out as reference only: QCAD - Download.pdf, WORK_REPORT.md');
+  });
+
+  it('with no BOM workbook among them, names what each spreadsheet is and what to attach', async () => {
+    const out = await run([att('d1', 'QCAD.pdf', 'document'), att('x1', 'Checklists.xlsx', 'unknown'), att('q1', 'quote_export.xlsx', 'quotewin')]);
+    expect(out.files).toEqual([]);
+    expect(out.missing[0]).toContain('Checklists.xlsx: not a BOM, volume or QuoteWin layout');
+    expect(out.missing[0]).toContain('quote_export.xlsx: a QuoteWin export');
+    expect(out.missing[0]).toContain('SCRUB BOM');
+    expect(out.missing[0]).toContain('Left out as reference only: QCAD.pdf');
+  });
+
+  it('only documents: says none is a spreadsheet', async () => {
+    const out = await run([att('d1', 'a.pdf', 'document'), att('d2', 'b.docx', 'document')]);
+    expect(out.missing[0]).toContain('None of the 2 attached files is a spreadsheet');
   });
 
   it('refuses a plain BOM with the reason and issues no files', async () => {

@@ -94,14 +94,16 @@ interface AssistantMessagesProps {
   rfqId: string | null;
   onPick: (prompt: string) => void;
   actions: DirectiveActions;
+  /** Changes when the space under the list changes (the file tray grows), so the newest reply stays in view. */
+  scrollKey?: string | number;
 }
 
-export function AssistantMessages({ messages, running, rfqId, onPick, actions }: AssistantMessagesProps) {
+export function AssistantMessages({ messages, running, rfqId, onPick, actions, scrollKey }: AssistantMessagesProps) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
     end.current?.scrollIntoView?.({ behavior: calm ? 'auto' : 'smooth', block: 'end' });
-  }, [messages.length, running]);
+  }, [messages.length, running, scrollKey]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5" data-testid="assistant-messages">

@@ -32,15 +32,19 @@ export function dataClaims(reply: string, userText: string): string[] {
   return [...new Set([...ids, ...rest])];
 }
 
+/** The model must never say it has no files while the chat shows them: the assistant handles them itself, by rules. */
+export const attachedNote = (names: string[]): string =>
+  `5. The user has attached ${names.length} file${names.length === 1 ? '' : 's'} (${names.slice(0, 12).join(', ')}), already scanned and released. You cannot read them, but the assistant can: when the user wants them processed or used they say so (for example "process these files") and the assistant reads them itself. Never say the files are missing.`;
+
 export type General = { kind: 'reply'; message: string; model: string } | { kind: 'needs_data' } | { kind: 'offline' } | { kind: 'withheld'; claims: string[] };
 
 export async function converse(
-  p: { question: string; history: Turn[] },
+  p: { question: string; history: Turn[]; /** Names of the files the user attached to this turn (already scanned and released). */ attached?: string[] },
   deps: { model: ChatModel; signal?: AbortSignal },
 ): Promise<General> {
   const userText = [...p.history, { role: 'user', content: p.question }].filter((t) => t.role === 'user').map((t) => t.content).join('\n');
   const base: ChatMessage[] = [
-    { role: 'system', content: GENERAL_PROMPT },
+    { role: 'system', content: p.attached?.length ? `${GENERAL_PROMPT}\n${attachedNote(p.attached)}` : GENERAL_PROMPT },
     ...p.history.slice(-4).map((t) => ({ role: (t.role === 'user' ? 'user' : 'assistant') as ChatMessage['role'], content: t.content.slice(0, 600) })),
     { role: 'user', content: p.question },
   ];

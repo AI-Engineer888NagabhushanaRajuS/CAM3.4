@@ -162,6 +162,23 @@ export interface Attachment {
   size: number;
   sha256: string;
   released_at: string;
+  /** What the bridge read inside the file (SPEC-022); absent on older bridges. */
+  role?: FileRole;
+  role_label?: string;
+  problems?: string[];
+}
+
+/** Short word for a chip: what the file is to the pipeline. `warn` = it cannot start a run. */
+export function roleChip(a: Pick<Attachment, 'role'>): { text: string; warn: boolean } | null {
+  switch (a.role) {
+    case 'scrub_bom': return { text: 'BOM', warn: false };
+    case 'volume': return { text: 'Volume', warn: false };
+    case 'quotewin': return { text: 'QuoteWin', warn: false };
+    case 'document': return { text: 'Reference', warn: false };
+    case 'bom': return { text: 'BOM: no SCRUB BOM sheet', warn: true };
+    case 'unknown': return { text: 'Not recognised', warn: true };
+    default: return null;
+  }
 }
 
 const base = (rfqId: string) => `${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/attachments`;

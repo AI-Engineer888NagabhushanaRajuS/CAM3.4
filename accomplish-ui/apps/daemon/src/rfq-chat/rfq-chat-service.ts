@@ -16,7 +16,7 @@ import { answerFromResults, type GroundedDeps } from './rfq-chat-grounded.js';
 import { answerFromGuide, loadGuide } from './rfq-chat-guide.js';
 import { converse } from './rfq-chat-general.js';
 import { controlReply, quoted, unknownRfqReply } from './rfq-chat-controls.js';
-import { classify, classifyBase, mentionsSettings, rfqMentions } from './rfq-chat-intent.js';
+import { classify, classifyBase, CREATE_PENDING, filesIntent, mentionsSettings, rfqMentions } from './rfq-chat-intent.js';
 import { answerAcrossRfqs, MAX_RFQS, pickRfqDirective } from './rfq-chat-multi.js';
 import type { ChatActionDeps, ChatScope } from './rfq-chat-contract.js';
 import type { LoadManifests } from './rfq-chat-manifests.js';
@@ -86,7 +86,19 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
     message, citations: [], model: null, scope: incoming, ...over,
   });
 
+  // Files are attached and the user says go (or answers the customer/project question): no model decides, the files do.
+  const files = p.fileRefs ?? [];
+  const single = incoming.mode === 'rfqs' && incoming.rfqIds.length === 1;
+  const pending = history.filter((t) => t.role !== 'user').at(-1)?.content.startsWith(CREATE_PENDING) === true;
   let intent = classify(question);
+  let request = question;
+  if (files.length > 0 && !single && (filesIntent(question) || (pending && ['unsure', 'data', 'create'].includes(intent)))) {
+    intent = 'create';
+    if (pending) {
+      // "customer Acme" or a pressed button is only half a request: read it together with the user's earlier turns.
+      request = [...history.filter((t) => t.role === 'user').slice(-4).map((t) => t.content), question].join('\n');
+    }
+  }
   if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings' || intent === 'edit' || intent === 'manifest') {
     const done = await controlReply(intent, { deps, question, incoming });
     if (done) {
@@ -107,11 +119,11 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
     if (!deps.actions) {
       return talk('Creating an RFQ from the chat is not available here. In the left pane open **Upload file**, then **Create RFQ** (the user guide has the steps).');
     }
-    const r = await deps.actions.proposeCreateRfq({ sessionKey: deps.sessionKey ?? 'local', request: question, fileRefs: p.fileRefs ?? [] });
+    const r = await deps.actions.proposeCreateRfq({ sessionKey: deps.sessionKey ?? 'local', request, fileRefs: files });
     return talk(r.message, { ui: r.ui });
   }
   if (intent === 'unsure') {
-    const g = await converse({ question, history }, { model: deps.model(), signal: deps.signal });
+    const g = await converse({ question, history, attached: files.map((f) => f.name) }, { model: deps.model(), signal: deps.signal });
     if (g.kind === 'reply') {
       return talk(g.message, { model: g.model });
     }

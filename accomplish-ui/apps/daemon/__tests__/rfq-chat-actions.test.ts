@@ -89,19 +89,29 @@ describe('proposeCreateRfq', () => {
     expect(created(s.calls)).toEqual([]);
   });
 
-  it('asks (plain message, no card) when customer and project are missing', async () => {
+  it('asks with customer buttons (no card) when the customer is missing; a button sends "customer <name>"', async () => {
     const s = setup();
     const out = await s.actions.proposeCreateRfq({ sessionKey: 's1', request: 'make me an rfq', fileRefs: files });
-    expect(out.ui).toBeUndefined();
+    expect(out.message.startsWith('To create the RFQ I still need this.')).toBe(true);
     expect(out.message).toContain('Acme Corp');
     expect(out.message).toContain('Globex');
+    expect(out.ui).toMatchObject({ type: 'disambiguate', prompt: 'Which customer is this RFQ for?' });
+    const ui = out.ui as { options: Array<{ label: string; send: string }> };
+    expect(ui.options.map((o) => o.send)).toContain('customer Acme Corp');
   });
 
-  it('asks for the Volume file when only the BOM is attached', async () => {
+  it('asks which project (buttons) once the customer is known', async () => {
+    const s = setup();
+    const out = await s.actions.proposeCreateRfq({ sessionKey: 's1', request: 'make an rfq for Acme Corp', fileRefs: files });
+    expect(out.ui).toMatchObject({ type: 'disambiguate', prompt: 'Which project?' });
+  });
+
+  it('says the BOM workbook is missing (not "attach a volume file") when the only file has no SCRUB BOM sheet', async () => {
     const s = setup();
     const out = await s.actions.proposeCreateRfq({ sessionKey: 's1', request: REQUEST, fileRefs: [files[0]] });
     expect(out.ui).toBeUndefined();
-    expect(out.message).toContain('Volume');
+    expect(out.message).toContain('SCRUB BOM');
+    expect(out.message).not.toContain('Volume file too');
   });
 
   it('never proceeds with a file that is not released (quarantined or held)', async () => {

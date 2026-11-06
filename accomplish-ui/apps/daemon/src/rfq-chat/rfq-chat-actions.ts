@@ -6,6 +6,7 @@
 import { log } from '../logger.js';
 import type { ActionConfirmRequest, ActionConfirmResponse, ChatActionDeps } from './rfq-chat-contract.js';
 import { realActionDeps } from './rfq-chat-actions-deps.js';
+import { CREATE_PENDING } from './rfq-chat-intent.js';
 import { resolveFiles, resolveParties } from './rfq-chat-actions-parse.js';
 import { planStartPipeline, runStartPipeline } from './rfq-chat-actions-pipeline.js';
 import { planEditValue, runEditValue } from './rfq-chat-actions-edit.js';
@@ -72,12 +73,17 @@ export function makeChatActions(
           await audit(sessionKey, 'propose.blocked', '-', files.blocked.join(' | '));
           return { message: `I can't create an RFQ from these files. ${files.blocked.join(' ')}` };
         }
+        if (files.missing.length > 0) {
+          // Files first: asking for a customer is pointless while there is no BOM to start from.
+          return { message: `I can't create an RFQ from these files yet. ${files.missing.join(' ')}` };
+        }
         const parties = await resolveParties(request, deps);
-        const missing = [...parties.missing, ...files.missing];
-        if (missing.length > 0 || !parties.customer || !parties.project) {
-          // The assistant does not carry half an answer to the next message: the reply has to be the whole request again.
-          const again = !parties.customer || !parties.project ? ' Reply with the whole request, for example: create an RFQ from these files for customer <customer>, project <project>.' : '';
-          return { message: `To create the RFQ I still need this. ${missing.join(' ')}${again}` };
+        if (!parties.customer || !parties.project) {
+          // The next turn (a button or typed words) is read together with this request, see rfq-chat-service.ts (CREATE_PENDING).
+          return {
+            message: `${CREATE_PENDING} ${files.note} ${parties.missing.join(' ')}`.replace(/\s+/g, ' '),
+            ...(parties.ask ? { ui: { type: 'disambiguate' as const, prompt: parties.ask.prompt, options: parties.ask.options } } : {}),
+          };
         }
         const params: CreateRfqParams = {
           rfqId: await deps.nextRfqId(),
@@ -90,7 +96,7 @@ export function makeChatActions(
         const card = await issue(sessionKey, 'create_rfq', params, `card issued for ${params.rfqId}`);
         const [bom, vol] = [files.files.find((f) => f.role === 'BOM'), files.files.find((f) => f.role === 'VOLUME')];
         return {
-          message: `Ready to create ${params.rfqId}. Check the details and press Confirm; nothing happens until you do.`,
+          message: `Ready to create ${params.rfqId}. ${files.note} Check the details and press Confirm; nothing happens until you do.`.replace(/\s+/g, ' '),
           ui: {
             type: 'confirm_action',
             action: 'create_rfq',

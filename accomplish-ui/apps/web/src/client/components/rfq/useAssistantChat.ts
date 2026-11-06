@@ -221,7 +221,7 @@ export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileR
       if (msg.question) void send(msg.question, next);
       return;
     }
-    void send(option.label);
+    void send(option.send ?? option.label);
   }, [convo, send, setScope, settle]);
 
   const removeFromScope = useCallback((rfq: string | 'all') => {

@@ -3,7 +3,7 @@ import { ArrowClockwise, ChatCircle, Plus, ShieldCheck, X } from '@phosphor-icon
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TaskInputBar } from '@/components/landing/TaskInputBar';
-import { ACCEPTED_EXTENSIONS, deleteAttachment, listAttachments, type Attachment } from '@/lib/rfqAttachments';
+import { ACCEPTED_EXTENSIONS, deleteAttachment, listAttachments, roleChip, type Attachment } from '@/lib/rfqAttachments';
 import { chatStagingId, singleRfq } from '@/lib/chatContract';
 import { AssistantMessages } from './AssistantMessages';
 import type { DirectiveActions } from './AssistantDirectives';
@@ -12,6 +12,9 @@ import { ProviderSwitch } from './ProviderSwitch';
 import { RfqPickerDialog } from './RfqPickerDialog';
 import { ScopeChips } from './ScopeChips';
 import { useAssistantChat } from './useAssistantChat';
+
+/** Chips shown before "+N more": a long dump must not push the conversation out of view. */
+const MAX_CHIPS = 4;
 
 interface RFQChatPaneProps {
   /** The RFQ selected in the left list: it becomes the conversation's scope. null = normal chat until the assistant asks which RFQs. */
@@ -43,6 +46,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
   const [draft, setDraft] = useState('');
   const [picked, setPicked] = useState<File[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [allFiles, setAllFiles] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Files are scanned and listed under the one RFQ in scope, else the one selected in the left list, else a per-tab
@@ -118,7 +122,8 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
           </div>
           <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
             <ShieldCheck className="h-3 w-3 shrink-0 text-primary" weight="fill" />
-            RFQ answers come with their source cells{model ? ` · ${model}` : ''}
+            <span className="truncate">RFQ answers come with their source cells</span>
+            {model && <span className="shrink-0">· {model}</span>}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -139,21 +144,34 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         </div>
       </div>
 
-      <AssistantMessages messages={chat.messages} running={chat.running} rfqId={one} onPick={(p) => void chat.send(p)} actions={actions} />
+      <AssistantMessages messages={chat.messages} running={chat.running} rfqId={one} onPick={(p) => void chat.send(p)} actions={actions} scrollKey={`${context.length}:${allFiles}`} />
 
       <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-4 sm:px-6">
         {notice && <p role="status" className="mb-2 text-xs text-amber-700 dark:text-amber-400">{notice}</p>}
         {context.length > 0 && (
-          <ul className="mb-2 flex flex-wrap gap-1.5" aria-label="Files the assistant can read">
-            {context.map((a) => (
-              <li key={a.attachment_id} className="inline-flex max-w-[260px] items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-foreground">
-                <ShieldCheck className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" weight="fill" aria-hidden />
-                <span className="truncate" title={`${a.name}: cleared by both security engines`}>{a.name}</span>
-                <button type="button" aria-label={`Remove ${a.name}`} className="-my-1 -mr-1.5 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-background/60 hover:text-foreground" onClick={() => void remove(a)}>
-                  <X className="h-3 w-3" aria-hidden />
+          <ul className={`mb-2 flex flex-wrap gap-1.5 ${allFiles ? 'max-h-28 overflow-y-auto' : ''}`} aria-label="Files the assistant can read">
+            {(allFiles ? context : context.slice(0, MAX_CHIPS)).map((a) => {
+              const role = roleChip(a);
+              return (
+                <li key={a.attachment_id} className="inline-flex max-w-[260px] items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-foreground">
+                  <ShieldCheck className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" weight="fill" aria-hidden />
+                  <span className="truncate" title={`${a.name}: cleared by both security engines${a.role_label ? `. Read inside: ${a.role_label}` : ''}`}>{a.name}</span>
+                  {role && (
+                    <span data-testid="file-role" title={a.problems?.[0]} className={`shrink-0 rounded-full px-1.5 text-[10px] font-medium ${role.warn ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-background/70 text-muted-foreground'}`}>{role.text}</span>
+                  )}
+                  <button type="button" aria-label={`Remove ${a.name}`} className="-my-1 -mr-1.5 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-background/60 hover:text-foreground" onClick={() => void remove(a)}>
+                    <X className="h-3 w-3" aria-hidden />
+                  </button>
+                </li>
+              );
+            })}
+            {context.length > MAX_CHIPS && (
+              <li>
+                <button type="button" className="min-h-6 rounded-full border border-border px-2 text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setAllFiles((v) => !v)}>
+                  {allFiles ? 'Show fewer' : `+${context.length - MAX_CHIPS} more`}
                 </button>
               </li>
-            ))}
+            )}
           </ul>
         )}
         <div

@@ -22,7 +22,7 @@ export interface RfqOption {
 /** An instruction to the UI, sent next to the message text. The UI shows it; it never acts without the user. */
 export type UiDirective =
   | { type: 'pick_rfq'; reason: string; options: RfqOption[]; allowAll: true; allowMultiple: true }
-  | { type: 'disambiguate'; prompt: string; options: Array<{ id: string; label: string; detail?: string }> }
+  | { type: 'disambiguate'; prompt: string; options: Array<{ id: string; label: string; detail?: string; /** Text sent when pressed (default: the label). */ send?: string }> }
   | {
       type: 'confirm_action';
       action: 'create_rfq' | 'start_pipeline' | 'edit_value';

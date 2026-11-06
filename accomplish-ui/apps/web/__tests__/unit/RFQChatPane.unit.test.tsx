@@ -100,6 +100,18 @@ describe('RFQChatPane: one persistent conversation', () => {
     expect(screen.getByRole('button', { name: 'Remove quote.xlsx' })).toBeTruthy();
   });
 
+  it('shows what each file is, keeps a long dump to four chips with "+N more", and lets all of them be shown', async () => {
+    const att = (n: number, role: string) => ({ attachment_id: `a${n}`, name: `file${n}.xlsx`, size: 10, sha256: 'x', released_at: '2026-11-05T10:00:00Z', role });
+    listAttachments.mockResolvedValue([att(1, 'scrub_bom'), att(2, 'document'), att(3, 'unknown'), att(4, 'quotewin'), att(5, 'document'), att(6, 'document')]);
+    render(<RFQChatPane rfqId="UI-A8" isOpen inline />);
+    expect(await screen.findByText('file1.xlsx')).toBeTruthy();
+    expect(screen.getAllByTestId('file-role').map((e) => e.textContent)).toEqual(['BOM', 'Reference', 'Not recognised', 'QuoteWin']);
+    expect(screen.queryByText('file5.xlsx')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '+2 more' }));
+    expect(screen.getByText('file6.xlsx')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show fewer' })).toBeTruthy();
+  });
+
   it('renders nothing when closed in floating mode', () => {
     const { container } = render(<RFQChatPane rfqId="UI-A7" isOpen={false} />);
     expect(container.firstChild).toBeNull();
