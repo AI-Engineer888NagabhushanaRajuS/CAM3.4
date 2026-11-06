@@ -1,0 +1,97 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_07",
+    "skill_name": "Quote Validation & Comparison",
+    "office_analogy": "The Bid Check",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Akshay / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 6 hook[cite: 7]. Action: Cross-check vendor quotes against Pydantic schema rules, auto-quarantine anomalous bid edge cases, and construct side-by-side bid matrix in DuckDB[cite: 4, 7]. Check: Verify zero schema errors in active quote matrix and auto-quarantine log is populated[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "raw_vendor_quotes_table",
+        "internal_cost_baseline",
+        "scrap_factor_master_table"
+      ],
+      "fresh_state_parameters": ["validated_quote_matrix", "auto_quarantined_quotes"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Run Pydantic validation rules and DuckDB SQL matrix join to build Quotewin Matrix and Non Quotewin Matrix[cite: 1, 4, 7].",
+      "acceptance_check": "Programmatically evaluate: schema_validation_complete == True AND quote_comparison_matrix_ready == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Quote_Validator_Comparison_MCP",
+      "fixed_check_tool": "Pydantic_Schema_Price_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "matrix_validated_and_ranked == True",
+      "no_op_condition": "no_vendor_quotes_to_compare == True",
+      "escalation_condition": "all_quotes_quarantined",
+      "budget_limit": "25000ms"
+    },
+    "o_outcome": {
+      "json_schema": "ValidatedQuoteComparisonPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_quote_validation_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Validating Bids -> Comparison Matrix Generated"],
+      "database_updates": ["Insert into quote_comparison_matrix and quote_quarantine"],
+      "alerts": ["PostHog logs quarantined bid count; alert buyer to review rejects[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 8 (Costed BOM)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "7.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "7.1.1", "action": "Read vendor quotes from Skill 5 and internal baseline from Skill 6", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "7.2",
+      "sub_skill_name": "Validate",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "7.2.1", "action": "Validate quotes against Pydantic schemas; auto-quarantine outliers", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "7.3",
+      "sub_skill_name": "Compare",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "7.3.1", "action": "Construct side-by-side comparison matrix in DuckDB and flag lowest-cost path", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "7.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "7.4.1", "action": "Human reviews matrix and clears quarantined quotes", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_06_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "DuckDB", "table": "quote_comparison_matrix", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_7"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"internal_baseline": {"type": "object"}}, "required": ["internal_baseline"]},
+    "output_schema": {"type": "object", "properties": {"validated_matrix": {"type": "array"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

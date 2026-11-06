@@ -1,0 +1,97 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_05",
+    "skill_name": "Supplier RFQ/Quoting Tools",
+    "office_analogy": "Purchasing Desk",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Parvitha / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 4 hook[cite: 7]. Action: Prepare sub-tier RFQs, dispatch to vendors via email/SupplyWin(Secure) portal, and ingest returned supplier quotes in real time[cite: 1, 7]. Check: Verify all sent line-item RFQs maintain active response or timeout status[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "assigned_supplier_matrix",
+        "scrub_bom_table",
+        "supplier_master_contacts"
+      ],
+      "fresh_state_parameters": ["raw_vendor_quotes_table", "quote_response_tracker"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Dispatch vendor RFQ packages, poll inbox/webhooks, and parse returned bid sheets into database tables[cite: 7].",
+      "acceptance_check": "Programmatically evaluate: quotes_received_count >= 1 PER line_item OR timeout_flagged == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Supplier_RFQ_Dispatcher_Parser_MCP",
+      "fixed_check_tool": "RFQ_Response_Tracker_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 5,
+      "success_gate": "vendor_quotes_ingested == True",
+      "no_op_condition": "all_quotes_already_received == True",
+      "escalation_condition": "vendor_quote_deadline_exceeded",
+      "budget_limit": "86400000ms"
+    },
+    "o_outcome": {
+      "json_schema": "RawSupplierQuotesPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_vendor_quotes_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: RFQs Dispatched -> Ingesting Supplier Bids"],
+      "database_updates": ["Insert into vendor_quote_line_items"],
+      "alerts": ["PostHog logs vendor response rates; alert buyer when quote returned[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 6 (SAP/API Cost Extraction)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "5.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "5.1.1", "action": "Read assigned suppliers and BOM line items to quote", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "5.2",
+      "sub_skill_name": "Prepare",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "5.2.1", "action": "Prepare sub-component RFQ packages per vendor", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "5.3",
+      "sub_skill_name": "Send and track",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "5.3.1", "action": "Send RFQs via email/SupplyWin and track real-time response states", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "5.4",
+      "sub_skill_name": "Collect and review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "5.4.1", "action": "Aggregate returned quotes; buyer reviews bids", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_04_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "vendor_quote_line_items", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_5"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"assigned_suppliers": {"type": "array"}}, "required": ["assigned_suppliers"]},
+    "output_schema": {"type": "object", "properties": {"supplier_quotes": {"type": "array"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

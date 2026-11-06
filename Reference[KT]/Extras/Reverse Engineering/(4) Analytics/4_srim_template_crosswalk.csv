@@ -1,0 +1,116 @@
+function_signature,srim_authored_sites,workbook_cells_matching_unique_copies,status
+INDEX>MATCH>INDEX,0,644154,"observed in workbooks, no authored SRIM template with this signature"
+,7,552283,authored and observed
+IFERROR,51,487337,authored and observed
+VLOOKUP,0,461363,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>IF>UPPER>TRIM>INDEX>MATCH,0,225125,"observed in workbooks, no authored SRIM template with this signature"
+INDEX>INDEX>INDEX,0,224052,"observed in workbooks, no authored SRIM template with this signature"
+IF,33,212104,authored and observed
+IF>AND,12,208153,authored and observed
+MAX,7,195932,authored and observed
+IF>IF>OR>NOT>AND,0,191330,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>INDEX>MATCH>INDEX>MATCH,0,157378,"observed in workbooks, no authored SRIM template with this signature"
+IF>CONCATENATE,0,150480,"observed in workbooks, no authored SRIM template with this signature"
+SUMIFS,8,146796,authored and observed
+IF>IF,0,135687,"observed in workbooks, no authored SRIM template with this signature"
+IF>INT>ROUNDUP,2,120679,authored and observed
+IF>IF>INDEX>MATCH,4,113568,authored and observed
+IF>IFERROR>LEFT>FIND>SUBSTITUTE>LEN,1,110962,authored and observed
+IF>AND>NOT>ISERROR>MATCH,0,104398,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>COUNTIFS,2,103072,authored and observed
+SUMIFS>INDEX>INDEX>INDEX>INDEX>INDEX,0,100280,"observed in workbooks, no authored SRIM template with this signature"
+IF>ROUND>SUMIFS>COUNTIFS>ROUND,0,92340,"observed in workbooks, no authored SRIM template with this signature"
+INDEX>INDEX>INDEX>MATCH>INDEX>INDEX,0,90400,"observed in workbooks, no authored SRIM template with this signature"
+AND,5,81806,authored and observed
+INDEX>MATCH,0,80667,"observed in workbooks, no authored SRIM template with this signature"
+IF>SUM>INDEX,2,78061,authored and observed
+IFERROR>AVERAGEIFS,2,78059,authored and observed
+IFERROR>INDEX>INDEX>INDEX,0,71052,"observed in workbooks, no authored SRIM template with this signature"
+IF>INDEX>MATCH>INDEX,0,70881,"observed in workbooks, no authored SRIM template with this signature"
+IF>INDEX>MATCH,0,70467,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>ISERROR>MATCH>INDEX>TEXT,0,67350,"observed in workbooks, no authored SRIM template with this signature"
+IF>COUNTIFS>INDEX,0,67350,"observed in workbooks, no authored SRIM template with this signature"
+IF>NOT>ISERROR>MATCH>INDEX,0,67350,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>IF>INDEX>MATCH>INDEX,0,67309,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>IF>AND>NOT>INDEX,0,67300,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>IF>OR>INDEX>MATCH,0,67183,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>IF>ROUNDUP,1,65662,authored and observed
+IF>AND>MAX,1,62237,authored and observed
+IF>IFERROR>ROUNDUP>MAX,1,62237,authored and observed
+IFERROR>INDEX>INDEX>IFERROR>MATCH>INDEX,0,58513,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>INDEX>INDEX>INDEX>MATCH>INDEX,0,55125,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT,40,42035,authored and observed
+IFERROR>SUMIFS,5,38962,authored and observed
+IF>COUNTIF,2,36439,authored and observed
+IFERROR>INDEX>MATCH,9,34897,authored and observed
+IFERROR>AVERAGEIFS>INDEX>INDEX>INDEX>INDEX,1,34867,authored and observed
+IF>SUM>INDEX>INDEX>INDEX>INDEX,0,34867,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>OR>INDEX>MATCH,0,24990,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>IFERROR>INDEX>MATCH>INDEX>UPPER,0,19672,"observed in workbooks, no authored SRIM template with this signature"
+ABS>INDEX>MATCH,0,18671,"observed in workbooks, no authored SRIM template with this signature"
+MATCH>INDEX>INDEX>INDEX>INDEX>INDEX,0,18671,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>VALUE>SUBSTITUTE>SUBSTITUTE,1,17750,authored and observed
+SUM,24,17655,authored and observed
+IF>IF>AND>NOT>INDEX>MATCH,0,16106,"observed in workbooks, no authored SRIM template with this signature"
+SUM>INDEX>TEXT>TEXT>TEXT>TEXT,0,16054,"observed in workbooks, no authored SRIM template with this signature"
+IF>INDEX>MATCH>INDEX>IF>OR,0,14124,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>SUM,1,13252,authored and observed
+IFERROR>IF>UPPER>INDEX>INDEX>INDEX,0,13252,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>OR>ISNA>MATCH>ISNA,0,12298,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>ROUND>SUMIFS>COUNTIFS>ROUND,2,10732,authored and observed
+IF>IF>IFERROR>INDEX>MATCH>IFERROR,2,7407,authored and observed
+SUMIFS>SUMIFS,0,7356,"observed in workbooks, no authored SRIM template with this signature"
+IF>IFERROR>INDEX>MATCH,0,6735,"observed in workbooks, no authored SRIM template with this signature"
+IF>AND>NOT>ISERROR>MATCH>SUMIFS,2,6564,authored and observed
+IFERROR>MATCH>INDEX>INDEX>INDEX>INDEX,0,5921,"observed in workbooks, no authored SRIM template with this signature"
+DATEDIF>TODAY,0,4706,"observed in workbooks, no authored SRIM template with this signature"
+IFS,0,4703,"observed in workbooks, no authored SRIM template with this signature"
+IF>IFERROR>IF>OR>INDEX>MATCH,1,4543,authored and observed
+IF>IF>OR>IFERROR>INDEX>MATCH,1,4543,authored and observed
+IF>SUMIFS,0,3531,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>OR>INDEX>MATCH>INDEX,0,3531,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>OR>SUMIFS>NA,0,3279,"observed in workbooks, no authored SRIM template with this signature"
+SUBTOTAL,4,1943,authored and observed
+IFERROR>ABS>INDEX>MATCH,1,1571,authored and observed
+IFERROR>NUMBERVALUE>LEFT>FIND,5,1489,authored and observed
+COUNTIFS,4,1340,authored and observed
+IF>INT>ROUNDUP>IF>IF,0,1024,"observed in workbooks, no authored SRIM template with this signature"
+MIN,0,730,"observed in workbooks, no authored SRIM template with this signature"
+IF>GETPIVOTDATA,0,598,"observed in workbooks, no authored SRIM template with this signature"
+COUNT,0,345,"observed in workbooks, no authored SRIM template with this signature"
+IF>IF>OR>SUMIFS>IF>OR,0,246,"observed in workbooks, no authored SRIM template with this signature"
+SUMIF,8,223,authored and observed
+IF>AND>ROUNDUP>MAX,0,119,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>UPPER>TRIM>UPPER>TRIM,0,104,"observed in workbooks, no authored SRIM template with this signature"
+TEXT>SUM,4,100,authored and observed
+IFERROR>LOOKUP>ROW,0,79,"observed in workbooks, no authored SRIM template with this signature"
+IFERROR>MATCH,1,79,authored and observed
+LOOKUP>ROW,0,71,"observed in workbooks, no authored SRIM template with this signature"
+MATCH,0,71,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>IFERROR>MATCH>ROW>ROW,0,66,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>UPPER>TRIM>UPPER>TRIM>UPPER,0,56,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>LOWER>TRIM>LOWER>TRIM,1,52,authored and observed
+SUMPRODUCT>ISBLANK,2,51,authored and observed
+SUMPRODUCT>LOWER>TRIM,1,39,authored and observed
+ROUND>SUM,1,37,authored and observed
+SUMPRODUCT>MATCH>ROW>ROW,0,30,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>UPPER>TRIM>UPPER>TRIM>N,0,28,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>SUMPRODUCT>SUMPRODUCT,0,28,"observed in workbooks, no authored SRIM template with this signature"
+SUM>SUMIFS>SUMIFS,0,20,"observed in workbooks, no authored SRIM template with this signature"
+UNIQUE,0,18,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>TRIM>UPPER>TRIM>UPPER>TRIM,0,14,"observed in workbooks, no authored SRIM template with this signature"
+ROUND>SUM>SUM,1,13,authored and observed
+COUNTIF,0,6,"observed in workbooks, no authored SRIM template with this signature"
+SUMPRODUCT>UPPER>TRIM>N,0,6,"observed in workbooks, no authored SRIM template with this signature"
+ROUND>SUMIFS,2,0,"authored, never observed in any workbook"
+IFERROR>IFERROR,2,0,"authored, never observed in any workbook"
+IFERROR>IF>UPPER>TRIM,2,0,"authored, never observed in any workbook"
+IFERROR>INDEX,10,0,"authored, never observed in any workbook"
+IF>IFERROR,2,0,"authored, never observed in any workbook"
+ISBLANK,2,0,"authored, never observed in any workbook"
+IFERROR>ABS>INDEX,3,0,"authored, never observed in any workbook"
+NOT>AND,4,0,"authored, never observed in any workbook"
+IFERROR>IF,3,0,"authored, never observed in any workbook"
+IF>INT,2,0,"authored, never observed in any workbook"
+IFERROR>ROUNDUP>MAX,1,0,"authored, never observed in any workbook"
+IF>IFERROR>INDEX,2,0,"authored, never observed in any workbook"

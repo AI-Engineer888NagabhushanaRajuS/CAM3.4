@@ -1,0 +1,171 @@
+{
+  "skill_metadata": {
+    "macro_category": "reportingAnalytics",
+    "skill_id": "M03.7_GenerateReports",
+    "skill_name": "Generate CBOM Reports",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 7 of Standard_BOM_Flow, after resolve_final_selection has cleared. Action: require cbom_db.cbom rows to already exist (hard ValueError otherwise); clear any prior report rows for this rfq_id across all 16 report tables (report_generator.clear_reports_rfq); then, inside one transaction, iterate constants.REPORT_ORDER (a hardcoded list of 16 report table names) and execute one INSERT-SQL statement per report. Check: if ANY of the 16 reports raises an exception during its INSERT, that failure is collected into an issues list, and the caller (run_pipeline) raises RuntimeError, rolling back the ENTIRE transaction -- no partial report set is ever left committed. Bound: single attempt at the whole-batch level, no retry loop; the 16-report loop is a fan-out over distinct, independent reports, not a retry of one action. Business rule: does NOT regenerate cbom itself -- reads whatever cbom data already exists for the rfq_id.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "cbom_db.cbom rows for this rfq_id -- REQUIRED precondition; raises ValueError 'No cbom rows found... call the cbom tool first' otherwise",
+        "cbom_db.cbom.final_price_conv IS NOT NULL row count -- used only to compute a warning, not a gate",
+        "Whether any of the 16 report tables already has rows for this rfq_id -- unconditionally cleared before regeneration, so this is always a full regenerate, never incremental"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "BEGIN TRANSACTION; report_generator.clear_reports_rfq(con, rfq_id); report_generator.generate_reports(con, rfq_id) -- internally: build 2 shared SQL views (selected_quote_sql, ex_inv_calc_sql), then for table in constants.REPORT_ORDER: execute that report's INSERT-SQL and record its row count, catching any per-report exception into an issues list rather than stopping the loop immediately.",
+      "acceptance_check": "Programmatically evaluate whether reports_result['issues'] is empty; if non-empty, run_pipeline raises RuntimeError and the whole transaction is rolled back -- an all-or-nothing commit, not a partial-success outcome."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "generate_reports (this tool itself, delegating to reporting_pipeline.run_pipeline -> report_generator.generate_reports/clear_reports_rfq)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; the cbom-rows precondition and the per-report issue collection are both inline logic within reporting_pipeline.py/report_generator.py themselves."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "reports_result['issues'] is empty -- all 16 of constants.REPORT_ORDER's INSERT-SQL statements executed without exception",
+      "no_op_condition": "None -- every call unconditionally clears and regenerates all 16 report tables for the rfq_id; there is no already-processed short-circuit",
+      "escalation_condition": "A single report's SQL failure aborts and rolls back the entire batch (RuntimeError, surfaced as status:'failed' with the failing table names/errors) -- there is no hitl gate here; this is a hard failure, not a human-review pause",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'completed_with_issues' | 'failed'",
+        "rfq_id": "string",
+        "execution_time_seconds": "number",
+        "cbom_row_count": "integer",
+        "report_row_counts": "object mapping each of the 16 report table names to its row count (or null if it failed)",
+        "validation_summary": "{priced_row_count: integer}",
+        "warnings": "array of strings",
+        "issues": "array of {table, error} objects -- always empty on a successfully committed run, since any non-empty issues list triggers a rollback+raise instead of a returned response",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is: (1) the 16 report tables' rows in reports.duckdb, (2) one logger.info(...) line to report_generation.log capturing the full summary (cbom_rows, per-table counts, warnings, issues), (3) PostHog report_generated/report_generation_failed events bucketed by duration and report count."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.7_GenerateReports', skillName:'Generate CBOM Reports', stepStatus} pushed via fastapi_router.py's notify_skill_progress()"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py on success (hitl always falsy)"
+      ],
+      "alerts": [
+        "PostHog report_generation_failed event fired on failure, categorized via analytics_events.classify_error() -- the closest thing to an 'alert' channel confirmed for this tool"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute)"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB only, across 3 distinct catalogs: reports.duckdb (write, all 16 report tables), cbom.duckdb (read-only), input_db.duckdb (read-only)",
+      "table": "bom_matrix_report, part_num_vs_mfg_num_report, pcb_nre_fai_charge_report, mech_em_nre_report, missing_notes_report, lead_time_fg_report, lead_time_consolidated_report, sum_and_count_report, sum_and_count_detailed_report, revision_history_report, aclass_parts_report, price_control_report, summary_report, batchwise_cashflow_report, cbom_vl_report, ex_inv_vl_report (the 16 tables in constants.REPORT_ORDER)",
+      "action": "database.connect()'s multi-catalog DuckDB connection, wrapped in db.duckdb_file_lock()"
+    },
+    "audit": {
+      "telemetry": "logging_utils.logger single info-level summary line + PostHog_Analytics_Events (report_generated / report_generation_failed)"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via the daemon's rfq:skill-progress channel"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "completed_with_issues",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "cbom_row_count": {
+          "type": "integer"
+        },
+        "report_row_counts": {
+          "type": "object"
+        },
+        "validation_summary": {
+          "type": "object",
+          "properties": {
+            "priced_row_count": {
+              "type": "integer"
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

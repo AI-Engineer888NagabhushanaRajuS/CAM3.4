@@ -1,0 +1,146 @@
+{
+  "skill_metadata": {
+    "macro_category": "pricingConsolidation",
+    "skill_id": "M03.10_ErpEnrichment",
+    "skill_name": "Enrich CBOM with ERP Data (not currently exposed)",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED_INACTIVE",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Registered in system_skills_registry (skill_index 10) but with is_active=false, and NOT present in Standard_BOM_Flow's live routing_sequence -- kept fully working for future use per the MCP server's own module docstring. Action (as implemented): require cbom_db.cbom rows to already exist for this rfq_id (hard ValueError if not); run enrichment.enrich_erp(con, rfq_id), which executes UPDATE statements (queries.erp_enrichment_sql) to fill _erp columns on existing cbom rows from ERP master data. Check: the transaction commits only if no exception is raised. Bound: single attempt, no retry loop. Business rule: independent of enrich_costing_sheet -- either can run, in either order, or be skipped, since both only ever fill their own distinct _erp/_costing columns on the same pre-existing cbom rows.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "cbom_db.cbom rows for this rfq_id -- REQUIRED precondition (enrichment.py's _require_cbom_rows() helper); raises ValueError 'No cbom rows found... call the cbom tool first' otherwise",
+        "An ERP master data table (referenced by queries.erp_enrichment_sql(); exact table name not independently confirmed in this pass) -- since no ERP upload path exists in the live product, this table is effectively never populated with real data today"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Not invoked by the live Dify_Dynamic_Master_Router today (excluded from Standard_BOM_Flow's routing_sequence); could be invoked directly via /tool/execute if manually added to a routing_sequence",
+      "action_step": "BEGIN TRANSACTION; enrichment.enrich_erp(con, rfq_id) executes UPDATE statements filling _erp columns; COMMIT on success, ROLLBACK on exception.",
+      "acceptance_check": "No exception raised -- the count of rows with price_original_erp IS NOT NULL (rows_matched_erp) is reported but is NOT itself a pass/fail gate; 0 matched rows is still a 'success' response."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "enrich_erp (this tool itself, delegating to reporting_pipeline.run_erp_enrichment -> enrichment.enrich_erp)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; the cbom-rows precondition is an inline SQL count check in enrichment.py's _require_cbom_rows()."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "enrich_erp() completes without raising -- transaction commits, regardless of rows_matched_erp count",
+      "no_op_condition": "No idempotent already-processed short-circuit exists -- every call re-runs the UPDATE statements against current cbom rows",
+      "escalation_condition": "None -- this tool never sets hitl:1",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout, applicable only if this tool were ever actually invoked in the live routing_sequence"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rfq_id": "string",
+        "execution_time_seconds": "number",
+        "cbom_row_count": "integer",
+        "rows_matched_erp": "integer (COUNT of rows with price_original_erp IS NOT NULL)",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is: (1) the mutated _erp columns on cbom_db.cbom rows, (2) a single logger.info(...) line to report_generation.log. No PostHog event confirmed for this tool."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "If it were ever registered in a live routing_sequence, the same generic {skillCode:'M03.10_ErpEnrichment', stepStatus} SSE mechanism as the other reporting tools would apply -- not currently exercised"
+      ],
+      "database_updates": [
+        "None in the current product -- excluded from Standard_BOM_Flow, so fastapi_router.py's routing gate skips it before ever calling it"
+      ],
+      "alerts": [
+        "None"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Not currently invoked by Dify_Dynamic_Master_Router -- registered but is_active=false and absent from Standard_BOM_Flow's routing_sequence",
+      "trigger": "Would be HTTP_POST_Payload_plus_Variables (POST /tool/execute) if ever added to a live routing_sequence"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005) -- process is live and would serve this tool if called directly"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy (if invoked)"
+    },
+    "persistence": {
+      "database": "DuckDB only -- cbom.duckdb (read+write, _erp columns), an ERP master table (read, exact table not independently confirmed)",
+      "table": "cbom_db.cbom (columns updated, not rows added)",
+      "action": "database.connect()'s multi-catalog DuckDB connection, wrapped in db.duckdb_file_lock()"
+    },
+    "audit": {
+      "telemetry": "logging_utils.logger single info-level log line only"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui) -- not currently reached since this skill is excluded from the live routing_sequence",
+      "method": "N/A in current product usage"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "cbom_row_count": {
+          "type": "integer"
+        },
+        "rows_matched_erp": {
+          "type": "integer"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED_INACTIVE",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}

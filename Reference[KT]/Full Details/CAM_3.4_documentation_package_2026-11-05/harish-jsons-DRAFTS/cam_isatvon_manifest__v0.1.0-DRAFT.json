@@ -1,0 +1,988 @@
+{
+  "skill_metadata": {
+    "macro_category": "CAM_Centum_Reporting",
+    "skill_id": "CAM.R1_Centum_CBOM_Report_Suite",
+    "skill_name": "Centum CAM 16-Report Workbook Generator",
+    "skill_type": "Deterministic_Manifest",
+    "reusable": true,
+    "version": "0.1.0",
+    "status": "DRAFT",
+    "owner": "DigiBull AI workflow team; infra owner Harish T.",
+    "created_at": "2026-10-16",
+    "updated_at": "2026-10-16",
+    "supersedes": "Per-report JSON + hand-written Python scripts (built by the UltiWeb team), each fed separately to FastMCP",
+    "architecture_note": "Stop-gap per the CAM report process deck: ONE manifest -> Jinja2 template -> AST -> FastMCP builds ONE tool for all 16 reports. The same manifest later moves into BAM (pre-tested, pre-certified) unchanged."
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by a Centum CAM report request for one project (RFQ). Action: load the project's SCRUB BOM, QuoteWin export (AWARDS_PART_NUMBER_LISTING_*_FLOAT_*) and the previous Internal output workbook when it exists, compute the 16 report tabs per the rules in reports[] using the variable values in v_variables, and write one CBOM output workbook. Check: every report's acceptance_checks and the global validation rules pass. Bound: never invent a rule or default; when a variable is unconfirmed, run with the stated fallback and flag it in the run log.",
+    "s_source": {
+      "required_inputs": [
+        "SCRUB BOM workbook for the project (input BOM)",
+        "QuoteWin export for the project (AWARDS_PART_NUMBER_LISTING_<customer>_FLOAT_<date>.xlsx)",
+        "Previous Internal output workbook for the project, when it exists (required for Revision history)",
+        "ERP / admin master data: Part table, Top MPNs, supplier master, ERP Data extract"
+      ],
+      "fresh_state_parameters": [
+        "Project RFQ id and current revision number",
+        "Proto / Volume / Batch quantities per FG for this run",
+        "Per-project RFQ settings (proto applicability, currencies, price-control source, customer template)",
+        "Resolved v_variables values for this run"
+      ],
+      "per_project_file_register": "CAM_Action_Items_Status_Tracker, Report tab rows 33-61: per-project Drive links for SCRUB BOM, QuoteWin, BOM Matrix and Internal workbook, plus which of the 16 tabs exist in each current output."
+    },
+    "a_automation": {
+      "orchestration_layer": "BuLLM_DMR",
+      "trigger": "HTTP POST payload with project_id plus run variables",
+      "action_step": "Resolve request -> load project inputs -> compute the requested report tab(s) from the manifest rules -> render into the CBOM workbook in the exact expected format.",
+      "acceptance_check": "Run the per-report acceptance_checks and global rules; all must pass before the workbook is offered for download (download is gated on completed output, CAM-EC-055)."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (single CAM_Report tool generated from this manifest)",
+      "action_tool": "CAM_Report_MCP",
+      "fixed_check_tool": "Pydantic output validator, one schema per report tab, generated from the AST manifest (decoupled from the action tool per ISATVON 1.4)",
+      "supporting_services": [
+        "openpyxl workbook writer (current export classes use Maatwebsite Excel in the Laravel app; the manifest is writer-agnostic)",
+        "PostgreSQL JSONB manifest persistence and run log",
+        "SRIM UI Canvas for status"
+      ]
+    },
+    "o_outcome": {
+      "output_format": "One Excel workbook per project run with the 16 tabs named and laid out exactly as in reports[].sheet_name / expected_output.",
+      "json_schema": {
+        "workbook": "xlsx, 16 tabs in fixed order R01..R16",
+        "run_log": "JSON: project_id, revision, variable values used, per-tab acceptance results, unconfirmed variables triggered"
+      },
+      "state_handoff_file": "Append-only run log in PostgreSQL (one row per run per tab): iteration evidence, inputs used (file ids + revision), variable values, acceptance result."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Status: Loading inputs -> Computing tab <name> -> Validating -> Completed",
+        "Status: Blocked - <unconfirmed variable or missing input> needs confirmation"
+      ],
+      "database_updates": [
+        "Update project run record and per-tab status in PostgreSQL"
+      ],
+      "alerts": [
+        "Escalate to the FDE when an unconfirmed variable changes a number the client sees"
+      ]
+    }
+  },
+  "v_variables": {
+    "_comment": "The ISATVON V element, hoisted to top level for readability. Every CAM edge case is a named variable. status: confirmed = backed by a source rule; unconfirmed = reported but never resolved in the sources; conflicting = sources disagree. The generator must expose these per run and must not hard-code values marked unconfirmed.",
+    "l1_selection_rule": {
+      "description": "How the L1 (selected) quote is chosen: Award=100 flag vs lowest eligible price. Blank Award blocks output; a zero-price CPN was once selected as L1; ties between two suppliers at the same price need a deterministic priority.",
+      "refs": [
+        "CAM-EC-001",
+        "CAM-EC-025",
+        "CAM-EC-026",
+        "CAM-EC-027",
+        "CAM-EC-063"
+      ],
+      "default": "Use the Award flag; exclude zero-price and blank-Award rows; flag ties for review",
+      "status": "unconfirmed - full eligible supplier/price selection rule never confirmed in sources",
+      "applies_to": [
+        "R16",
+        "R08",
+        "R14",
+        "R01"
+      ]
+    },
+    "consolidated_l2_threshold_pct": {
+      "description": "L2 quote acceptable when consolidated pricing is within this % of L1.",
+      "refs": [
+        "CAM-EC-001"
+      ],
+      "default": 5,
+      "status": "unconfirmed - historical mail assertion only; denominator and priority vs Award logic unverified",
+      "applies_to": [
+        "R16",
+        "R08"
+      ]
+    },
+    "proto_applicability": {
+      "description": "Per-project switch: include Proto prices/quantities in Summary, BOM Matrix, Notes and CBOM, or suppress them. Signata asked for no proto while Lam Node1 needs it; both behaviors are correct per project.",
+      "refs": [
+        "CAM-EC-039",
+        "CAM-EC-044",
+        "CAM-EC-045"
+      ],
+      "default": "read from per-project RFQ settings",
+      "status": "confirmed as project-specific; per-project values live in project settings",
+      "applies_to": [
+        "R08",
+        "R01",
+        "R05",
+        "R16"
+      ]
+    },
+    "proto_batch_default_qty": {
+      "description": "Default quantity when Proto or batch quantity is unspecified in input.",
+      "refs": [
+        "CAM-EC-002"
+      ],
+      "default": "none - block and ask rather than invent a quantity",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R16",
+        "R08",
+        "R12"
+      ]
+    },
+    "qty_propagation": {
+      "description": "Edits to quantities (incl. fractional packing: Master Carton 0.2, Pallet 0.0125), prices, lead times, NRE and price-control categories in any working tab must recompute every dependent tab before output. The recurring Sept-Oct defects were all propagation failures.",
+      "refs": [
+        "CAM-EC-006",
+        "CAM-EC-007",
+        "CAM-EC-015",
+        "CAM-EC-040",
+        "CAM-EC-041",
+        "CAM-EC-072"
+      ],
+      "default": "recompute all dependent tabs from current working data on any edit",
+      "status": "confirmed requirement (recurring customer-escalated defect)",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "sum_count_basis": {
+      "description": "Sum = part quantity; Count = CPN occurrences; box/packing units are a separate input. A row is flagged red only on a genuine difference.",
+      "refs": [
+        "CAM-EC-008",
+        "CAM-EC-033",
+        "CAM-EC-068"
+      ],
+      "default": "as described",
+      "status": "partially clarified in sources; box-quantity input location unverified",
+      "applies_to": [
+        "R10",
+        "R11"
+      ]
+    },
+    "scrap_factor_rule": {
+      "description": "Scrap percent and scrap factor per ABC class (historical proposal: A/B/C = 1%/2%/5%); whether the factor is whole-number or decimal.",
+      "refs": [
+        "CAM-EC-059",
+        "CAM-EC-078"
+      ],
+      "default": "none",
+      "status": "unconfirmed - rounding and thresholds never settled in sources",
+      "applies_to": [
+        "R13",
+        "R08"
+      ]
+    },
+    "eau_split_basis": {
+      "description": "EAU per volume and Extended Volume split computation; repeated MPN across FGs sums FG qty x part qty; handle VL1 price present with no VL2 price.",
+      "refs": [
+        "CAM-EC-060",
+        "CAM-EC-076"
+      ],
+      "default": "as described",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R12",
+        "R01",
+        "R08"
+      ]
+    },
+    "moq_spq_turns_rule": {
+      "description": "Excess/MOQ math: MOQ + n x SPQ to reach volume; turns = 1 + n; average-days column optional.",
+      "refs": [
+        "CAM-EC-069"
+      ],
+      "default": "as described",
+      "status": "source clarification exists; runtime unverified",
+      "applies_to": [
+        "R12"
+      ]
+    },
+    "currency_set": {
+      "description": "Currencies processed. Sources show only INR/USD/EUR handled; a blank Original Currency blocks conversion; currency symbols must be displayed on price columns.",
+      "refs": [
+        "CAM-EC-024",
+        "CAM-EC-031",
+        "CAM-EC-051"
+      ],
+      "default": [
+        "INR",
+        "USD",
+        "EUR"
+      ],
+      "status": "unconfirmed beyond the three; exception list needed",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "ncnr_flag_rules": {
+      "description": "NCNR carried from QuoteWin into Missing Notes; NCNR count must match QW; non-NCNR rows show NO; NFRND flag present.",
+      "refs": [
+        "CAM-EC-010",
+        "CAM-EC-050"
+      ],
+      "default": "as described",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R05",
+        "R16"
+      ]
+    },
+    "mpn_mfr_match_rules": {
+      "description": "CPN/MPN matching normalization (case and suffix variants, e.g. 1360394889_Serv vs _SERV lost 37 priced parts); MFR source priority (Scrub vs internal DB vs QuoteWin); a corrected MPN equal to the original is not flagged; duplicate-MPN and multi-CPN note rules; edits refresh match flags.",
+      "refs": [
+        "CAM-EC-022",
+        "CAM-EC-028",
+        "CAM-EC-036",
+        "CAM-EC-040",
+        "CAM-EC-042",
+        "CAM-EC-043",
+        "CAM-EC-048"
+      ],
+      "default": "match on normalized MPN; MFR from Scrub unless a per-project source policy says otherwise",
+      "status": "unconfirmed - normalization and MFR source priority never settled",
+      "applies_to": [
+        "R02",
+        "R05",
+        "R16",
+        "R01"
+      ]
+    },
+    "parent_subassembly_costing": {
+      "description": "Build-vs-buy without double counting: a price on the parent must not also be costed on the subassembly; assembly prices stay out of direct-price L/M columns; assembly level numbering ordered and hierarchical; duplicate FG pairs counted once, different FGs summed.",
+      "refs": [
+        "CAM-EC-019",
+        "CAM-EC-020",
+        "CAM-EC-034",
+        "CAM-EC-065"
+      ],
+      "default": "recursive build-vs-buy comparison (historically confirmed design)",
+      "status": "design confirmed historically; current implementation unverified",
+      "applies_to": [
+        "R16",
+        "R01",
+        "R08"
+      ]
+    },
+    "revision_history_scope": {
+      "description": "Revision history must cover existing projects with prior Internal workbooks, not only new projects.",
+      "refs": [
+        "CAM-EC-061"
+      ],
+      "default": "compute when a previous Internal workbook exists; otherwise tab states 'first run'",
+      "status": "unconfirmed - existing-project behavior never specified",
+      "applies_to": [
+        "R09"
+      ]
+    },
+    "quote_validity_min_days": {
+      "description": "Minimum quote validity. One source asks 30 days, another a 3-month guideline.",
+      "refs": [
+        "CAM-EC-049",
+        "evidence doc: Price validity"
+      ],
+      "default": "none - do not silently extend commercial terms",
+      "status": "conflicting - governing threshold must be confirmed before validation",
+      "applies_to": [
+        "R16",
+        "R05"
+      ]
+    },
+    "decimal_precision": {
+      "description": "Display precision: July MOM asks Summary at 2 decimals; a Nov plan says display 2, backend 6.",
+      "refs": [
+        "CAM-EC-038",
+        "CAM-EC-057",
+        "evidence doc: Decimal precision"
+      ],
+      "default": "display 2 decimals, compute at 6",
+      "status": "conflicting - confirm per report",
+      "applies_to": [
+        "R08",
+        "R14",
+        "R01"
+      ]
+    },
+    "validation_error_highlighting": {
+      "description": "Validation Summary must highlight the actual errored cells/rows in red, not only show counts; an errored BOM must never display OK.",
+      "refs": [
+        "CAM-EC-009",
+        "CAM-EC-062"
+      ],
+      "default": "as described",
+      "status": "confirmed requirement (recurring defect)",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "uncosted_handling": {
+      "description": "Costed parts must not be labelled uncosted; uncosted line items still count toward line-item totals matching Scrub.",
+      "refs": [
+        "CAM-EC-035",
+        "CAM-EC-046"
+      ],
+      "default": "as described",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R16",
+        "R05",
+        "R08"
+      ]
+    },
+    "input_validation_rules": {
+      "description": "Reject or flag, with a clear reason: empty Scrub (zero FG/MPN/CPN counts must not look like a successful run), missing QW original prices, project-name mismatch between files, unsupported template headers (aliases like MOQs vs MOQ, Vols vs Vol), and valid xlsx rejected as wrong file type.",
+      "refs": [
+        "CAM-EC-023",
+        "CAM-EC-030",
+        "CAM-EC-053",
+        "CAM-EC-074",
+        "CAM-EC-075"
+      ],
+      "default": "validate inputs before compute; report exact failing file and field",
+      "status": "partially specified in sources",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "quotewin_size_cap_rows": {
+      "description": "Maximum QuoteWin size the pipeline accepts. A ~20k-row QW (CE-005657 Thales SharpView) exceeded the cap and no Matrix was produced.",
+      "refs": [
+        "CAM-EC-054"
+      ],
+      "default": "unknown - confirm the current cap and safe handling",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R01",
+        "ALL"
+      ]
+    },
+    "performance_sla": {
+      "description": "Processing time bound. A 691-unique-CPN run took 16 minutes; uploads sometimes stall with no output and no error.",
+      "refs": [
+        "CAM-EC-017",
+        "CAM-EC-056"
+      ],
+      "default": "none agreed - expose processing state and agree a measurable SLA",
+      "status": "unconfirmed",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "download_gating": {
+      "description": "Workbook download is offered only after all 16 tabs computed and validated; a download button during calculation and ChunkLoadError failures are known defects. Historical note: download requires all 16 reports.",
+      "refs": [
+        "CAM-EC-012",
+        "CAM-EC-055",
+        "CAM-EC-056"
+      ],
+      "default": "gate download on completed, validated output",
+      "status": "confirmed requirement",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "freshness_90day_rule": {
+      "description": "Reuse-cost freshness: for costs under 90 days, choose between skipping the RFQ, sending with an L1 note, or an Old Cost column.",
+      "refs": [
+        "CAM-EC-077"
+      ],
+      "default": "none - the Feb attachment marks 'email supplier with L1 note', not verified as adopted",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R16",
+        "R14"
+      ]
+    },
+    "supplier_terms_default": {
+      "description": "Default payment terms when the supplier DB has none for a supplier.",
+      "refs": [
+        "CAM-EC-064"
+      ],
+      "default": "none - use verified terms or an approved default",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R16"
+      ]
+    },
+    "nre_grouping": {
+      "description": "NRE charge basis: L1 MPNs with NRE grouped PCB vs Mechanical/ElectroMechanical; NRE edits propagate downstream.",
+      "refs": [
+        "CAM-EC-041",
+        "CAM-EC-067"
+      ],
+      "default": "group by commodity as described",
+      "status": "source clarification exists; implementation unverified",
+      "applies_to": [
+        "R03",
+        "R04"
+      ]
+    },
+    "commodity_c1_c2_lookup": {
+      "description": "C1/C2 commodity categories across SMTP and Scrub: high-level vs subtype lookup.",
+      "refs": [
+        "CAM-EC-066"
+      ],
+      "default": "align to the Nov-24 confirmed taxonomy",
+      "status": "historical alignment confirmed; current data unverified",
+      "applies_to": [
+        "R13",
+        "R01",
+        "R16"
+      ]
+    },
+    "batch_scope": {
+      "description": "Batch is a third tab (confirmed May-2); batch input is not supplier-visible; assembly vs MPN level scope.",
+      "refs": [
+        "CAM-EC-070"
+      ],
+      "default": "as described",
+      "status": "partially confirmed; level scope unverified",
+      "applies_to": [
+        "R15",
+        "R16"
+      ]
+    },
+    "manual_price_source_policy": {
+      "description": "Whether prices received manually or by email (beyond the QuoteWin file) are included in the compared output.",
+      "refs": [
+        "CAM-EC-058"
+      ],
+      "default": "QuoteWin only, unless a per-project input register says otherwise",
+      "status": "unconfirmed - input provenance ambiguous",
+      "applies_to": [
+        "R16",
+        "R14",
+        "R08"
+      ]
+    },
+    "demo_output_labeling": {
+      "description": "A filename-matched prebuilt/simulated output must be labelled as demo and never counted as computed validation.",
+      "refs": [
+        "CAM-EC-071"
+      ],
+      "default": "as described",
+      "status": "confirmed requirement (historical demo design)",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "rfq_routing_zero_mpn": {
+      "description": "When all sourcing is third-party and no MPNs route to CAMail, define the real sourcing path; label any simulated quotes.",
+      "refs": [
+        "CAM-EC-073"
+      ],
+      "default": "none",
+      "status": "unconfirmed",
+      "applies_to": [
+        "R16"
+      ]
+    },
+    "settings_bulk_upload": {
+      "description": "Per-project RFQ settings accept a bulk upload instead of per-project entry.",
+      "refs": [
+        "CAM-EC-016"
+      ],
+      "default": "supported per internal report",
+      "status": "internal implementation reported; customer validation unverified",
+      "applies_to": [
+        "ALL"
+      ]
+    },
+    "volume_wise_costing_input": {
+      "description": "Support a volume-wise costing input sheet (requested 9-Sep; costing noted as second priority 24-Sep).",
+      "refs": [
+        "CAM-EC-018"
+      ],
+      "default": "per tracker, In Progress",
+      "status": "in progress - not a settled rule",
+      "applies_to": [
+        "R15",
+        "R16"
+      ]
+    },
+    "cbom_acceptance_checklist": {
+      "description": "CBOM acceptance rules from the Centum checklist: revision number in the CBOM name; Sourcing Manager review on all CBOMs; SCM Head review at $3M+ and must-win; material assumptions stated; LTB date on all EOL/discontinued parts; MCL raised dates; header/status matches the agreed Centum template; excess aligned with assembly analysis.",
+      "refs": [
+        "CAM-062",
+        "CAM-063",
+        "CAM-064",
+        "CAM-065",
+        "CAM-066",
+        "CAM-067",
+        "CAM-EC-052"
+      ],
+      "default": "enforce all as output validations",
+      "status": "checklist requirements (source: customer checklist)",
+      "applies_to": [
+        "R16"
+      ]
+    }
+  },
+  "reports": [
+    {
+      "report_id": "R01",
+      "tab_no": 1,
+      "sheet_name": "BOM MATRIX",
+      "requestor": "Jagadish (multi-level BOM analysis)",
+      "output_format": "Excel tab. Part-number rows x FG x volume cost matrix; per-volume blocks of Mfg name / Mfg Part Number / Unit Price; data rows start at row 9; FG total cost columns per FG x volume.",
+      "current_script": "ProcessTab1Job + BomMatrixFormatExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "ERP Part table / Top MPNs"
+      ],
+      "edge_case_variables": [
+        "eau_split_basis",
+        "mpn_mfr_match_rules",
+        "quotewin_size_cap_rows",
+        "decimal_precision",
+        "commodity_c1_c2_lookup",
+        "parent_subassembly_costing",
+        "proto_applicability",
+        "l1_selection_rule"
+      ],
+      "acceptance_checks": [
+        "Subtotals and grand total equal the sum of part rows; percentage cells formatted as percentages (CAM-EC-038)",
+        "Matrix totals reconcile with the Summary tab on the same volume/input basis (CAM-EC-057)",
+        "Proto price/quantity columns appear exactly when proto_applicability is true for the project (CAM-EC-039, CAM-EC-044)",
+        "No priced part omitted by CPN matching normalization (CAM-EC-028)"
+      ]
+    },
+    {
+      "report_id": "R02",
+      "tab_no": 2,
+      "sheet_name": "Part Num Vs Mfg Num",
+      "requestor": "Bharath",
+      "output_format": "Excel tab. Centum part number vs manufacturer part number mapping with match flags.",
+      "current_script": "ProcessTab2Job + BomDetailsExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "ERP Part table"
+      ],
+      "edge_case_variables": [
+        "mpn_mfr_match_rules"
+      ],
+      "acceptance_checks": [
+        "MFR/MPN mismatches between Scrub and quote source are flagged (CAM-EC-022)",
+        "A corrected MPN equal to the original is NOT flagged (CAM-EC-042)",
+        "Match flags recompute after any MPN/MFR edit (CAM-EC-040)"
+      ]
+    },
+    {
+      "report_id": "R03",
+      "tab_no": 3,
+      "sheet_name": "PCB NRE & FAI Charge",
+      "requestor": "Bharath (FAI charge)",
+      "output_format": "Excel tab. PCB NRE and FAI charges per L1 part.",
+      "current_script": "ProcessTab3Job + FaiChargeExport (CAM Laravel app)",
+      "inputs": [
+        "QuoteWin (AWARDS FLOAT)",
+        "SCRUB BOM"
+      ],
+      "edge_case_variables": [
+        "nre_grouping",
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "NRE/FAI charges use the PCB grouping per nre_grouping (CAM-EC-067)",
+        "NRE edits propagate to all dependent tabs (CAM-EC-041)"
+      ]
+    },
+    {
+      "report_id": "R04",
+      "tab_no": 4,
+      "sheet_name": "Mech & EM NRE",
+      "requestor": "Bharath (Mechanical & EM NRE charge)",
+      "output_format": "Excel tab. Mechanical and ElectroMechanical NRE charges.",
+      "current_script": "ProcessTab4Job + NreChargeExport (CAM Laravel app)",
+      "inputs": [
+        "QuoteWin (AWARDS FLOAT)",
+        "SCRUB BOM"
+      ],
+      "edge_case_variables": [
+        "nre_grouping",
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "NRE charges use the Mechanical/ElectroMechanical grouping per nre_grouping (CAM-EC-067)",
+        "NRE edits propagate to all dependent tabs (CAM-EC-041)"
+      ]
+    },
+    {
+      "report_id": "R05",
+      "tab_no": 5,
+      "sheet_name": "Missing Notes",
+      "requestor": "Bharath (Missing note)",
+      "output_format": "Excel tab. Exception notes per part: NCNR, MPN/MFR mismatches, corrected MPNs, alternate MFR template entries, with consistent serial numbering.",
+      "current_script": "ProcessTab5Job + MissingNotesExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)"
+      ],
+      "edge_case_variables": [
+        "ncnr_flag_rules",
+        "mpn_mfr_match_rules",
+        "uncosted_handling",
+        "quote_validity_min_days"
+      ],
+      "acceptance_checks": [
+        "NCNR from QuoteWin appears in the notes per ncnr_flag_rules (CAM-EC-010)",
+        "Uncosted line items are included in counts matching the Scrub BOM (CAM-EC-046)",
+        "Duplicate-MPN and multi-CPN false notes suppressed; corrected-equal MPN suppressed (CAM-EC-042, CAM-EC-043)",
+        "MFR provenance follows mpn_mfr_match_rules; serial numbering consistent (CAM-EC-048)"
+      ]
+    },
+    {
+      "report_id": "R06",
+      "tab_no": 6,
+      "sheet_name": "Lead Time (FG Wise)",
+      "requestor": "Bharath (Lead time FG wise)",
+      "output_format": "Excel tab. Lead time per finished good with part counts.",
+      "current_script": "ProcessTab6Job + FgLeadTimeExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "ERP / supplier lead-time data"
+      ],
+      "edge_case_variables": [
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "Part counts present on the sheet (CAM-EC-011)",
+        "Last-VLM lead-time edits reflected in FG Wise (CAM-EC-006)"
+      ]
+    },
+    {
+      "report_id": "R07",
+      "tab_no": 7,
+      "sheet_name": "Lead Time Consolidated",
+      "requestor": "Bharath (Lead time consolidated)",
+      "output_format": "Excel tab. Consolidated lead time across FGs with part counts.",
+      "current_script": "ProcessTab7Job + LeadTimeConsolidatedExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "ERP / supplier lead-time data"
+      ],
+      "edge_case_variables": [
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "Part counts present (CAM-EC-011)",
+        "Values consistent with Lead Time (FG Wise) on the same inputs"
+      ]
+    },
+    {
+      "report_id": "R08",
+      "tab_no": 8,
+      "sheet_name": "Summary",
+      "requestor": "Bharath",
+      "output_format": "Excel tab titled 'CBOM Summary'. One revision block per revision (Centum id, Rev-no, date); per volume a pair of columns: Volume-n qty and CBOM Cost VL-n (Proto Volume / CBOM Cost Proto when proto); assembly rows; costs formatted '$ #,##0.00'.",
+      "current_script": "ProcessTab8Job (Tab8Computer/Tab8Merger) + SummaryExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "previous Internal workbook when present"
+      ],
+      "edge_case_variables": [
+        "decimal_precision",
+        "proto_applicability",
+        "l1_selection_rule",
+        "consolidated_l2_threshold_pct",
+        "manual_price_source_policy",
+        "qty_propagation",
+        "scrap_factor_rule"
+      ],
+      "acceptance_checks": [
+        "Exactly one Summary per run (CAM-EC-037)",
+        "Summary equals the internal workbook computation, incl. exact source quantities in Ext Vol Conv Price (CAM-EC-003, CAM-EC-057)",
+        "No Proto columns when proto_applicability is false (CAM-EC-045)",
+        "Display precision per decimal_precision (CAM-EC-038)"
+      ]
+    },
+    {
+      "report_id": "R09",
+      "tab_no": 9,
+      "sheet_name": "Revision History",
+      "requestor": "Bharath (Revision history)",
+      "output_format": "Excel tab. Revision-by-revision comparison against the previous Internal workbook.",
+      "current_script": "ProcessTab9Job + RevisionHistoryExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "previous Internal workbook (required)"
+      ],
+      "edge_case_variables": [
+        "revision_history_scope"
+      ],
+      "acceptance_checks": [
+        "Produced for existing projects with a previous Internal workbook, not only new projects (CAM-EC-061)",
+        "States 'first run' explicitly when no previous workbook exists"
+      ]
+    },
+    {
+      "report_id": "R10",
+      "tab_no": 10,
+      "sheet_name": "Sum & Count",
+      "requestor": "Bharath",
+      "output_format": "Excel tab. Sum (part quantity) and Count (CPN occurrences) per assembly with red flags on genuine differences only.",
+      "current_script": "ProcessTab10Job + SumAndCountExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "CBOM working data"
+      ],
+      "edge_case_variables": [
+        "sum_count_basis",
+        "validation_error_highlighting",
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "Sums and counts follow sum_count_basis (CAM-EC-068)",
+        "Correct quantities matching the Scrub/CBOM are never flagged red (CAM-EC-008)",
+        "Cross-sheet quantities consistent (CAM-EC-033)"
+      ]
+    },
+    {
+      "report_id": "R11",
+      "tab_no": 11,
+      "sheet_name": "Sum & Count Detailed",
+      "requestor": "Bharath",
+      "output_format": "Excel tab. Row-level detail behind Sum & Count.",
+      "current_script": "ProcessTab11Job + SumAndCountDetailedExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "CBOM working data"
+      ],
+      "edge_case_variables": [
+        "sum_count_basis",
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "Row detail aggregates exactly to the Sum & Count tab (CAM-EC-008, CAM-EC-033)"
+      ]
+    },
+    {
+      "report_id": "R12",
+      "tab_no": 12,
+      "sheet_name": "Excess Inventory (one sheet per volume: Ex Inv VL-1, Ex Inv VL-2, ...)",
+      "requestor": "Menaka (Excess MOQ) / Jagadish (excess % of EAU, excess % of batch qty)",
+      "output_format": "Excel tab(s). Excess MOQ and excess inventory as % of estimated annual usage and % of batch quantity, per volume.",
+      "current_script": "ProcessTab12Job + ExcessInventoryExport / ExcessInventoryVolumeSheet (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "ERP usage data"
+      ],
+      "edge_case_variables": [
+        "moq_spq_turns_rule",
+        "eau_split_basis",
+        "proto_batch_default_qty",
+        "currency_set"
+      ],
+      "acceptance_checks": [
+        "A volume price above Proto is flagged against the identified Proto basis (CAM-EC-004)",
+        "MOQ cost % and currency displayed explicitly (CAM-EC-051)",
+        "Turns computed per moq_spq_turns_rule (CAM-EC-069)",
+        "No per-volume errors on the customer-reviewed projects (CAM-EC-013)"
+      ]
+    },
+    {
+      "report_id": "R13",
+      "tab_no": 13,
+      "sheet_name": "A CLASS PARTS",
+      "requestor": "Bharath (A-Class parts)",
+      "output_format": "Excel tab. A-class parts by cost contribution (80/15/5 thresholds) with scrap application.",
+      "current_script": "ProcessTab13Job + PartsDetailsExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)"
+      ],
+      "edge_case_variables": [
+        "scrap_factor_rule",
+        "commodity_c1_c2_lookup",
+        "qty_propagation"
+      ],
+      "acceptance_checks": [
+        "A-Class BOM value uses the same volume/input basis as Last Volume BOM (CAM-EC-005, CAM-EC-029)",
+        "Ranking, boundary and scrap application follow the confirmed scrap_factor_rule (CAM-EC-078)"
+      ]
+    },
+    {
+      "report_id": "R14",
+      "tab_no": 14,
+      "sheet_name": "Price Control",
+      "requestor": "Bharath",
+      "output_format": "Excel tab. Price-control categories (Contract / Non-Contract) per part from the current source value.",
+      "current_script": "ProcessTab14Job (ComputePriceControlChunk jobs) + PriceControlExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "price-control source data"
+      ],
+      "edge_case_variables": [
+        "qty_propagation",
+        "manual_price_source_policy",
+        "freshness_90day_rule",
+        "decimal_precision"
+      ],
+      "acceptance_checks": [
+        "Categories and edits use the current source price-control value and propagate (CAM-EC-007)",
+        "Price Control totals reconcile with Summary (CAM-EC-057)"
+      ]
+    },
+    {
+      "report_id": "R15",
+      "tab_no": 15,
+      "sheet_name": "Batchwise Cashflow",
+      "requestor": "Bharath",
+      "output_format": "Excel tab. Cashflow by batch using the batch quantities from the third (Batch) tab.",
+      "current_script": "ProcessTab15Job (BatchwiseCashflowOrchestrator, Bwcf jobs) + BatchwiseCashflowExport (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "Batch tab inputs"
+      ],
+      "edge_case_variables": [
+        "batch_scope",
+        "volume_wise_costing_input",
+        "proto_batch_default_qty"
+      ],
+      "acceptance_checks": [
+        "Batch quantities follow batch_scope (third Batch tab, not supplier-visible) (CAM-EC-070)"
+      ]
+    },
+    {
+      "report_id": "R16",
+      "tab_no": 16,
+      "sheet_name": "CBOM (Introduction sheet + one volume sheet per volume)",
+      "requestor": "Bharath (BOM Conversion)",
+      "output_format": "Excel tabs on the agreed Centum CBOM template: Introduction sheet plus CBOM VL-n sheets with direct-price and assembly costing separated, hierarchical assembly levels, and revision number in the workbook name.",
+      "current_script": "ProcessTab16Job + CBOMWorkbookExport / CBOMVolumeSheet / CBOMIntroSheet (CAM Laravel app)",
+      "inputs": [
+        "SCRUB BOM",
+        "QuoteWin (AWARDS FLOAT)",
+        "ERP / admin masters",
+        "supplier master"
+      ],
+      "edge_case_variables": [
+        "l1_selection_rule",
+        "parent_subassembly_costing",
+        "mpn_mfr_match_rules",
+        "ncnr_flag_rules",
+        "cbom_acceptance_checklist",
+        "supplier_terms_default",
+        "quote_validity_min_days",
+        "uncosted_handling",
+        "qty_propagation",
+        "currency_set",
+        "rfq_routing_zero_mpn"
+      ],
+      "acceptance_checks": [
+        "Source quantities preserved end-to-end, never zeroed (CAM-EC-014); fractional packing edits propagate (CAM-EC-015)",
+        "No parent/subassembly double costing; assembly prices out of direct-price columns; level numbering ordered (CAM-EC-019, CAM-EC-020, CAM-EC-034, CAM-EC-065)",
+        "Costed parts never labelled uncosted (CAM-EC-035)",
+        "Header and validation status match the agreed Centum template (CAM-EC-052)",
+        "CBOM acceptance checklist enforced (CAM-062 to CAM-067)"
+      ]
+    }
+  ],
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "PostgreSQL_Database_State_Config",
+      "tables": [
+        "cam_project_runs",
+        "cam_tab_status",
+        "cam_run_audit_handoff"
+      ],
+      "action": "Execute_SQL_Queries_via_Postgres_MCP"
+    },
+    "audit": {
+      "telemetry": "PostgreSQL_Audit_Logs"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas",
+      "method": "Embedded_iFrames_Widgets"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "example": "CE-005864"
+        },
+        "revision_no": {
+          "type": "integer"
+        },
+        "scrub_bom_file": {
+          "type": "string",
+          "description": "Drive id or path of the SCRUB BOM workbook"
+        },
+        "quotewin_file": {
+          "type": "string",
+          "description": "Drive id or path of the AWARDS FLOAT QuoteWin export"
+        },
+        "previous_internal_file": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Previous Internal output workbook; null on first run"
+        },
+        "project_settings": {
+          "type": "object",
+          "description": "Per-project RFQ settings incl. proto_applicability"
+        },
+        "variables": {
+          "type": "object",
+          "description": "Resolved v_variables values for this run"
+        }
+      },
+      "required": [
+        "project_id",
+        "scrub_bom_file",
+        "quotewin_file",
+        "project_settings",
+        "variables"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "workbook_file": {
+          "type": "string",
+          "description": "xlsx with 16 tabs in fixed order R01..R16"
+        },
+        "run_log": {
+          "type": "object",
+          "description": "Per-tab acceptance results, variable values used, unconfirmed variables triggered"
+        },
+        "state_handoff_id": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "DRAFT",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 0,
+      "minor": 1,
+      "patch": 0
+    },
+    "note": "DRAFT for Harish's review. Do not move to APPROVED until the unconfirmed and conflicting v_variables are resolved with Centum-facing owners."
+  }
+}

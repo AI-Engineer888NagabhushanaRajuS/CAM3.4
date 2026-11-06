@@ -1,0 +1,98 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_04",
+    "skill_name": "Distributor & Source Selection",
+    "office_analogy": "The Sourcing Desk",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Parvitha / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 3 hook[cite: 7]. Action: Query preferred distributor catalogs and Commodity Mapping Master tables to assign optimal vendors for specialized electronic components, PCB specs, and custom enclosures[cite: 7]. Check: Verify 100% of BOM parts have at least one vetted vendor mapped with supplier reliability score[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "scrub_bom_table",
+        "commodity_mapping_master_xlsx",
+        "supplier_master_table",
+        "new_suppliers_sheet"
+      ],
+      "fresh_state_parameters": ["assigned_supplier_matrix", "unmapped_part_queue"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Scan internal supplier database and API channels to select primary and secondary vendors per part[cite: 7].",
+      "acceptance_check": "Programmatically verify: unmapped_parts_count == 0[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Sourcing_Distributor_Selector_MCP",
+      "fixed_check_tool": "Supplier_Mapping_Integrity_Checker",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 3,
+      "success_gate": "all_parts_assigned_suppliers == True",
+      "no_op_condition": "sourcing_already_locked == True",
+      "escalation_condition": "no_supplier_found_for_critical_part",
+      "budget_limit": "30000ms"
+    },
+    "o_outcome": {
+      "json_schema": "SupplierSelectionPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_supplier_selection_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Querying Distributor Catalogs -> Vendors Mapped"],
+      "database_updates": ["Insert into rfq_part_supplier_mappings"],
+      "alerts": ["PostHog telemetry tracks sole-source vendor warnings; alert sourcing manager[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 5 (Supplier RFQ/Quoting Tools)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "4.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "4.1.1", "action": "Read BOM line items, risk flags, and preferred-distributor lists", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "4.2",
+      "sub_skill_name": "Scan",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "4.2.1", "action": "Scan local preferred-distributor catalogs and commodity mapping tables", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "4.3",
+      "sub_skill_name": "Select",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "4.3.1", "action": "Select most reliable suppliers per part or commodity based on lead-time reliability and historical quality", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "4.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "4.4.1", "action": "Sourcing manager reviews assigned suppliers per part", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_03_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "rfq_part_supplier_mappings", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_4"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"feasibility_verdict": {"type": "string"}}, "required": ["feasibility_verdict"]},
+    "output_schema": {"type": "object", "properties": {"assigned_suppliers": {"type": "array"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

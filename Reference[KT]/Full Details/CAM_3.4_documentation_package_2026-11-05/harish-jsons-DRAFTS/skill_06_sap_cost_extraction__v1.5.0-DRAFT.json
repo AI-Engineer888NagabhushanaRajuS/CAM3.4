@@ -1,0 +1,97 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_06",
+    "skill_name": "SAP/API Cost Extraction",
+    "office_analogy": "Accounts / Costing Ledger",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Parvitha / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 5 hook[cite: 7]. Action: Query internal ERP/SAP database via DBHub SQL agent to pull historical inventory prices, standard labor rates, and machine process costs[cite: 3, 7]. Check: Verify internal cost baseline is attached to all assembly parts[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "scrub_bom_table",
+        "erp_historical_inventory_db",
+        "currency_exchange_table"
+      ],
+      "fresh_state_parameters": ["internal_cost_baseline_table"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Execute DBHub SQL queries against PostgreSQL/SAP tables to derive labor and material baselines[cite: 3, 7].",
+      "acceptance_check": "Programmatically evaluate: internal_cost_baseline_coverage == 100%[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "ERP_SAP_Cost_Extractor_MCP",
+      "fixed_check_tool": "ERP_Baseline_Completeness_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "internal_baseline_complete == True",
+      "no_op_condition": "erp_sync_disabled == True",
+      "escalation_condition": "erp_connection_failed",
+      "budget_limit": "20000ms"
+    },
+    "o_outcome": {
+      "json_schema": "InternalCostBaselinePayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_internal_cost_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Pulling SAP/ERP Baselines -> Internal Costs Locked"],
+      "database_updates": ["Insert into internal_cost_baselines"],
+      "alerts": ["PostHog logs stale ERP pricing flags; notify cost engineer[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 7 (Quote Validation & Comparison)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "6.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "6.1.1", "action": "Read parts and processes requiring internal cost baseline", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "6.2",
+      "sub_skill_name": "Pull",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "6.2.1", "action": "Pull current inventory pricing and labor rates from ERP/SAP", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "6.3",
+      "sub_skill_name": "Baseline",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "6.3.1", "action": "Construct internal cost baseline per part and process step", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "6.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "6.4.1", "action": "Human reviews internal cost baseline figures", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_05_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "internal_cost_baselines", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_6"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"supplier_quotes": {"type": "array"}}, "required": ["supplier_quotes"]},
+    "output_schema": {"type": "object", "properties": {"internal_baseline": {"type": "object"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

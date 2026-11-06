@@ -1,0 +1,159 @@
+{
+  "skill_metadata": {
+    "macro_category": "reportingAnalytics",
+    "skill_id": "M03.8_ExportReports",
+    "skill_name": "Export CBOM Reports to Excel",
+    "skill_type": "Deterministic_FastMCP",
+    "reusable": true,
+    "version": "1.4.0",
+    "status": "APPROVED",
+    "owner": "Centum Intake Platform Team",
+    "created_at": "2026-09-02T00:00:00Z",
+    "updated_at": "2026-09-02T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by the Dify DMR's POST /tool/execute for skill_index 8 (the last skill) of Standard_BOM_Flow, after generate_reports. Action: require cbom_db.cbom rows to exist (hard ValueError otherwise -- note this precondition is on cbom, NOT on the 16 report tables); load the cbom/scrub_bom_items/quote_win/volume data as DataFrames plus a computed ex_inv_calc view, then build a single consolidated Excel workbook by calling a fixed, hardcoded sequence of build_*_sheet() functions (hidden config sheets, the raw CBOM sheet, then the visible report sheets in a fixed production order, then Ex Inv VL sheets), and save it to config.EXPORTS_DIR. Check: no exception raised during the build/save sequence. Bound: single attempt, no retry loop; a real, notable finding is that this tool does NOT itself verify the 16 report tables were freshly (re)generated -- it is read-only against whatever cbom/report data currently exists. Business rule: read-only with respect to cbom/report data -- it only ever writes a new Excel file, never mutates DuckDB.",
+    "s_source": {
+      "required_inputs": [
+        "rfq_id (string)"
+      ],
+      "fresh_state_parameters": [
+        "cbom_db.cbom rows for this rfq_id -- REQUIRED precondition (mirrors run_pipeline's own check); raises ValueError otherwise",
+        "input_db.scrub_bom_items, input_db.quote_win, input_db.volume rows for this rfq_id (read directly, not gated independently)",
+        "Whatever rows currently exist in the 16 reports.duckdb tables -- this tool does NOT require generate_reports to have run first; it reads directly from cbom.duckdb/input_db.duckdb, not from the report tables generate_reports writes"
+      ]
+    },
+    "a_automation": {
+      "orchestration_layer": "Dify_Dynamic_Master_Router calling fastapi_router.py's POST /tool/execute",
+      "action_step": "Load cbom_df/scrub_bom_items/quote_win/volume via mappings.load_cbom_df() and direct queries; build a computed ex_inv_calc view; then call a fixed sequence of build_*_sheet() functions from the reports/*.py modules to assemble every worksheet into one openpyxl Workbook; save with a generated filename.",
+      "acceptance_check": "No exception raised during the build/save sequence -- there is no per-sheet issues-collection/rollback pattern like generate_reports has; this is a single sequential, non-transactional build pass (explicitly read-only, per the function's own docstring)."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP (cbom-reporting server, reporting_module/mcp_server.py, port 8005)",
+      "action_tool": "export_reports (this tool itself, delegating to exporter.export_excel)",
+      "fixed_check_tool": "None -- no independent validation MCP tool exists; the cbom-rows precondition is an inline DataFrame-empty check in exporter.py itself."
+    },
+    "v_variables": {
+      "max_iterations": 1,
+      "success_gate": "export_excel() completes without raising -- the workbook is saved and worksheet_count/worksheet_names are returned",
+      "no_op_condition": "None -- every call builds and saves a brand-new, uniquely-named workbook file; nothing is skipped or reused from a prior export",
+      "escalation_condition": "None -- this tool never sets hitl:1; a failure is a hard status:'failed', not a human-review pause. It is the LAST skill in Standard_BOM_Flow, so a success here means the pipeline run has fully completed",
+      "budget_limit": "300s MCP Jungle call_tool() timeout / 600s Dify HTTP node timeout"
+    },
+    "o_outcome": {
+      "json_schema": {
+        "status": "'success' | 'failed'",
+        "rfq_id": "string",
+        "workbook_name": "string (filename)",
+        "workbook_path": "string (full path)",
+        "worksheet_count": "integer",
+        "worksheet_names": "array of strings",
+        "execution_time_seconds": "number",
+        "error": "string (present only on status=='failed')"
+      },
+      "state_handoff_file": "No dedicated append-only audit table exists. Real state handoff is: (1) the generated .xlsx file itself, named CBOM_Report_{slug(rfq_id)}_{timestamp}_{uuid8}.xlsx in config.EXPORTS_DIR, (2) file_metadata_db-adjacent metadata surfaced via duck_db_api.py's GET /api/bom/export/{rfq_id} (filename + generated_at, read by the frontend after this tool completes), (3) PostHog report_export_generated/report_export_failed events."
+    },
+    "n_notification": {
+      "ui_updates": [
+        "Generic {skillCode:'M03.8_ExportReports', skillName:'Export CBOM Reports to Excel', stepStatus} pushed via fastapi_router.py's notify_skill_progress()",
+        "The frontend separately polls duck_db_api.py's GET /api/bom/export/{rfq_id} after this tool's resume call returns, to discover the generated filename and show a download link/button"
+      ],
+      "database_updates": [
+        "file_metadata_db.rfq_process_tracking.rfq_process_stage incremented by fastapi_router.py on success -- since this is the last skill, this marks the RFQ's Standard_BOM_Flow run as fully complete"
+      ],
+      "alerts": [
+        "PostHog report_export_failed event fired on failure, categorized via analytics_events.classify_error()"
+      ]
+    }
+  },
+  "srim_runtime_definition": {
+    "orchestration": {
+      "router": "Dify_Dynamic_Master_Router",
+      "trigger": "HTTP_POST_Payload_plus_Variables (POST /tool/execute)"
+    },
+    "execution": {
+      "engine": "FastMCP_Execution_Engine (reporting_module/mcp_server.py, port 8005)"
+    },
+    "gateway": {
+      "route_via": "MCP_Jungle_Gateway_Reverse_Proxy"
+    },
+    "persistence": {
+      "database": "DuckDB, read-only -- cbom.duckdb and input_db.duckdb; no DuckDB writes at all (this tool only writes a filesystem .xlsx file)",
+      "table": "Reads cbom_db.cbom, input_db.scrub_bom_items, input_db.quote_win, input_db.volume; writes no database table",
+      "action": "database.connect()'s multi-catalog DuckDB connection (read-only usage here), wrapped in db.duckdb_file_lock() at the MCP-server layer even though this specific tool doesn't write to DuckDB, for consistency with the other tools sharing the same connection pattern"
+    },
+    "audit": {
+      "telemetry": "PostHog_Analytics_Events (report_export_generated / report_export_failed) -- no logging_utils.logger call independently confirmed for this specific function in this pass"
+    },
+    "ui": {
+      "target": "SRIM_UI_Canvas (accomplish-ui)",
+      "method": "SSE push via rfq:skill-progress, plus a separate polled read (GET /api/bom/export/{rfq_id} on duck_db_api.py, port 3010) for the download link"
+    }
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfq_id"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "rfq_id": {
+          "type": "string"
+        },
+        "workbook_name": {
+          "type": "string"
+        },
+        "workbook_path": {
+          "type": "string"
+        },
+        "worksheet_count": {
+          "type": "integer"
+        },
+        "worksheet_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "execution_time_seconds": {
+          "type": "number"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rfq_id"
+      ]
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:TO_BE_COMPUTED_ON_SAVE",
+    "lifecycle": {
+      "state": "APPROVED",
+      "approval_required_for_change": true,
+      "immutable_after_approval": true
+    },
+    "versioning": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0
+    }
+  }
+}
