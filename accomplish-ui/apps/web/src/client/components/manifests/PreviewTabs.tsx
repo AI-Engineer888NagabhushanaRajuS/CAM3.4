@@ -31,12 +31,21 @@ export function PreviewTabs({ kind, text, subSkills, json, onJump }: Props) {
   const tabs: [Tab, string][] = [['json', 'JSON'], ['generated', 'Generated tool'], ['lint', `Lint (${preview.lint ? findings.length : '...'})`]];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" aria-label="Editor views" className="flex gap-1 border-b border-border px-2 pt-1">
+      <div
+        role="tablist" aria-label="Editor views" className="flex gap-1 border-b border-border px-2 pt-1"
+        onKeyDown={(e) => { // ARIA tabs: arrows move along the tabs (Tab leaves the list), Home/End jump
+          const i = tabs.findIndex(([id]) => id === tab);
+          const j = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i + tabs.length - 1) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+          if (j < 0) return;
+          e.preventDefault(); setTab(tabs[j][0]);
+          document.getElementById(`tab-${tabs[j][0]}`)?.focus();
+        }}
+      >
         {tabs.map(([id, label]) => (
           <button
-            key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`}
+            key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
-            className={`min-h-7 rounded-t-md px-3 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === id ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:bg-accent'}`}
+            className={`min-h-7 px-3 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === id ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:bg-accent'}`}
           >
             {label}{id === 'lint' && errors > 0 && <span className="ml-1 text-destructive">{errors} error{errors === 1 ? '' : 's'}</span>}
           </button>

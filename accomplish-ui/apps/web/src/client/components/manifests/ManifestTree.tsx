@@ -87,8 +87,8 @@ export function ManifestTree({ tree, selectedPath, onSelect }: Props) {
             ) : <span className="w-5 shrink-0" aria-hidden="true" />}
             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate" title={node.label}>{node.label}</span>
-            {node.detail && <span className="shrink-0 text-[11px] text-muted-foreground">{node.detail}</span>}
-            {node.version && <span className="shrink-0 font-mono text-[11px] text-muted-foreground">v{node.version}</span>}
+            {node.detail && <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">{node.detail}</span>}
+            {node.version && <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground sm:inline">v{node.version}</span>}
             {node.status && <StatusBadge status={node.status} />}
             {node.kind === 'file' && !node.status && node.path && (
               <LockSimple className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="read-only" />

@@ -76,17 +76,18 @@ export function SettingsDialog({
         </DialogHeader>
 
         <LayoutGroup id="srim-settings-navigation">
-        <nav className="w-48 shrink-0 border-r border-border bg-muted/30 p-3 flex flex-col h-full">
+        <nav className="w-14 sm:w-48 shrink-0 border-r border-border bg-muted/30 p-2 sm:p-3 flex flex-col h-full">
           <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0">
-            <div className="px-3 py-2 mb-1 flex items-center gap-2">
+            <div className="hidden sm:flex px-3 py-2 mb-1 items-center gap-2">
               <BrandMark className="text-sm" />
             </div>
             {SETTINGS_TABS.filter((tab) => (tab.id !== 'users' && tab.id !== 'currencies') || isAdmin()).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => s.setActiveTab(tab.id)}
+                title={t(tab.labelKey)}
                 className={cn(
-                  'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left',
+                  'relative flex items-center justify-center sm:justify-start gap-2.5 rounded-lg px-2 sm:px-3 py-2 text-sm font-medium transition-colors text-left',
                   s.activeTab === tab.id
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
@@ -97,7 +98,7 @@ export function SettingsDialog({
                 )}
                 <span className="relative z-10 flex items-center gap-2.5">
                   <tab.icon className="h-4 w-4 shrink-0" />
-                  {t(tab.labelKey)}
+                  <span className="hidden sm:inline">{t(tab.labelKey)}</span>
                 </span>
                 </button>
             ))}
@@ -105,24 +106,25 @@ export function SettingsDialog({
           <div className="pt-2 border-t border-border shrink-0">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Sign out"
+              className="flex items-center justify-center sm:justify-start gap-2.5 w-full rounded-lg px-2 sm:px-3 py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <SignOut className="h-4 w-4 shrink-0" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </nav>
         </LayoutGroup>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <div className="flex items-center justify-between px-4 sm:px-6 pt-5 pb-3">
             <h3 className="text-sm font-semibold text-foreground">
               {SETTINGS_TABS.find((tab) => tab.id === s.activeTab)?.labelKey &&
                 t(SETTINGS_TABS.find((tab) => tab.id === s.activeTab)!.labelKey)}
             </h3>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
             <div className="space-y-6">
               <AnimatePresence mode="wait" initial={false}>
               <motion.div

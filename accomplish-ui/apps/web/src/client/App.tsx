@@ -61,6 +61,7 @@ import type { RfqFileVersion } from './components/rfq/RfqVersionSelectModal';
 import { RfqExecutionCard } from './components/rfq/RfqExecutionCard';
 import { RfqProgressTimeline } from './components/rfq/RfqProgressTimeline';
 import { ChangesPanel } from './components/rfq/ChangesPanel';
+import { RunHistory, RightViewToggle, type RightView } from './components/rfq/RunHistory';
 import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
@@ -410,6 +411,10 @@ export function App() {
       setExportStatus(null);
     }
   }, []);
+
+  // Right pane: the live workflow, or the RFQ's run history (SPEC-021). Back to the workflow whenever another RFQ opens.
+  const [rightView, setRightView] = useState<RightView>('workflow');
+  useEffect(() => { setRightView('workflow'); }, [customRfqId]);
 
   // Resumes an existing RFQ: jump the UI to its live process stage, restore
   // the right panel's progress log from DB (rfq.getSkillHistory -- this is
@@ -1521,15 +1526,20 @@ export function App() {
                   </h2>
                   <p className="truncate text-xs text-muted-foreground">Real-time results and artifacts</p>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {WORKFLOW_STAGES.find((s) => s.id === currentWorkflowStage)?.name ?? currentWorkflowStage}
-                </span>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  {customRfqId.trim() && <RightViewToggle view={rightView} onChange={setRightView} />}
+                  <span className="text-xs text-muted-foreground">
+                    {WORKFLOW_STAGES.find((s) => s.id === currentWorkflowStage)?.name ?? currentWorkflowStage}
+                  </span>
+                </div>
               </div>
             )}
 
             {/* Dynamic render area tracking layout sequence state switches or grid injections */}
             <div className="srim-panel-body flex-1 min-h-0 w-full rounded-xl border border-border/70 bg-background/70 overflow-hidden shadow-inner">
-              {hitlContext ? (
+              {rightView === 'history' && !hitlContext && customRfqId.trim() ? (
+                <RunHistory rfqId={customRfqId.trim()} onRerun={(id) => resumeRfq(id, { start: true })} />
+              ) : hitlContext ? (
                 /* ✅ Directly pass the context data down through explicit component props */
                 // key forces a full unmount/remount whenever the review session
                 // itself changes (new rfqId or new hitl type/stage) -- without

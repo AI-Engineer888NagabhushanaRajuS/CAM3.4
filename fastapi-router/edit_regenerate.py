@@ -54,6 +54,11 @@ VOLATILE_SHEET = "Manifest"
 VOLATILE_LABELS = ("Workbook", "Generated (UTC)")
 IGNORED_NOTE = f"{VOLATILE_SHEET} sheet: value cells of rows labelled {', '.join(VOLATILE_LABELS)}"
 
+# Sheets that list items in an order the exporter does not fix (the same rows come out shuffled on every export, with
+# a running "Sl.no" in column A). They are compared as sets of rows: sorted within each numbered block, serials renumbered.
+ORDER_FREE_SHEETS = ("Missing Notes",)
+ORDER_FREE_NOTE = f"{', '.join(ORDER_FREE_SHEETS)} sheet: compared as a set of rows (row order and serial numbers are not meaningful)"
+
 
 class EditError(Exception):
     def __init__(self, status: int, message: str):
@@ -200,6 +205,26 @@ def _norm(value):
     return None if value == "" else value
 
 
+def _canonical_rows(rows: list) -> list:
+    """Each run of numbered rows (integer in column A) sorted by the rest of the row and renumbered 1..n; headers and
+    section titles (anything else in column A) stay where they are and end the run."""
+    out, block = [], []
+
+    def flush():
+        block.sort(key=lambda p: repr([str(x) for x in p[0][1:]]))
+        out.extend(((i,) + tuple(v[1:]), (i,) + tuple(f[1:])) for i, (v, f) in enumerate(block, 1))
+        block.clear()
+
+    for row_v, row_f in rows:
+        if row_v and isinstance(row_v[0], int) and not isinstance(row_v[0], bool):
+            block.append((tuple(row_v), tuple(row_f)))
+        else:
+            flush()
+            out.append((row_v, row_f))
+    flush()
+    return out
+
+
 def _load_cells(path: str) -> dict:
     """{sheet: {(row, col): (stored value, is_formula)}} for every non-empty or formula cell."""
     wv = openpyxl.load_workbook(path, data_only=True, read_only=True)
@@ -209,6 +234,8 @@ def _load_cells(path: str) -> dict:
         for name in wv.sheetnames:
             cells = {}
             rows = zip_longest(wv[name].iter_rows(values_only=True), wf[name].iter_rows(values_only=True), fillvalue=())
+            if name in ORDER_FREE_SHEETS:
+                rows = _canonical_rows(list(rows))
             for r, (row_v, row_f) in enumerate(rows, 1):
                 for c, (v, f) in enumerate(zip_longest(row_v, row_f), 1):
                     is_formula = isinstance(f, str) and f.startswith("=")
@@ -276,7 +303,7 @@ def diff_workbooks(before_path: str, after_path: str) -> dict:
                 entry["note"] = "sheet no longer exists in this version"
             sheets.append(entry)
             total += changed
-    return {"total_changed_cells": total, "sheets": sheets, "ignored": [IGNORED_NOTE],
+    return {"total_changed_cells": total, "sheets": sheets, "ignored": [IGNORED_NOTE, ORDER_FREE_NOTE],
             "uncached_formula_cells_skipped": uncached}
 
 

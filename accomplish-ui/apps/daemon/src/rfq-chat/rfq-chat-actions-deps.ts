@@ -142,7 +142,9 @@ export function realActionDeps(): ActionDeps {
       const headers = await authHeader(rfqId); // a failed mint means nothing was sent
       let res: Response;
       try {
-        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers, signal: AbortSignal.timeout(60000) });
+        // X-CAM-User is what the run history shows as "started by" (the token carries no user).
+        const who = encodeURIComponent('CAM assistant (confirmed in chat)');
+        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers: { ...headers, 'X-CAM-User': who }, signal: AbortSignal.timeout(60000) });
       } catch (err) {
         // The server may have started the run before the connection dropped.
         throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);

@@ -6,7 +6,7 @@ import json
 import zipfile
 import requests
 from typing import Optional
-from fastapi import Depends, FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
@@ -14,6 +14,7 @@ import psycopg2
 import db
 import auth
 import rfq_memory_client
+import run_history
 
 # FDE Staging Pipeline -- off by default; production's own process should
 # never set this. See docs/MCP/... / the FDE plan for why this is one
@@ -68,7 +69,7 @@ def get_db_connection():
 _GUARD_SCHEMA_LOCK = threading.Lock()
 
 
-def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: str | None = None):
+def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: str | None = None, started_by: str | None = None):
     """Triggers workflow and logs the attempt to DB.
 
     When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify. `resume` is the UI's
@@ -110,9 +111,9 @@ def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: s
                 _sys.path.insert(0, _worker_dir)
             import client as temporal_client
             if resume:
-                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id))
+                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id, None, started_by))
             else:
-                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id, profile)), "STARTED"
+                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id, profile, started_by)), "STARTED"
             print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} {outcome} for {rfq_id}")
             dify_status = "TRIGGERED"
             dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id,
@@ -268,15 +269,42 @@ async def process_file_upload(rfq_id: str, file_obj: UploadFile, file_label: str
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
 
+def _who(header: Optional[str]) -> Optional[str]:
+    """Who clicked, as the app reports it (X-CAM-User, URL-encoded). Not an identity: the JWT carries only rfq_id."""
+    if not isinstance(header, str) or not header:  # (a direct call of the endpoint passes the Header() default)
+        return None
+    from urllib.parse import unquote
+    name = "".join(c for c in unquote(header) if c.isprintable()).strip()
+    return name[:80] or None
+
+
+@app.get("/api/rfq/{rfq_id}/runs")
+async def rfq_runs(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """Every pipeline run of this RFQ from Temporal, newest first, failures explained (SPEC-021)."""
+    from temporalio.client import Client
+    import sys as _sys, pathlib as _pathlib
+    _worker_dir = str(_pathlib.Path(__file__).parent.parent / "temporal_worker")
+    if _worker_dir not in _sys.path:
+        _sys.path.insert(0, _worker_dir)
+    import client as temporal_client
+    try:
+        c = await Client.connect(temporal_client.config.TEMPORAL_HOST, namespace=temporal_client.config.NAMESPACE)
+        return {"rfq_id": rfq_id, "runs": await run_history.list_runs(rfq_id, c)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not read the run history from Temporal: {e}")
+
+
 @app.get("/api/dify/start/{rfq_id}")
-async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_token)):
+async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_token), x_cam_user: Optional[str] = Header(None)):
     """GET endpoint to manually or externally trigger the Dify workflow for a given RFQ ID."""
     rfq_id = rfq_id.strip()
     if not rfq_id:
         raise HTTPException(status_code=400, detail="rfq_id cannot be empty.")
 
     # Off the event loop: the trigger calls asyncio.run() (Temporal) and blocks on requests (Dify).
-    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True)
+    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True, None, _who(x_cam_user))
 
     return {
         "success": dify_status in ["TRIGGERED", "SUCCESS"],
@@ -300,6 +328,7 @@ async def upload_rfq_file(
     # Optional routing profile for this run; omitted = CAM_DEFAULT_PROFILE (Standard_BOM_Flow unless set).
     profile: Optional[str] = Form(None),
     token: dict = Depends(auth.verify_token_form),
+    x_cam_user: Optional[str] = Header(None),
 ):
     conn = None
     try:
@@ -381,7 +410,7 @@ async def upload_rfq_file(
 
         # Trigger Dify workflow
         # Off the event loop: see start_dify_workflow.
-        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, False, profile)
+        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, False, profile, _who(x_cam_user))
 
         return {
             "success": True,

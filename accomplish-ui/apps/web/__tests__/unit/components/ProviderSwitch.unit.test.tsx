@@ -54,6 +54,37 @@ describe('Local / OpenRouter switch', () => {
     expect(onChange).toHaveBeenCalledWith('local');
   });
 
+  it('is one tab stop (the checked option) and arrows move focus and selection, wrapping around', async () => {
+    const onChange = vi.fn();
+    render(<ProviderSwitch mode="auto" onChange={onChange} />);
+    expect(screen.getByRole('radio', { name: /Auto/ }).tabIndex).toBe(0);
+    expect(screen.getByRole('radio', { name: /Local/ }).tabIndex).toBe(-1);
+    const auto = screen.getByRole('radio', { name: /Auto/ });
+    auto.focus();
+    fireEvent.keyDown(auto, { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('local');
+    expect(document.activeElement).toBe(screen.getByRole('radio', { name: /Local/ }));
+    fireEvent.keyDown(auto, { key: 'ArrowLeft' }); // from Local back to Auto
+    expect(onChange).toHaveBeenLastCalledWith('auto');
+    fireEvent.keyDown(screen.getByRole('radio', { name: /Auto/ }), { key: 'ArrowLeft' }); // wraps to OpenRouter
+    expect(onChange).toHaveBeenLastCalledWith('openrouter');
+  });
+
+  it('arrowing onto OpenRouter without a key only focuses it: Settings opens on Enter/click, not on focus', async () => {
+    fetchMock.mockImplementation(async () => answer(info(false)));
+    const onChange = vi.fn();
+    const onOpenSettings = vi.fn();
+    render(<ProviderSwitch mode="local" onChange={onChange} onOpenSettings={onOpenSettings} />);
+    const radio = screen.getByRole('radio', { name: /OpenRouter/ });
+    await waitFor(() => expect(radio.textContent).toContain('no API key saved'));
+    const local = screen.getByRole('radio', { name: /Local/ });
+    local.focus();
+    fireEvent.keyDown(local, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(radio);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onOpenSettings).not.toHaveBeenCalled();
+  });
+
   it('tells the user that OpenRouter sends the RFQ rows off the machine', async () => {
     render(<ProviderSwitch mode="auto" onChange={() => {}} />);
     await waitFor(() => expect(screen.getByRole('radio', { name: /OpenRouter/ }).getAttribute('title')).toContain('sent to OpenRouter'));

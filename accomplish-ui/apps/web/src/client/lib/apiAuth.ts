@@ -12,6 +12,7 @@
  */
 
 import { PYTHON_BRIDGE_URL } from '../config/endpoints';
+import { getSession } from './session';
 
 async function getRfqToken(rfqId: string): Promise<string> {
   const res = await fetch(`${PYTHON_BRIDGE_URL}/auth/token`, {
@@ -33,9 +34,13 @@ async function getRfqToken(rfqId: string): Promise<string> {
  */
 export async function authFetch(url: string, rfqId: string, options: RequestInit = {}): Promise<Response> {
   const token = await getRfqToken(rfqId);
+  // The signed-in name rides along so a run's History can say who started it. The token itself carries no user, so
+  // this is the app's own report, not an audit identity.
+  const name = getSession()?.user.name;
   return fetch(url, {
     ...options,
     headers: {
+      ...(name ? { 'X-CAM-User': encodeURIComponent(name) } : {}),
       ...(options.headers ?? {}),
       Authorization: `Bearer ${token}`,
     },

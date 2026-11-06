@@ -173,6 +173,35 @@ def test_diff_counts_edit_and_dependent_cell_in_other_sheet_and_ignores_volatile
     assert er.IGNORED_NOTE in diff["ignored"]
 
 
+def _book_with_notes(path, rows):
+    make_book(path, 1.0, 10.0, "2026-01-01T00:00:00")
+    wb = openpyxl.load_workbook(path)
+    ws = wb.create_sheet("Missing Notes")
+    ws.append(["1. Uncosted Parts"])
+    ws.append(["Sl.no", "Part Number", "Remarks"])
+    for i, (part, note) in enumerate(rows, 1):
+        ws.append([i, part, note])
+    ws.append([None])
+    ws.append(["2. Other"])
+    ws.append(["Sl.no", "Part Number"])
+    ws.append([1, "ZZ"])
+    wb.save(path)
+    return str(path)
+
+
+def test_diff_compares_the_unordered_missing_notes_sheet_as_a_set_of_rows(tmp_path, er):
+    rows = [("A1", "x"), ("B2", None), ("C3", "y")]
+    b = _book_with_notes(tmp_path / "b.xlsx", rows)
+    shuffled = _book_with_notes(tmp_path / "s.xlsx", [rows[2], rows[0], rows[1]])  # same rows, other order and serials
+    assert er.diff_workbooks(b, shuffled)["total_changed_cells"] == 0
+    changed = _book_with_notes(tmp_path / "c.xlsx", [rows[2], ("B2", "now noted"), rows[0]])
+    d = er.diff_workbooks(b, changed)
+    assert [s["sheet"] for s in d["sheets"]] == ["Missing Notes"]                    # a real change is still found
+    assert d["total_changed_cells"] == 1
+    assert d["sheets"][0]["examples"] == [{"cell": "C4", "before": None, "after": "now noted"}]
+    assert er.ORDER_FREE_NOTE in d["ignored"]
+
+
 def test_diff_examples_capped_per_sheet_and_uncached_formulas_not_counted(tmp_path, er):
     b = make_book(tmp_path / "b.xlsx", 1.0, 10.0, "t", extra_rows=25)
     a = make_book(tmp_path / "a.xlsx", 5.0, 10.0, "t", extra_rows=25)

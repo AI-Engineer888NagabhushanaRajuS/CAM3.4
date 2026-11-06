@@ -87,7 +87,7 @@ export function SecurityTab() {
 
   return (
     <div className="space-y-4" data-testid="security-tab">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">Attached files are released only when both engines clear them. Last 30 days; names and verdicts only, never file contents.</p>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           <ArrowClockwise className={cn('mr-1.5 h-4 w-4', loading && 'animate-spin motion-reduce:animate-none')} aria-hidden />Refresh

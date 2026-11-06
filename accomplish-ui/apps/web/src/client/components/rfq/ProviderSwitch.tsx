@@ -60,14 +60,27 @@ export function ProviderSwitch({ mode, onChange, onOpenSettings }: ProviderSwitc
     onChange(m);
   };
 
+  // Radio-group keys: arrows move focus (and select) along the options; Tab enters only the checked one.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const radios = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+    const at = radios.indexOf(document.activeElement as HTMLButtonElement);
+    const j = (Math.max(at, 0) + step + OPTIONS.length) % OPTIONS.length;
+    radios[j]?.focus();
+    if (!(OPTIONS[j].mode === 'openrouter' && noKey)) onChange(OPTIONS[j].mode); // without a key, focusing it must not pop Settings open: Enter/Space does
+  };
+
   return (
-    <div role="radiogroup" aria-label="Model provider" className="inline-flex items-center rounded-full border border-border bg-muted/40 p-0.5">
+    <div role="radiogroup" aria-label="Model provider" onKeyDown={onKeyDown} className="inline-flex items-center rounded-full border border-border bg-muted/40 p-0.5">
       {OPTIONS.map(({ mode: m, label, Icon }) => (
         <button
           key={m}
           type="button"
           role="radio"
           aria-checked={mode === m}
+          tabIndex={mode === m ? 0 : -1}
           title={hint(m)}
           onClick={() => pick(m)}
           className={cn(

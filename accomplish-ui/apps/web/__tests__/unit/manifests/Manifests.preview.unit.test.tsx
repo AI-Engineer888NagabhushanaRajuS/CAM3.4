@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 
 const editorSpies = vi.hoisted(() => ({ jumpTo: vi.fn(), format: vi.fn() }));
 
-vi.mock('@/lib/session', () => ({ getSessionToken: () => 'tok', clearSession: vi.fn() }));
+vi.mock('@/lib/session', () => ({ getSessionToken: () => 'tok', getSession: () => ({ token: 'tok', user: { name: 'Tester', email: 't@x', role: 'admin' } }), clearSession: vi.fn() }));
 vi.mock('@/config/endpoints', () => ({ backendUrl: (p: string) => `http://daemon${p}`, PYTHON_BRIDGE_URL: 'http://bridge' }));
 vi.mock('@/components/ui/ThemeToggle', () => ({ ThemeToggle: () => null }));
 vi.mock('@/components/manifests/ManifestEditor', async () => {
