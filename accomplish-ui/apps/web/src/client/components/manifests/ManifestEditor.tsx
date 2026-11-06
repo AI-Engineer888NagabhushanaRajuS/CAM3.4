@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import { modelPath, monaco, registerSchema } from './monacoSetup';
+import { useMonacoTheme } from './useMonacoTheme';
 
 export interface EditorHandle {
   jumpTo: (line: number, column: number) => void;
@@ -18,19 +19,11 @@ interface Props {
   onSave: () => void;
 }
 
-const isDark = () => document.documentElement.classList.contains('dark');
-
 export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestEditor({ path, kind, language = 'json', schema, value, readOnly, onChange, onSave }, ref) {
   const editor = useRef<Parameters<OnMount>[0] | null>(null);
   const save = useRef(onSave);
   save.current = onSave;
-  const [dark, setDark] = useState(isDark);
-
-  useEffect(() => {
-    const obs = new MutationObserver(() => setDark(isDark()));
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => obs.disconnect();
-  }, []);
+  const theme = useMonacoTheme();
 
   useEffect(() => { if (schema) registerSchema(path, kind, schema); }, [path, kind, schema]);
 
@@ -51,7 +44,7 @@ export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestE
       language={language}
       path={modelPath(path)}
       value={value}
-      theme={dark ? 'vs-dark' : 'light'}
+      theme={theme}
       loading={<p className="p-4 text-sm text-muted-foreground">Loading editor...</p>}
       onChange={(v) => onChange(v ?? '')}
       onMount={(ed) => {

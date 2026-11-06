@@ -77,6 +77,10 @@ export interface Attachment {
   attachmentId: string;
   name: string;
   sha256: string | null;
+  /** What the bridge found IN the released file (SPEC-022): scrub_bom, bom, volume, quotewin, document or unknown. Absent on older bridges. */
+  role?: string;
+  /** Plain-words reasons the run would reject this file (for example no SCRUB BOM sheet). */
+  problems?: string[];
 }
 
 export interface ScanVerdict {

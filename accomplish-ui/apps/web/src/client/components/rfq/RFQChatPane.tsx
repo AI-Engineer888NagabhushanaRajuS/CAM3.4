@@ -219,6 +219,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
           alreadyAttached={context.map((a) => a.name)}
           onClose={() => setPicked(null)}
           onReleased={() => void refresh()}
+          onCreateRfq={() => void chat.send('create an RFQ from these files')}
         />
       )}
 

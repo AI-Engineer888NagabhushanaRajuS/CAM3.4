@@ -79,8 +79,10 @@ def test_clean_workbook_is_released_listed_cited_and_deleted(api, tmp_path):
     assert audit[-1]["decision"] == "released" and audit[-1]["sha256"] == r["sha256"]
 
     listed = client(api).get(f"/api/rfq/{RFQ}/attachments", headers=auth(api)).json()
-    assert listed == [{"attachment_id": r["attachment_id"], "name": "CBOM.xlsx", "size": len(cbom),
-                       "sha256": r["sha256"], "released_at": audit[-1]["time"]}]
+    assert r["role"] == "bom" and "SCRUB BOM" in r["problems"][0]   # SPEC-022: read after release; this fixture is a plain BOM layout
+    assert [{k: v for k, v in row.items() if not k.startswith("role") and k not in ("problems", "sheets")} for row in listed] == [
+        {"attachment_id": r["attachment_id"], "name": "CBOM.xlsx", "size": len(cbom), "sha256": r["sha256"], "released_at": audit[-1]["time"]}]
+    assert listed[0]["role"] == r["role"] and listed[0]["sheets"] == r["sheets"]
 
     ev = client(api).post(f"/api/rfq/{RFQ}/chat/evidence", headers=auth(api),
                           json={"question": "What does golden part UBR0123 cost?"}).json()

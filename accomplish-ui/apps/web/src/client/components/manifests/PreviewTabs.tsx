@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ManifestKind, SubSkill } from '@/lib/manifestsApi';
+import { ChangesView } from './ChangesView';
 import { GeneratedView } from './GeneratedView';
 import { LintList } from './LintList';
 import { usePreview } from './usePreview';
 
-type Tab = 'json' | 'generated' | 'lint';
+type Tab = 'json' | 'generated' | 'lint' | 'changes';
 interface Props {
   kind: ManifestKind;
   text: string;
@@ -12,14 +13,18 @@ interface Props {
   /** The JSON editor + validation list; stays mounted while another tab is shown. */
   json: ReactNode;
   onJump: (path: string) => void;
+  /** Manifest path and its text on disk, for the Changes tab (SPEC-022). */
+  path: string;
+  saved: string;
 }
 
-/** JSON | Generated tool | Lint, all driven by the live editor text (bridge preview, SPEC-020). */
-export function PreviewTabs({ kind, text, subSkills, json, onJump }: Props) {
+/** JSON | Generated tool | Lint | Changes. The first three are driven by the live editor text (bridge preview, SPEC-020); the agent manifest has no generated tool, so it gets JSON | Changes. */
+export function PreviewTabs({ kind, text, subSkills, json, onJump, path, saved }: Props) {
+  const previewable = kind !== 'agent';
   const [tab, setTab] = useState<Tab>('json');
   const [subSkillId, setSubSkillId] = useState<string | undefined>();
   const [pending, setPending] = useState<string | null>(null);
-  const preview = usePreview(text, kind, subSkillId);
+  const preview = usePreview(text, kind, subSkillId, previewable);
   const findings = preview.lint?.findings ?? [];
   const errors = findings.filter((f) => f.level === 'error').length;
 
@@ -28,7 +33,10 @@ export function PreviewTabs({ kind, text, subSkills, json, onJump }: Props) {
     if (tab === 'json' && pending !== null) { onJump(pending); setPending(null); }
   }, [tab, pending, onJump]);
 
-  const tabs: [Tab, string][] = [['json', 'JSON'], ['generated', 'Generated tool'], ['lint', `Lint (${preview.lint ? findings.length : '...'})`]];
+  const dirty = text !== saved;
+  const tabs: [Tab, string][] = previewable
+    ? [['json', 'JSON'], ['generated', 'Generated tool'], ['lint', `Lint (${preview.lint ? findings.length : '...'})`], ['changes', dirty ? 'Changes •' : 'Changes']]
+    : [['json', 'JSON'], ['changes', dirty ? 'Changes •' : 'Changes']];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
@@ -55,6 +63,11 @@ export function PreviewTabs({ kind, text, subSkills, json, onJump }: Props) {
       {tab === 'generated' && (
         <div role="tabpanel" id="panel-generated" aria-labelledby="tab-generated" className="min-h-0 flex-1">
           <GeneratedView preview={preview} subSkills={subSkills} subSkillId={subSkillId} onSubSkill={setSubSkillId} />
+        </div>
+      )}
+      {tab === 'changes' && (
+        <div role="tabpanel" id="panel-changes" aria-labelledby="tab-changes" className="flex min-h-0 flex-1 flex-col">
+          <ChangesView path={path} current={text} saved={saved} />
         </div>
       )}
       {tab === 'lint' && (

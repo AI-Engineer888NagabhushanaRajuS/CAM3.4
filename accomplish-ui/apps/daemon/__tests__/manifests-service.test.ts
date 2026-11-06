@@ -205,3 +205,39 @@ describe('manifest save', () => {
     expect(readFileSync(join(work, SKILL), 'utf8')).toBe(f.text);
   });
 });
+
+describe('SPEC-022 history of earlier saved versions', () => {
+  const hist = (path: string) => call('GET', `/api/manifests/history?path=${encodeURIComponent(path)}`);
+  const histFile = (path: string, stamp: string) => call('GET', `/api/manifests/history/file?path=${encodeURIComponent(path)}&stamp=${encodeURIComponent(stamp)}`);
+
+  it('is empty before any save; after two saves lists both, newest first, and returns the exact earlier bytes', async () => {
+    expect((await hist(SKILL)).json).toEqual({ path: SKILL, versions: [] });
+    const original = readFileSync(join(work, SKILL), 'utf8');
+    const f1 = (await getFile(SKILL)).json;
+    const s1 = (await put(SKILL, f1.text.replace('Input Standardization', 'Input Standardization A'), f1.hash)).json;
+    await new Promise((r) => setTimeout(r, 15)); // the stamp has millisecond resolution
+    await put(SKILL, s1.text.replace('Input Standardization A', 'Input Standardization AB'), s1.hash);
+    const list = (await hist(SKILL)).json.versions as Array<{ stamp: string; savedAt: string }>;
+    expect(list).toHaveLength(2);
+    expect(list[0].stamp > list[1].stamp).toBe(true);
+    expect(list[0].savedAt).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+    const oldest = (await histFile(SKILL, list[1].stamp)).json;
+    expect(oldest.text).toBe(original); // the history copy is the file as it was before the first save
+    expect(oldest.hash).toBe(hashText(original));
+    expect((await histFile(SKILL, list[0].stamp)).json.text).toBe(s1.text);
+  });
+
+  it('builds the file name itself: only a listed stamp of this manifest is readable, nothing else is', async () => {
+    const f = (await getFile(SKILL)).json;
+    await put(SKILL, f.text.replace('Input Standardization', 'Input Standardization A'), f.hash);
+    const [{ stamp }] = (await hist(SKILL)).json.versions;
+    for (const bad of ['../../secret', `${stamp}.json`, '20260101T000000000Z', '', 'x'.repeat(200), `${stamp}/../..`]) {
+      expect((await histFile(SKILL, bad)).status).toBe(404);
+    }
+    // another manifest's saved copy is not reachable through this manifest's path
+    expect((await histFile('skills/skill_02_feature_extraction.json', stamp)).status).toBe(404);
+    expect((await hist('../etc/passwd')).status).toBe(403);
+    expect((await hist('skills/.history/x.json')).status).toBe(403);
+    expect((await call('GET', `/api/manifests/history?path=${encodeURIComponent(SKILL)}`, { as: null })).status).toBe(401);
+  });
+});

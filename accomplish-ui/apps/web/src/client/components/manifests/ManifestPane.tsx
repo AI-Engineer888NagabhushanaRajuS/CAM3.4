@@ -100,9 +100,7 @@ export function ManifestPane({ m, path, subSkills = [] }: { m: State; path: stri
         </p>
       )}
 
-      {file.kind === 'agent' ? json : (
-        <PreviewTabs key={file.path} kind={file.kind} text={m.text} subSkills={subSkills} json={json} onJump={jump} />
-      )}
+      <PreviewTabs key={file.path} kind={file.kind} text={m.text} subSkills={subSkills} json={json} onJump={jump} path={file.path} saved={file.text} />
     </div>
   );
 }

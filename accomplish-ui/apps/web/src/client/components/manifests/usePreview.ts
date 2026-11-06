@@ -11,11 +11,13 @@ export interface Preview {
 export const DEBOUNCE_MS = 600;
 
 /** Lint + generated tool for the editor text, refreshed DEBOUNCE_MS after the last change; stale requests are aborted. */
-export function usePreview(text: string, kind: ManifestKind, subSkillId: string | undefined): Preview {
+/** `enabled` false (the agent manifest has no generated tool) makes no request. */
+export function usePreview(text: string, kind: ManifestKind, subSkillId: string | undefined, enabled = true): Preview {
   const [p, setP] = useState<Preview>({ state: 'loading', lint: null, code: null, message: '' });
   const first = useRef(true);
 
   useEffect(() => {
+    if (!enabled) return;
     try { JSON.parse(text); } catch (e) {
       setP((o) => ({ ...o, state: 'invalid', message: e instanceof Error ? e.message : 'invalid JSON' }));
       return;
@@ -34,7 +36,7 @@ export function usePreview(text: string, kind: ManifestKind, subSkillId: string 
         });
     }, delay);
     return () => { clearTimeout(timer); ctl.abort(); };
-  }, [text, kind, subSkillId]);
+  }, [text, kind, subSkillId, enabled]);
 
   return p;
 }

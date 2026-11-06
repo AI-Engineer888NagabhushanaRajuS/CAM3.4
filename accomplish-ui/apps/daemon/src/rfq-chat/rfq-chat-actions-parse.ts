@@ -93,6 +93,31 @@ export async function resolveFiles(
   if (out.blocked.length > 0) {
     return out;
   }
+  // SPEC-022: what the bridge read INSIDE the released files wins over their names. The pipeline's first step reads only a
+  // workbook with a SCRUB BOM sheet, so a plain BOM is refused here, with the reason, instead of failing a minute later.
+  const byRole = (role: string) => found.filter((f) => f.att.role === role);
+  const scrubs = byRole('scrub_bom');
+  if (scrubs.length > 1) {
+    out.missing.push(`Which of ${scrubs.map((f) => f.att.name).join(' and ')} is the BOM? Each has a SCRUB BOM sheet; only one can be used.`);
+    return out;
+  }
+  if (scrubs.length === 0 && byRole('bom').length > 0) {
+    out.missing.push(`${byRole('bom')[0].att.name} cannot be used: ${byRole('bom')[0].att.problems?.[0] ?? 'it has no SCRUB BOM sheet.'}`);
+    return out;
+  }
+  if (scrubs.length === 1) {
+    // /api/rfq/upload still requires a volume file; this step reads the volumes from the workbook's own Settings sheet, so a
+    // separate Volume file is optional and the workbook itself stands in when there is none.
+    const vol = byRole('volume');
+    if (vol.length > 1) {
+      out.missing.push(`Which of ${vol.map((f) => f.att.name).join(' and ')} is the Volume file?`);
+      return out;
+    }
+    for (const [role, f] of [['BOM', scrubs[0]], ['VOLUME', vol[0] ?? scrubs[0]]] as const) {
+      out.files.push({ role, name: f.att.name, attachmentId: f.att.attachmentId, sha256: f.att.sha256, sourceScope: f.scope });
+    }
+    return out;
+  }
   const isVolume = (n: string): boolean => /vol/i.test(n);
   if (found.length === 1) {
     out.missing.push(isVolume(found[0].att.name)

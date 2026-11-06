@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/endpoints', () => ({ PYTHON_BRIDGE_URL: 'http://bridge' }));
 vi.mock('@/lib/apiAuth', () => ({ authFetch: vi.fn() }));
+vi.mock('@uppy/react', async () => import('../helpers/fakeUppyReact'));
 
 const scanFiles = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/rfqAttachments', async (orig) => ({ ...(await orig<typeof import('@/lib/rfqAttachments')>()), scanFiles }));
@@ -28,17 +29,18 @@ beforeEach(() => { scanFiles.mockReset(); }); // not returned: vitest would call
 describe('review: select or reject before anything is sent', () => {
   it('lists what can be sent, selected by default, and what is rejected with the reason', () => {
     open([file('quote.xlsx'), file('terms.pdf'), file('setup.exe')]);
-    expect(screen.getByLabelText('Send quote.xlsx')).toHaveProperty('checked', true);
-    expect(screen.getByLabelText('Send terms.pdf')).toHaveProperty('checked', true);
+    expect(screen.getByLabelText('Remove quote.xlsx')).toBeTruthy(); // a tile per usable file
+    expect(screen.getByLabelText('Remove terms.pdf')).toBeTruthy();
+    expect(screen.queryByLabelText('Remove setup.exe')).toBeNull();
     expect(screen.getByText(/Rejected \(1\)/)).toBeTruthy();
     expect(screen.getByText(/Unsupported type/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Scan 2 files' })).toBeTruthy();
   });
 
-  it('sends only the files that stay ticked', async () => {
+  it('sends only the files that stay on the dashboard', async () => {
     scanFiles.mockResolvedValue({ rfq_id: 'RFQ-00001', engines, results: [result('terms.pdf')] } satisfies ScanResponse);
     open([file('quote.xlsx'), file('terms.pdf')]);
-    fireEvent.click(screen.getByLabelText('Send quote.xlsx'));
+    fireEvent.click(screen.getByLabelText('Remove quote.xlsx'));
     fireEvent.click(screen.getByRole('button', { name: 'Scan 1 file' }));
     await waitFor(() => expect(scanFiles).toHaveBeenCalledTimes(1));
     expect(scanFiles.mock.calls[0][0]).toBe('RFQ-00001');
@@ -47,14 +49,14 @@ describe('review: select or reject before anything is sent', () => {
 
   it('cannot scan with nothing selected', () => {
     open([file('quote.xlsx')]);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }));
     expect((screen.getByRole('button', { name: /^Scan/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('turns a second copy of an attached file away', () => {
     open([file('quote.xlsx')], { alreadyAttached: ['Quote.xlsx'] });
     expect(screen.getByText(/Already in this selection or already attached/)).toBeTruthy();
-    expect(screen.getByText('None of these files can be sent.')).toBeTruthy();
+    expect((screen.getByRole('button', { name: /^Scan/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
@@ -111,5 +113,43 @@ describe('the verdicts of both engines are shown as they are', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toContain('HTTP 503. Nothing was released.');
     expect(screen.getByRole('button', { name: 'Scan 1 file' })).toBeTruthy(); // can try again
+  });
+});
+
+describe('SPEC-022: what the files are, and the next step', () => {
+  const role = (name: string, r: string, label: string, over: Record<string, unknown> = {}) => result(name, { role: r, role_label: label, role_reason: `because ${r}`, problems: [], ...over });
+
+  it('shows the detected role of each released file and enables "Create RFQ from these files" for a BOM workbook', async () => {
+    const onCreateRfq = vi.fn();
+    const onClose = vi.fn();
+    scanFiles.mockResolvedValue({ rfq_id: 'RFQ-00001', engines, results: [role('Centum_Scrub_BOM.xlsx', 'scrub_bom', 'BOM workbook (SCRUB BOM)'), role('Volume_File.xlsx', 'volume', 'Volume file')] } satisfies ScanResponse);
+    open([file('Centum_Scrub_BOM.xlsx'), file('Volume_File.xlsx')], { onCreateRfq, onClose });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan 2 files' }));
+    expect(await screen.findByText('Detected: BOM workbook (SCRUB BOM)')).toBeTruthy();
+    expect(screen.getByText('Detected: Volume file')).toBeTruthy();
+    expect(screen.getByTestId('intake-readiness').textContent).toContain('Centum_Scrub_BOM.xlsx is the BOM workbook and Volume_File.xlsx the volume file');
+    fireEvent.click(screen.getByRole('button', { name: 'Create RFQ from these files' }));
+    expect(onCreateRfq).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('a BOM without a SCRUB BOM sheet is flagged with the reason and offers no Create button', async () => {
+    const problem = "No sheet named SCRUB BOM (sheets: BOM). The first pipeline step would reject this file as invalid input; use the Scrub BOM workbook.";
+    scanFiles.mockResolvedValue({ rfq_id: 'RFQ-00001', engines, results: [role('Centum_BOM.xlsx', 'bom', 'BOM without a SCRUB BOM sheet', { problems: [problem] })] } satisfies ScanResponse);
+    open([file('Centum_BOM.xlsx')], { onCreateRfq: () => {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan 1 file' }));
+    expect(await screen.findByText('Detected: BOM without a SCRUB BOM sheet')).toBeTruthy();
+    expect(screen.getByText(problem)).toBeTruthy();
+    expect(screen.getByTestId('intake-readiness').textContent).toContain('cannot start the pipeline');
+    expect(screen.queryByRole('button', { name: 'Create RFQ from these files' })).toBeNull();
+  });
+
+  it('shows no role line for a file that was not released', async () => {
+    scanFiles.mockResolvedValue({ rfq_id: 'RFQ-00001', engines, results: [result('eicar.txt', { clamav: { verdict: 'threat' }, decision: 'quarantined', attachment_id: null })] } satisfies ScanResponse);
+    open([file('eicar.txt')], { onCreateRfq: () => {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan 1 file' }));
+    await screen.findByText('Scan complete');
+    expect(screen.queryByText(/Detected:/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create RFQ from these files' })).toBeNull();
   });
 });

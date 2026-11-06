@@ -112,6 +112,42 @@ export interface ScanResult {
   reason?: string | null;
   attachment_id: string | null;
   ms?: number;
+  /** What the bridge read INSIDE a released file (SPEC-022); absent for files that were not released and on older bridges. */
+  role?: FileRole;
+  role_label?: string;
+  role_reason?: string;
+  /** Plain-words reasons the pipeline would reject this file. */
+  problems?: string[];
+}
+
+export type FileRole = 'scrub_bom' | 'bom' | 'volume' | 'quotewin' | 'document' | 'unknown';
+
+export interface Readiness {
+  ready: boolean;
+  /** One sentence for the dialog: what will be used, or why nothing can be created yet. */
+  message: string;
+}
+
+/** Whether the released files are enough to create an RFQ, from their recognised roles (SPEC-022). Mirrors the daemon's create_rfq choice. */
+export function intakeReadiness(results: ScanResult[]): Readiness {
+  const released = results.filter((r) => r.decision === 'released');
+  const of = (role: FileRole) => released.filter((r) => r.role === role);
+  const scrub = of('scrub_bom');
+  if (scrub.length > 1) return { ready: false, message: `${scrub.map((r) => r.name).join(' and ')} each have a SCRUB BOM sheet. Say which one is the BOM and I will use that.` };
+  if (scrub.length === 1) {
+    const vol = of('volume');
+    return {
+      ready: vol.length <= 1,
+      message: vol.length > 1 ? `Which of ${vol.map((r) => r.name).join(' and ')} is the volume file?`
+        : `${scrub[0].name} is the BOM workbook${vol.length === 1 ? ` and ${vol[0].name} the volume file` : '; its Settings sheet carries the volumes'}.`,
+    };
+  }
+  const plain = of('bom');
+  if (plain.length > 0) return { ready: false, message: `${plain[0].name} cannot start the pipeline: ${plain[0].problems?.[0] ?? 'it has no SCRUB BOM sheet.'}` };
+  if (of('quotewin').length > 0 && released.every((r) => r.role === 'quotewin' || r.role === 'document')) {
+    return { ready: false, message: 'A QuoteWin file belongs to the ERP & Quoting tools step of an existing RFQ, not to creating one. Attach the BOM workbook to create an RFQ.' };
+  }
+  return { ready: false, message: released.length === 0 ? 'No file was released yet.' : 'None of the released files is a BOM workbook (a workbook with a SCRUB BOM sheet).' };
 }
 
 export interface ScanResponse {

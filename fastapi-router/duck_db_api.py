@@ -33,6 +33,7 @@ from typing import Any, Optional
 from fastapi.middleware.cors import CORSMiddleware
 
 import auth
+import attachment_roles
 import edit_regenerate
 
 # centum intake's reporting_module owns the cbom.duckdb connection pattern
@@ -1473,6 +1474,7 @@ def scan_attachments(rfq_id: str, request: Request, files: list[UploadFile] = Fi
                         os.remove(old_path)
                 shutil.move(qpath, dest)
                 result["attachment_id"] = attachment_id
+                result.update(attachment_roles.classify_file(dest, result["name"]))   # read only now that both engines released it
             _audit(folder, {"name": result["name"], "size": result["size"], "sha256": result["sha256"],
                             "attachment_id": result["attachment_id"], "clamav": result["clamav"],
                             "repel": {k: result["repel"][k] for k in ("verdict", "score", "flags")},
@@ -1498,7 +1500,8 @@ def list_attachments(rfq_id: str, token: dict = Depends(auth.verify_token)):
                     audit[rec["attachment_id"]] = rec
     return [{"attachment_id": attachment_id, "name": name, "size": os.path.getsize(path),
              "sha256": audit.get(attachment_id, {}).get("sha256"),
-             "released_at": audit.get(attachment_id, {}).get("time")}
+             "released_at": audit.get(attachment_id, {}).get("time"),
+             **attachment_roles.classify_file(path, name)}
             for attachment_id, name, path in _released_files(folder)]
 
 

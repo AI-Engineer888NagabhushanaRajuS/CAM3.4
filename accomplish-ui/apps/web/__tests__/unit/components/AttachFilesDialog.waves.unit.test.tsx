@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('@/config/endpoints', () => ({ PYTHON_BRIDGE_URL: 'http://bridge' }));
 vi.mock('@/lib/apiAuth', () => ({ authFetch: vi.fn() }));
+vi.mock('@uppy/react', async () => import('../helpers/fakeUppyReact'));
 const scanFiles = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/rfqAttachments', async (orig) => ({ ...(await orig<typeof import('@/lib/rfqAttachments')>()), scanFiles }));
 
@@ -29,7 +30,7 @@ describe('a pick over one scan limit goes in waves', () => {
     const release: Array<() => void> = [];
     scanFiles.mockImplementation((_r: string, fs: File[]) => new Promise((res) => { release.push(() => res(answer('', fs))); }));
     open(many(23), onReleased);
-    expect(screen.getByText(/23 of 23 selected · sent in 3 waves/)).toBeTruthy();
+    expect(screen.getByText(/23 selected · sent in 3 waves/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Scan 23 files' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Wave 1 of 3'));
     release[0]();

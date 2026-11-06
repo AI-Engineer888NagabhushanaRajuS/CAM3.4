@@ -8,7 +8,7 @@
 import type http from 'node:http';
 import { resolveManifestPath } from './manifest-paths.js';
 import { manifestSchema, type SchemaKind } from './manifest-schemas.js';
-import { MAX_BYTES, readManifest, saveManifest, type Reply } from './manifest-store.js';
+import { listHistory, MAX_BYTES, readHistory, readManifest, saveManifest, type Reply } from './manifest-store.js';
 import { buildTree } from './manifest-tree.js';
 
 export interface ManifestSession {
@@ -92,6 +92,16 @@ export function handleManifestRoute(req: http.IncomingMessage, res: http.ServerR
           send(res, { code: 403, body: { error: 'Path not allowed' } });
         } else {
           send(res, view ? { code: 200, body: view } : { code: 404, body: { error: 'No such manifest' } });
+        }
+      } else if (method === 'GET' && (path === '/api/manifests/history' || path === '/api/manifests/history/file')) {
+        const p = resolveManifestPath(url.searchParams.get('path'));
+        if (!p) {
+          send(res, { code: 403, body: { error: 'Path not allowed' } });
+        } else if (path === '/api/manifests/history') {
+          send(res, { code: 200, body: { path: p.rel, versions: listHistory(p) } });
+        } else {
+          const v = readHistory(p, url.searchParams.get('stamp'));
+          send(res, v ? { code: 200, body: v } : { code: 404, body: { error: 'No such saved version' } });
         }
       } else if (method === 'PUT' && path === '/api/manifests/file') {
         // Role is on the session (admin | user | fde); same rule as the user-admin routes. Not-admin gets 403 before any body is read.

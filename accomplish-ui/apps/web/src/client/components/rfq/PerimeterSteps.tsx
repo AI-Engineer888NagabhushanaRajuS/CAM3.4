@@ -18,7 +18,7 @@ export function PerimeterSteps({ phase, engines }: { phase: Phase; engines?: Eng
       {STEPS.map((label, i) => (
         <li key={label} className="flex items-center gap-1.5" aria-current={state(i) === 'now' ? 'step' : undefined}>
           <span className={cn('rounded-full border px-2 py-0.5 font-medium', {
-            'border-primary/40 bg-primary/10 text-primary': state(i) === 'now',
+            'animate-pulse border-primary/40 bg-primary/10 text-primary motion-reduce:animate-none': state(i) === 'now',
             'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400': state(i) === 'done',
             'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400': state(i) === 'alert',
             'border-border text-muted-foreground': state(i) === 'todo',

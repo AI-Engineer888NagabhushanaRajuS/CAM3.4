@@ -89,6 +89,16 @@ export async function saveManifestFile(req: { path: string; text: string; baseHa
   return { type: 'error', status: res.status, message: HINTS[res.status] ?? String(body.error ?? `The manifest service answered HTTP ${res.status}.`) };
 }
 
+export interface HistoryEntry { stamp: string; savedAt: string }
+export interface HistoryVersion extends HistoryEntry { text: string; hash: string; version: string | null }
+
+/** The earlier saved copies of one manifest, newest first (SPEC-022). */
+export const fetchManifestHistory = async (path: string) =>
+  (await getJson<{ versions: HistoryEntry[] }>(`/api/manifests/history?path=${encodeURIComponent(path)}`)).versions;
+
+export const fetchManifestVersion = (path: string, stamp: string) =>
+  getJson<HistoryVersion>(`/api/manifests/history/file?path=${encodeURIComponent(path)}&stamp=${encodeURIComponent(stamp)}`);
+
 /** Short form of "sha256:abcdef..." for the status line. */
 export function shortHash(hash: string): string {
   const h = hash.replace(/^sha256:/, '');
