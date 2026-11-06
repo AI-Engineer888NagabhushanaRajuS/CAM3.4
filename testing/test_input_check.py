@@ -96,6 +96,17 @@ def test_missing_sheet_and_missing_required_column_are_errors_that_cannot_be_fix
     assert {"MPN", "Quantity"} <= {w for i in miss for w in ("MPN", "Quantity") if f"'{w}'" in i["message"]}
 
 
+def test_plural_and_unusual_header_spellings_are_not_refused(tmp_path):
+    # seen in real files: Quantities / Descriptions / Commodities, and a column that only resembles the CPN / MPN names
+    wb = openpyxl.Workbook()
+    wb.active.title = "SCRUB BOM"
+    wb.active.append(["FG", "Level", "Assembly", "Customer Part No", "Descriptions", "MFR", "Manufacturer Part Number", "Commodities", "Quantities"])
+    wb.active.append(["FG-1", 0, "FG-1", "FG-1", "Board", "Acme", "A-1", "PCB", 1])
+    wb.save(tmp_path / "p.xlsx")
+    rep = ic.check(str(tmp_path / "p.xlsx"))
+    assert "column_missing" not in codes(rep), rep["issues"][:3]
+
+
 def test_a_formula_with_no_saved_result_is_flagged(tmp_path):
     p = book(tmp_path / "f.xlsx", scrub=[GOOD[0], ["FG-1", 1, "FG-1", "R-100", "Resistor", "Yageo", "RC0603", "RES", "=1+2", "EA", "Active", "31-12-2030"]])
     rep = ic.check(p)   # openpyxl wrote the formula without a cached value, exactly like a file never calculated

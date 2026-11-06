@@ -39,13 +39,13 @@ const SETTINGS = /\b(openrouter|api[- ]?key|settings|providers?)\b|\b(change|swi
 export const CREATE_PENDING = 'To create the RFQ I still need this.';
 
 // SPEC-023: files are attached and the user says go ("can u process this files", "use these", "run it"). Decided by rules, no model.
-const FILES_VERB = /\b(process|run|ingest|start|use|go|select|pick|map|upload|handle|analy[sz]e|read|proceed|begin|continue|create|make|do|check|parse)\b/i;
-const FILES_NOUN = /\b(files?|these|them|this|those|it|bom|attached|attachments?|dump|uploaded|sheets?|workbooks?)\b/i;
+const FILES_VERB = /\b(process|run|ingest|start|use|go|select|pick|map|upload|handle|analy[sz]e|proceed|begin|continue|create|make|parse)\b/i;
+const FILES_NOUN = /\b(files?|these|them|those|bom|attached|attachments?|dump|uploaded|sheets?|workbooks?)\b/i;
 const GO = /^\s*(go|run|run it|start|proceed|process|do it|go ahead|continue)\W*$/i;
 
 /** True when the message asks to work on the files attached to this turn (callers check that files are attached). */
 export const filesIntent = (question: string): boolean =>
-  !new RegExp(ID, 'i').test(question) && !HOW.test(question) && (GO.test(question) || (FILES_VERB.test(question) && FILES_NOUN.test(question)));
+  !new RegExp(ID, 'i').test(question) && !HOW.test(question) && !FIGURES.test(question) && (GO.test(question) || (FILES_VERB.test(question) && FILES_NOUN.test(question)));
 
 /** True when a question is about Settings / the model / the OpenRouter key: a guide answer to it also gets the Open Settings button. */
 export const mentionsSettings = (question: string): boolean => SETTINGS.test(question);

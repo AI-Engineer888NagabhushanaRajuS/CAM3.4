@@ -33,13 +33,13 @@ _ALIASES = {
     "level": {"level", "bomlevel"},
     "assembly": {"assembly", "parentassembly", "parent"},
     "cpn": {"cpn", "ubrnumber", "ubr", "customerpartnumber", "customerpn", "internalpartnumber", "ipn", "partnumber", "partno", "pn"},
-    "description": {"description", "partdescription", "desc"},
-    "manufacturer": {"manufacturer", "mfr", "mfg", "manufacturername", "mfrname"},
+    "description": {"description", "descriptions", "partdescription", "desc"},
+    "manufacturer": {"manufacturer", "manufacturers", "mfr", "mfg", "manufacturername", "mfrname"},
     "mpn": {"mpn", "mfrpartnumber", "mfgpartnumber", "manufacturerpartnumber", "manufacturerpn", "mfrpn", "mfgpn"},
-    "commodity": {"commodity"},
-    "quantity": {"quantity", "qty", "qtyper", "quantityper", "bomqty"},
+    "commodity": {"commodity", "commodities"},
+    "quantity": {"quantity", "quantities", "qty", "qtyper", "quantityper", "bomqty"},
     "unit_of_measure": {"unitofmeasure", "uom"},
-    "part_status": {"partstatus", "lifecycle"},
+    "part_status": {"partstatus", "partstatuses", "lifecycle"},
     "drawing_reference": {"drawingreference", "drawingref"},
     "designators": {"designators", "refdes", "referencedesignator", "referencedesignators"},
     "item_number": {"item", "itemno", "itemnumber", "item#"},
@@ -158,6 +158,15 @@ def _cell_problem(v, f):
     return None
 
 
+# Only for the columns the step cannot start without: a header that merely resembles them is accepted (the step's LLM maps it),
+# so a file that used to run is not refused for an unusual spelling. Exact aliases are tried first.
+_RESEMBLES = {
+    "quantity": re.compile(r"quant|qty"),
+    "mpn": re.compile(r"mpn|(mfr|mfg|manuf\w*).*(part|pn|number|no)|(part|pn).*(mfr|mfg|manuf)"),
+    "cpn": re.compile(r"cpn|ubr|customerp|internalp|^part(no|num\w*)?$|^pn$"),
+}
+
+
 def _resolve(header) -> dict:
     """canonical field -> column index; the exact QUANTITY / COMMODITY ... headers win like the step's critical overrides."""
     found = {}
@@ -166,6 +175,14 @@ def _resolve(header) -> dict:
         for field, names in _ALIASES.items():
             if n in names and field not in found:
                 found[field] = idx
+    taken = set(found.values())
+    for field, pattern in _RESEMBLES.items():
+        if field not in found:
+            for idx, h in enumerate(header):
+                if idx not in taken and h is not None and pattern.search(_norm(h)):
+                    found[field] = idx
+                    taken.add(idx)
+                    break
     return found
 
 

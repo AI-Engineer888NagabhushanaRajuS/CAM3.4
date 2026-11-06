@@ -22,6 +22,10 @@ describe('filesIntent', () => {
     'process RFQ-00007', // names an RFQ: a control, not the attachments
     'ghgcf',
     'what is the MOQ of this part',
+    'read this and tell me the MOQ', // a question about numbers, not a request to ingest
+    'check it',
+    'do this',
+    'use the total from the sheet',
   ])('"%s" does not', (q) => expect(filesIntent(q)).toBe(false));
 });
 

@@ -41,9 +41,20 @@ async function authHeader(rfqId: string): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${((await res.json()) as { token: string }).token}` };
 }
 
+interface Refusal { message?: unknown; issues?: Array<{ sheet?: string | null; col?: string | null; row?: number | null; message?: string }> }
+
+/** The service's own words: a string detail, or (SPEC-023, the BOM pre-flight's 422) an object with a message and the first offending cells. */
 async function failure(res: Response, what: string): Promise<Error> {
   const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
-  return new Error(`${what} answered HTTP ${res.status}${typeof body?.detail === 'string' ? `: ${body.detail}` : ''}`);
+  const d = body?.detail;
+  let words = '';
+  if (typeof d === 'string') {
+    words = d;
+  } else if (d && typeof d === 'object' && typeof (d as Refusal).message === 'string') {
+    const cells = ((d as Refusal).issues ?? []).slice(0, 3).map((i) => `${i.sheet ?? ''} ${i.col ?? ''}${i.row ?? ''}: ${i.message ?? ''}`.trim());
+    words = `${(d as Refusal).message}${cells.length ? ` First: ${cells.join(' ')}` : ''}`;
+  }
+  return new Error(`${what} answered HTTP ${res.status}${words ? `: ${words}` : ''}`);
 }
 
 const blob = (b: Uint8Array): Blob => new Blob([new Uint8Array(b)]);
