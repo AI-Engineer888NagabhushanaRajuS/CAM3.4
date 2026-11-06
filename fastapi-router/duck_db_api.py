@@ -34,6 +34,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import auth
 import attachment_roles
+import input_check
 import edit_regenerate
 
 # centum intake's reporting_module owns the cbom.duckdb connection pattern
@@ -1370,6 +1371,20 @@ def _audit(folder: str, record: dict) -> None:
         f.write(json.dumps({"time": datetime.utcnow().isoformat() + "Z", **record}) + "\n")
 
 
+@functools.lru_cache(maxsize=32)
+def _check_cached(path: str, mtime: float) -> dict:
+    return input_check.check(path)
+
+
+def _roles(path: str, name: str) -> dict:
+    """What the file is (attachment_roles) and, for a SCRUB BOM workbook, how many cells would be NaN / error in the output
+    (input_check, SPEC-023). The check is cached per file version."""
+    info = attachment_roles.classify_file(path, name)
+    if info.get("role") == "scrub_bom":
+        info["check"] = input_check.summary(_check_cached(path, os.path.getmtime(path)))
+    return info
+
+
 def _released_files(folder: str):
     """[(attachment_id, name, path)] of what is stored now."""
     if not os.path.isdir(folder):
@@ -1474,7 +1489,7 @@ def scan_attachments(rfq_id: str, request: Request, files: list[UploadFile] = Fi
                         os.remove(old_path)
                 shutil.move(qpath, dest)
                 result["attachment_id"] = attachment_id
-                result.update(attachment_roles.classify_file(dest, result["name"]))   # read only now that both engines released it
+                result.update(_roles(dest, result["name"]))   # read only now that both engines released it
             _audit(folder, {"name": result["name"], "size": result["size"], "sha256": result["sha256"],
                             "attachment_id": result["attachment_id"], "clamav": result["clamav"],
                             "repel": {k: result["repel"][k] for k in ("verdict", "score", "flags")},
@@ -1501,7 +1516,7 @@ def list_attachments(rfq_id: str, token: dict = Depends(auth.verify_token)):
     return [{"attachment_id": attachment_id, "name": name, "size": os.path.getsize(path),
              "sha256": audit.get(attachment_id, {}).get("sha256"),
              "released_at": audit.get(attachment_id, {}).get("time"),
-             **attachment_roles.classify_file(path, name)}
+             **_roles(path, name)}
             for attachment_id, name, path in _released_files(folder)]
 
 
@@ -1517,6 +1532,69 @@ def delete_attachment(rfq_id: str, attachment_id: str, token: dict = Depends(aut
         os.remove(path)
         _audit(folder, {"name": name, "attachment_id": attachment_id, "decision": "deleted"})
     return {"rfq_id": rfq_id, "attachment_id": attachment_id, "deleted": True}
+
+
+def _released_one(rfq_id: str, attachment_id: str):
+    if not re.fullmatch(r"[0-9a-f]{12}", attachment_id):
+        raise HTTPException(status_code=400, detail="Invalid attachment id")
+    found = [(name, path) for aid, name, path in _released_files(_attachment_dir(rfq_id)) if aid == attachment_id]
+    if not found:
+        raise HTTPException(status_code=404, detail="No such attachment")
+    return found[0]
+
+
+@app.get("/api/rfq/{rfq_id}/attachments/{attachment_id}/check")
+def check_attachment(rfq_id: str, attachment_id: str, token: dict = Depends(auth.verify_token)):
+    """The pre-flight report of a released workbook: every cell that would be NaN / empty / an Excel error in the output."""
+    name, path = _released_one(rfq_id, attachment_id)
+    return {"attachment_id": attachment_id, "name": name, **_check_cached(path, os.path.getmtime(path))}
+
+
+class FixAttachmentBody(BaseModel):
+    edits: list[dict]   # [{sheet, row, col, value}]: the user's corrections, applied to a COPY
+
+
+@app.post("/api/rfq/{rfq_id}/attachments/{attachment_id}/fix")
+def fix_attachment(rfq_id: str, attachment_id: str, body: FixAttachmentBody, token: dict = Depends(auth.verify_token)):
+    """Writes the corrections into a copy of a released workbook, scans the copy with BOTH engines again, and releases it in
+    place of the original (same RFQ scope, name `<name>_corrected.xlsx`). The new report comes back so the page can say
+    whether the file is now clean."""
+    import scan_engines
+
+    name, path = _released_one(rfq_id, attachment_id)
+    folder = _attachment_dir(rfq_id)
+    stem, ext = os.path.splitext(name)
+    new_name = scan_engines.safe_name(stem if stem.endswith("_corrected") else f"{stem}_corrected") + ext
+    quarantine = tempfile.mkdtemp(prefix="cam-quarantine-")
+    try:
+        qpath = os.path.join(quarantine, f"0{ext.lower()}")
+        try:
+            changed = input_check.apply_edits(path, qpath, body.edits)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"The corrections were not applied: {e}.")
+        result = scan_engines.scan_files([(qpath, new_name)])[0]
+        _audit(folder, {"name": result["name"], "size": result["size"], "sha256": result["sha256"], "clamav": result["clamav"],
+                        "repel": {k: result["repel"][k] for k in ("verdict", "score", "flags")}, "decision": result["decision"],
+                        "reason": result["reason"], "attachment_id": result["sha256"][:12] if result["decision"] == "released" else None,
+                        "corrected_from": attachment_id, "cells_changed": changed})
+        if result["decision"] != "released":
+            raise HTTPException(status_code=422, detail="The corrected file did not pass the security scan, so it was not kept.")
+        new_id = result["sha256"][:12]
+        dest = os.path.join(folder, f"{new_id}-{result['name']}")
+        if not os.path.realpath(dest).startswith(os.path.realpath(folder) + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid file name")
+        if new_id != attachment_id:
+            os.remove(path)   # the corrected copy replaces the original, so the two never compete for the BOM role
+            _audit(folder, {"name": name, "attachment_id": attachment_id, "decision": "deleted", "replaced_by": new_id})
+        for old_id, _, old_path in _released_files(folder):
+            if old_id == new_id:
+                os.remove(old_path)
+        shutil.move(qpath, dest)
+        info = _roles(dest, result["name"])
+        return {"rfq_id": rfq_id, "attachment_id": new_id, "name": result["name"], "size": result["size"], "sha256": result["sha256"],
+                "cells_changed": changed, **info, "report": _check_cached(dest, os.path.getmtime(dest))}
+    finally:
+        shutil.rmtree(quarantine, ignore_errors=True)
 
 
 @app.get("/api/rfq/{rfq_id}/attachments/{attachment_id}/content")

@@ -370,6 +370,32 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
     }
 
 
+async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str]) -> None:
+    """SPEC-023: a BOM that would give NaN / errors in the output (or that the first step rejects) is refused HERE, before a
+    version or a run exists, with every offending cell, instead of failing minutes later or finishing with NaN. Only for the
+    SCRUB BOM pipeline (the default profile); another profile reads other files."""
+    import tempfile
+    import input_check
+    chosen = profile if isinstance(profile, str) and profile else os.environ.get("CAM_DEFAULT_PROFILE", "Standard_BOM_Flow")
+    if chosen != "Standard_BOM_Flow":
+        return
+    ext = os.path.splitext(bom_file.filename or "")[1].lower()
+    data = await bom_file.read()
+    await bom_file.seek(0)
+    with tempfile.TemporaryDirectory(prefix="cam-precheck-") as tmp:
+        path = os.path.join(tmp, f"bom{ext}")
+        with open(path, "wb") as f:
+            f.write(data)
+        report = await asyncio.to_thread(input_check.check, path)
+    if not report["ok"]:
+        raise HTTPException(status_code=422, detail={
+            "code": "input_invalid",
+            "message": f"The BOM was not accepted: {report['errors']} problem{'s' if report['errors'] != 1 else ''} would give NaN or errors in the output. Fix them and upload again.",
+            "errors": report["errors"], "warnings": report["warnings"],
+            "issues": [i for i in report["issues"] if i["severity"] == "error"][:30],
+        })
+
+
 @app.post("/api/rfq/upload")
 async def upload_rfq_file(
     bom_file: UploadFile = File(...),
@@ -387,6 +413,7 @@ async def upload_rfq_file(
     x_cam_user: Optional[str] = Header(None),
     x_cam_user_email: Optional[str] = Header(None),
 ):
+    await _refuse_invalid_bom(bom_file, profile)
     conn = None
     try:
         if not rfq_id or not rfq_id.strip():
