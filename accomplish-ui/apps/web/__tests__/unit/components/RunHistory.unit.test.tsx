@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const fetchRuns = vi.fn();
-vi.mock('@/lib/runHistory', async (orig) => ({ ...(await orig<typeof import('@/lib/runHistory')>()), fetchRuns: (id: string) => fetchRuns(id) }));
+const fetchAllRuns = vi.fn();
+vi.mock('@/lib/runHistory', async (orig) => ({ ...(await orig<typeof import('@/lib/runHistory')>()), fetchRuns: (id: string) => fetchRuns(id), fetchAllRuns: (o?: unknown) => fetchAllRuns(o) }));
 
 import { FailedRunNotice, RunHistory, RightViewToggle } from '@/components/rfq/RunHistory';
 import { badgeWord, formatDuration, type RunEntry } from '@/lib/runHistory';
@@ -16,7 +17,7 @@ const failure = (kind: 'invalid_input' | 'tool_error', can: boolean) => ({
   step: 'Step', can_rerun: can, raw: 'raw text',
 });
 
-beforeEach(() => fetchRuns.mockReset());
+beforeEach(() => { fetchRuns.mockReset(); fetchAllRuns.mockReset(); });
 
 describe('formatting', () => {
   it('durations read in seconds, minutes, hours; unknown (running) is a dash', () => {
@@ -88,5 +89,58 @@ describe('FailedRunNotice', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     rerender(<FailedRunNotice run={null} onOpenHistory={open} />);
     expect(screen.queryByTestId('failed-run-notice')).toBeNull();
+  });
+});
+
+describe('RunHistory tracking across RFQs', () => {
+  it('with no RFQ open it lists the runs of every RFQ, each naming its RFQ and who started it, and opens an RFQ on click', async () => {
+    fetchAllRuns.mockResolvedValue([run({ run_id: 'a', rfq_id: 'RFQ-000018', started_by: 'Lee', started_by_email: 'lee@x.test' }), run({ run_id: 'b', rfq_id: 'RFQ-000017', started_by: 'Dana' })]);
+    const onOpenRfq = vi.fn();
+    render(<RunHistory rfqId={null} onRerun={() => {}} onOpenRfq={onOpenRfq} isAdmin />);
+    expect((await screen.findAllByTestId('run-row'))).toHaveLength(2);
+    expect(screen.getByText('all RFQs, all users')).toBeTruthy();
+    expect(screen.getByText('by Lee').getAttribute('title')).toBe('lee@x.test');
+    expect(screen.queryByRole('group', { name: 'Which runs' })).toBeNull(); // no RFQ open: nothing to switch between
+    fireEvent.click(screen.getByRole('button', { name: 'RFQ-000018' }));
+    expect(onOpenRfq).toHaveBeenCalledWith('RFQ-000018');
+    expect(fetchRuns).not.toHaveBeenCalled();
+  });
+
+  it('with an RFQ open it starts on that RFQ and can switch to everyone (admin) or my runs (anybody else)', async () => {
+    fetchRuns.mockResolvedValue([run({ run_id: 'x' })]);
+    fetchAllRuns.mockResolvedValue([run({ run_id: 'y', rfq_id: 'RFQ-000019' })]);
+    const view = render(<RunHistory rfqId="RFQ-000017" onRerun={() => {}} onOpenRfq={() => {}} isAdmin={false} />);
+    await screen.findAllByTestId('run-row');
+    expect(fetchRuns).toHaveBeenCalledWith('RFQ-000017');
+    fireEvent.click(screen.getByRole('button', { name: 'My runs' }));
+    expect(await screen.findByRole('button', { name: 'RFQ-000019' })).toBeTruthy();
+    expect(screen.getByText('the runs you started')).toBeTruthy();
+    view.unmount();
+    render(<RunHistory rfqId="RFQ-000017" onRerun={() => {}} isAdmin />);
+    expect(screen.getByRole('button', { name: 'All RFQs' })).toBeTruthy();
+  });
+
+  it('shows a person chip per user with their counts and narrows the list to one person', async () => {
+    fetchAllRuns.mockResolvedValue([
+      run({ run_id: '1', rfq_id: 'RFQ-1', started_by: 'Dana', status: 'passed' }),
+      run({ run_id: '2', rfq_id: 'RFQ-2', started_by: 'Dana', status: 'failed', failure: failure('tool_error', true) }),
+      run({ run_id: '3', rfq_id: 'RFQ-3', started_by: 'Lee', status: 'waiting' }),
+    ]);
+    render(<RunHistory rfqId={null} onRerun={() => {}} onOpenRfq={() => {}} isAdmin />);
+    await screen.findAllByTestId('run-row');
+    expect(screen.getByRole('button', { name: 'Everyone (3)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Dana (2)' }));
+    expect(screen.getAllByTestId('run-row')).toHaveLength(2);
+    expect(screen.getByTestId('user-summary').textContent).toContain('Dana: 2 runs · 1 passed · 1 failed · 0 open');
+    fireEvent.click(screen.getByRole('button', { name: 'Lee (1)' }));
+    expect(screen.getByTestId('user-summary').textContent).toContain('1 open');
+    fireEvent.click(screen.getByRole('button', { name: 'Everyone (3)' }));
+    expect(screen.getAllByTestId('run-row')).toHaveLength(3);
+  });
+
+  it('says so when nobody has run anything yet', async () => {
+    fetchAllRuns.mockResolvedValue([]);
+    render(<RunHistory rfqId={null} onRerun={() => {}} />);
+    expect(await screen.findByText(/No runs recorded yet/)).toBeTruthy();
   });
 });

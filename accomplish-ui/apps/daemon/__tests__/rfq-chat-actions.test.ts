@@ -203,6 +203,15 @@ describe('confirm', () => {
     ]);
   });
 
+  it('passes the person who pressed Confirm to the upload, so the run history can name them', async () => {
+    const seen: unknown[] = [];
+    const s = setup({ upload: async (_id, _b, _v, actor) => { seen.push(actor); return { pipelineStatus: 'TRIGGERED' }; } });
+    const ui = await propose(s);
+    const out = await s.actions.confirm({ sessionKey: 's1', req: { confirmToken: ui.confirmToken, decision: 'confirm' }, actor: { name: 'Dana Fox', email: 'dana@x.test' } });
+    expect(out.ok).toBe(true);
+    expect(seen).toEqual([{ name: 'Dana Fox', email: 'dana@x.test' }]);
+  });
+
   it('a file quarantined by the re-scan stops at scan_files, uploads nothing and rolls back', async () => {
     const s = setup({
       scanFiles: async (_id, f) => f.map((x, i) => ({ name: x.name, decision: i === 0 ? ('quarantined' as const) : ('released' as const), attachmentId: i === 0 ? null : sha12(x.bytes) })),

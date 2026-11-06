@@ -73,6 +73,12 @@ export interface EditResult {
   diff: { total_changed_cells: number; sheets: Array<{ sheet: string; changed: number }> } | null;
 }
 
+/** The signed-in person who pressed Confirm: the run history shows them as the one who started the run (the assistant only acted for them). */
+export interface ActionActor {
+  name: string;
+  email: string;
+}
+
 export interface Attachment {
   attachmentId: string;
   name: string;
@@ -115,14 +121,14 @@ export interface ActionDeps {
   scanFiles(rfqId: string, files: Array<{ name: string; bytes: Uint8Array }>): Promise<ScanVerdict[]>;
   deleteAttachment(rfqId: string, attachmentId: string): Promise<void>;
   /** POST /api/rfq/upload exactly as the intake modal does; it also starts the pipeline and reports its status. */
-  upload(rfqId: string, bom: { name: string; bytes: Uint8Array }, volume: { name: string; bytes: Uint8Array }): Promise<{ pipelineStatus: string }>;
+  upload(rfqId: string, bom: { name: string; bytes: Uint8Array }, volume: { name: string; bytes: Uint8Array }, actor?: ActionActor): Promise<{ pipelineStatus: string }>;
   /** Removes the tracking and file rows of an RFQ this run created. */
   deleteRfqRows(rfqId: string): Promise<void>;
   appendAudit(line: AuditLine): Promise<void>;
   /** Pipeline progress of an RFQ from the database (rfq-chat-status.ts). */
   pipelineState(rfqId: string): Promise<RfqStatus>;
   /** GET {RFQ_UPLOAD_URL}/api/dify/start/{rfqId}, the call the UI makes to resume; throws UnknownOutcomeError when the answer is unknown. */
-  startPipeline(rfqId: string): Promise<{ status: string; outcome?: string }>;
+  startPipeline(rfqId: string, actor?: ActionActor): Promise<{ status: string; outcome?: string }>;
   /** Costed-BOM rows of an RFQ whose bom item id, CPN or manufacturer part number equals `target` (case-insensitive). */
   findBomRows(rfqId: string, target: string): Promise<BomRow[]>;
   /** POST {bridge}/api/rfq/{rfqId}/edit-and-regenerate; throws UnknownOutcomeError when the answer is unknown, Error with the bridge's detail on a refusal. */

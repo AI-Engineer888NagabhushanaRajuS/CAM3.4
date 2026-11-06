@@ -23,6 +23,7 @@ import type { ActionConfirmRequest, ChatRequest, ChatScope } from './rfq-chat/rf
 import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 import { describeChatProviders, parseProviderMode, type ChatProviderMode } from './rfq-chat/rfq-chat-models.js';
 import { handleManifestRoute } from './manifests/manifest-routes.js';
+import { handleRunsRoute } from './runs/runs-routes.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
 
@@ -2405,6 +2406,8 @@ export class BrowserApiServer {
         }
         // SPEC-020: manifest editor API (/api/manifests/*): tree, schema, file read, admin-only save. Own 401 check: the dev API key has no session.
         if (handleManifestRoute(req, res, this.getSession(req))) { return; }
+        // SPEC-021: who ran which RFQ (Temporal), admin sees all, others only their own runs.
+        if (handleRunsRoute(req, res, this.getSession(req))) { return; }
         // GET /api/chat/providers: what the assistant's Local / OpenRouter switch can offer (is a key saved, which models). Never the key.
         if (method === 'GET' && (url ?? '').split('?')[0] === '/api/chat/providers') {
           if (!this.getSession(req)) {
@@ -2459,6 +2462,7 @@ export class BrowserApiServer {
                   }
                   const result = await deps.actions!.confirm({
                     sessionKey: session?.email ?? 'local',
+                    actor: session ? { name: session.name, email: session.email } : undefined,
                     req: { confirmToken: c.confirmToken, decision: c.decision, ...(c.params ? { params: c.params } : {}) } as ActionConfirmRequest,
                   });
                   res.writeHead(200, { 'Content-Type': 'application/json' });

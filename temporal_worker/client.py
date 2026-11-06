@@ -18,7 +18,7 @@ _config_spec.loader.exec_module(config)
 from workflow import RFQWorkflow  # noqa: E402
 
 
-async def start_rfq_workflow(rfq_id: str, profile_name: str | None = None, started_by: str | None = None) -> str:
+async def start_rfq_workflow(rfq_id: str, profile_name: str | None = None, started_by: str | None = None, started_by_email: str | None = None) -> str:
     """Start an RFQ workflow and return the workflow ID.
 
     The workflow ID is per RFQ, not per version, and a new upload IS a new version: it supersedes a run
@@ -35,12 +35,12 @@ async def start_rfq_workflow(rfq_id: str, profile_name: str | None = None, start
         id=get_workflow_id(rfq_id),
         task_queue=config.TASK_QUEUE,
         id_conflict_policy=WorkflowIDConflictPolicy.TERMINATE_EXISTING,
-        memo={"started_by": started_by} if started_by else None,
+        memo={k: v for k, v in (('started_by', started_by), ('started_by_email', started_by_email)) if v} or None,
     )
     return handle.id
 
 
-async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None, started_by: str | None = None) -> tuple:
+async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None, started_by: str | None = None, started_by_email: str | None = None) -> tuple:
     """The UI's "continue" (GET /api/dify/start): returns (workflow_id, outcome).
 
     RESUMED - the run was parked at a human gate; it is told to carry on.
@@ -61,7 +61,7 @@ async def resume_rfq_workflow(rfq_id: str, profile_name: str | None = None, star
     if status == WorkflowExecutionStatus.COMPLETED:
         return handle.id, "COMPLETED"
     if status != WorkflowExecutionStatus.RUNNING:
-        return await start_rfq_workflow(rfq_id, profile_name, started_by), "STARTED"
+        return await start_rfq_workflow(rfq_id, profile_name, started_by, started_by_email), "STARTED"
     if (await handle.query(RFQWorkflow.hitl_state))["awaiting"]:
         await handle.signal(RFQWorkflow.human_decision, {"action": "approve", "via": "resume"})
         return handle.id, "RESUMED"

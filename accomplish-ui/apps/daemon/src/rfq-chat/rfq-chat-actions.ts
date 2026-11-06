@@ -10,7 +10,7 @@ import { resolveFiles, resolveParties } from './rfq-chat-actions-parse.js';
 import { planStartPipeline, runStartPipeline } from './rfq-chat-actions-pipeline.js';
 import { planEditValue, runEditValue } from './rfq-chat-actions-edit.js';
 import { runCreateRfq } from './rfq-chat-actions-run.js';
-import { chatStagingId, hashParams, type ActionDeps, type CreateRfqParams, type EditValueParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
+import { chatStagingId, hashParams, type ActionActor, type ActionDeps, type CreateRfqParams, type EditValueParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
 
 export const TOKEN_TTL_MS = 5 * 60 * 1000;
 
@@ -141,7 +141,7 @@ export function makeChatActions(
       }
     },
 
-    async confirm({ sessionKey, req }: { sessionKey: string; req: ConfirmReq }) {
+    async confirm({ sessionKey, req, actor }: { sessionKey: string; req: ConfirmReq; actor?: ActionActor }) {
       const p = pending.get(req.confirmToken);
       if (!p) {
         return refuse(sessionKey, '-', 'this confirmation is unknown, already used or expired');
@@ -169,10 +169,12 @@ export function makeChatActions(
         return { ok: false, message: `Refused: the audit log is not writable, so nothing was ${NOTHING[p.action]}.`, steps: [] };
       }
       const auditStep = (action: string, result: string) => audit(sessionKey, action, p.paramHash, result);
+      // Who pressed Confirm is passed to the calls that start a run, so the run history names the person, not just the assistant.
+      const acting: ActionDeps = actor ? { ...deps, upload: (r, b, v) => deps.upload(r, b, v, actor), startPipeline: (r) => deps.startPipeline(r, actor) } : deps;
       if (p.action === 'edit_value') {
         return runEditValue(deps, p.params as EditValueParams, auditStep);
       }
-      return p.action === 'create_rfq' ? runCreateRfq(deps, p.params as CreateRfqParams, auditStep) : runStartPipeline(deps, p.params as StartPipelineParams, auditStep);
+      return p.action === 'create_rfq' ? runCreateRfq(acting, p.params as CreateRfqParams, auditStep) : runStartPipeline(acting, p.params as StartPipelineParams, auditStep);
     },
   };
 }

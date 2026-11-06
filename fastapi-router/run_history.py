@@ -72,14 +72,15 @@ def _status(name: str, result_status: Optional[str], awaiting: Optional[str] = N
     return "failed"  # FAILED, TIMED_OUT
 
 
-def run_row(ex: Any, started_by: Optional[str], failure_text: Optional[str], result_status: Optional[str], awaiting: Optional[str] = None) -> dict:
+def run_row(ex: Any, started_by: Optional[str], failure_text: Optional[str], result_status: Optional[str], awaiting: Optional[str] = None,
+            started_by_email: Optional[str] = None) -> dict:
     status = _status(getattr(ex.status, "name", str(ex.status)), result_status, awaiting)
     start, close = getattr(ex, "start_time", None), getattr(ex, "close_time", None)
     failure = classify_failure(failure_text or "") if status == "failed" else None
     return {
-        "run_id": ex.run_id, "status": status, "started_at": _iso(start), "closed_at": _iso(close),
+        "run_id": ex.run_id, "rfq_id": ex.id[4:] if str(ex.id).startswith("rfq-") else ex.id, "status": status, "started_at": _iso(start), "closed_at": _iso(close),
         "duration_ms": int((close - start).total_seconds() * 1000) if start and close else None,
-        "started_by": started_by or "unknown",
+        "started_by": started_by or "unknown", "started_by_email": started_by_email,
         "failed_step": failure["step"] if failure else None,
         "waiting_on": _step_label(awaiting) if status == "waiting" else None,
         "failure": failure, "can_rerun": bool(failure and failure["can_rerun"]),
@@ -91,18 +92,19 @@ def _cause_text(err: Exception) -> str:
     return str(getattr(cause, "message", None) or cause)
 
 
-async def list_runs(rfq_id: str, client: Any, limit: int = MAX_RUNS) -> list:
-    """Newest first. `client` is a connected temporalio Client."""
+async def _collect(client: Any, query: str, limit: int, by_email: Optional[str] = None) -> list:
+    """Runs matching a visibility query, newest first; `by_email` keeps only runs a given signed-in user started."""
     from temporalio.client import WorkflowFailureError  # lazy: classify_failure needs no Temporal
 
-    if not _ID.match(rfq_id):
-        raise ValueError("invalid rfq_id")
     runs = []
-    async for ex in client.list_workflows(query=f'WorkflowId = "rfq-{rfq_id}"', limit=limit):
+    async for ex in client.list_workflows(query=query, limit=limit):
         try:
-            started_by = (await ex.memo()).get("started_by")
+            memo = await ex.memo()
         except Exception:
-            started_by = None
+            memo = {}
+        email = memo.get("started_by_email")
+        if by_email and (email or "").lower() != by_email.lower():
+            continue
         text = result_status = awaiting = None
         name = getattr(ex.status, "name", "")
         if name == "RUNNING":
@@ -119,6 +121,27 @@ async def list_runs(rfq_id: str, client: Any, limit: int = MAX_RUNS) -> list:
                 text = _cause_text(e)
             except Exception:
                 pass  # a run whose outcome cannot be read still shows, with its status
-        runs.append((ex.start_time, run_row(ex, started_by, text, result_status, awaiting)))
+        runs.append((ex.start_time, run_row(ex, memo.get("started_by"), text, result_status, awaiting, email)))
     runs.sort(key=lambda p: p[0].timestamp() if p[0] else 0, reverse=True)
-    return [r for _, r in runs][:limit]
+    return [r for _, r in runs]
+
+
+async def list_runs(rfq_id: str, client: Any, limit: int = MAX_RUNS) -> list:
+    """Newest first. `client` is a connected temporalio Client."""
+    if not _ID.match(rfq_id):
+        raise ValueError("invalid rfq_id")
+    return (await _collect(client, f'WorkflowId = "rfq-{rfq_id}"', limit))[:limit]
+
+
+MAX_ALL_RUNS = 100
+_EMAIL = re.compile(r"^[^\s@\"']{1,120}@[^\s@\"']{1,120}$")
+
+
+async def list_all_runs(client: Any, limit: int = 50, by_email: Optional[str] = None) -> list:
+    """Recent runs of EVERY RFQ, newest first (SPEC-021 tracking), optionally only those one user started."""
+    if by_email is not None and not _EMAIL.match(by_email):
+        raise ValueError("invalid email")
+    limit = max(1, min(int(limit), MAX_ALL_RUNS))
+    # With a user filter the newest runs of everybody are read first, then filtered: the window is wider so a quiet user still shows.
+    window = MAX_ALL_RUNS * 4 if by_email else limit
+    return (await _collect(client, 'WorkflowType = "RFQWorkflow"', window, by_email))[:limit]

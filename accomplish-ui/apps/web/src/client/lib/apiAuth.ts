@@ -36,11 +36,12 @@ export async function authFetch(url: string, rfqId: string, options: RequestInit
   const token = await getRfqToken(rfqId);
   // The signed-in name rides along so a run's History can say who started it. The token itself carries no user, so
   // this is the app's own report, not an audit identity.
-  const name = getSession()?.user.name;
+  const user = getSession()?.user;
   return fetch(url, {
     ...options,
     headers: {
-      ...(name ? { 'X-CAM-User': encodeURIComponent(name) } : {}),
+      ...(user?.name ? { 'X-CAM-User': encodeURIComponent(user.name) } : {}),
+      ...(user?.email ? { 'X-CAM-User-Email': encodeURIComponent(user.email) } : {}),
       ...(options.headers ?? {}),
       Authorization: `Bearer ${token}`,
     },

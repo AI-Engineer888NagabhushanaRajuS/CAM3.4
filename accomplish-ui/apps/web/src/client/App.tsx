@@ -7,7 +7,7 @@ import { backendUrl, RFQ_UPLOAD_URL, PYTHON_BRIDGE_URL } from './config/endpoint
 import { authFetch } from './lib/apiAuth';
 import { logger } from './lib/logger';
 import { springs, variants } from './lib/animations';
-import { getSession, clearSession } from './lib/session';
+import { getSession, clearSession, isAdmin } from './lib/session';
 import { Avatar, AvatarFallback } from './components/ui/avatar';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 import {
@@ -1542,7 +1542,7 @@ export function App() {
                   <p className="truncate text-xs text-muted-foreground">Real-time results and artifacts</p>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  {customRfqId.trim() && <RightViewToggle view={rightView} onChange={setRightView} />}
+                  <RightViewToggle view={rightView} onChange={setRightView} />
                   <span className="text-xs text-muted-foreground">
                     {WORKFLOW_STAGES.find((s) => s.id === currentWorkflowStage)?.name ?? currentWorkflowStage}
                   </span>
@@ -1552,8 +1552,8 @@ export function App() {
 
             {/* Dynamic render area tracking layout sequence state switches or grid injections */}
             <div className="srim-panel-body flex-1 min-h-0 w-full rounded-xl border border-border/70 bg-background/70 overflow-hidden shadow-inner">
-              {rightView === 'history' && !hitlContext && customRfqId.trim() ? (
-                <RunHistory rfqId={customRfqId.trim()} onRerun={(id) => resumeRfq(id, { start: true })} />
+              {rightView === 'history' && !hitlContext ? (
+                <RunHistory rfqId={customRfqId.trim() || null} onRerun={(id) => resumeRfq(id, { start: true })} onOpenRfq={handleAssistantSelectRfq} isAdmin={isAdmin()} />
               ) : hitlContext ? (
                 /* ✅ Directly pass the context data down through explicit component props */
                 // key forces a full unmount/remount whenever the review session

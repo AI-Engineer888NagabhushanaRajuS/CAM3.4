@@ -96,5 +96,5 @@ export interface ChatActionDeps {
    * (action 'edit_value', params { rfqId, bomItemId, label, field, fieldLabel, before, after }).
    */
   proposeEditValue(p: { sessionKey: string; rfqId: string; target: string; fieldText: string; value: string; volume?: number }): Promise<{ message: string; ui?: UiDirective }>;
-  confirm(p: { sessionKey: string; req: ActionConfirmRequest }): Promise<ActionConfirmResponse>;
+  confirm(p: { sessionKey: string; req: ActionConfirmRequest; actor?: { name: string; email: string } }): Promise<ActionConfirmResponse>;
 }

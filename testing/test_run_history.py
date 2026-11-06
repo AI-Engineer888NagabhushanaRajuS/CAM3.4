@@ -123,3 +123,27 @@ def test_rfq_id_cannot_inject_into_the_visibility_query():
     for bad in ['x" OR 1=1', "a b", "", "x" * 65, "a'b"]:
         with pytest.raises(ValueError):
             asyncio.run(rh.list_runs(bad, FakeClient([], {})))
+
+
+def _fx(rfq, run, start_h, email, by):
+    e = FakeExec(run, "COMPLETED", T0 + timedelta(hours=start_h), 30, {"started_by": by, "started_by_email": email})
+    e.id = f"rfq-{rfq}"
+    return e
+
+
+def test_all_runs_lists_every_rfq_newest_first_with_rfq_id_and_who_and_asks_temporal_by_workflow_type():
+    fc = FakeClient([_fx("RFQ-1", "a", 1, "dana@x.test", "Dana"), _fx("RFQ-2", "b", 3, "lee@x.test", "Lee"), _fx("RFQ-1", "c", 2, None, None)],
+                    {"a": {"status": "completed"}, "b": {"status": "completed"}, "c": {"status": "completed"}})
+    runs = asyncio.run(rh.list_all_runs(fc))
+    assert fc.queries == ['WorkflowType = "RFQWorkflow"']
+    assert [(r["rfq_id"], r["started_by"], r["started_by_email"]) for r in runs] == [("RFQ-2", "Lee", "lee@x.test"), ("RFQ-1", "unknown", None), ("RFQ-1", "Dana", "dana@x.test")]
+
+
+def test_all_runs_can_be_limited_to_one_user_case_insensitively_and_the_email_is_validated():
+    fc = FakeClient([_fx("RFQ-1", "a", 1, "Dana@X.test", "Dana"), _fx("RFQ-2", "b", 2, "lee@x.test", "Lee")], {"a": {"status": "completed"}, "b": {"status": "completed"}})
+    runs = asyncio.run(rh.list_all_runs(fc, by_email="dana@x.test"))
+    assert [r["rfq_id"] for r in runs] == ["RFQ-1"]
+    for bad in ['x" OR 1=1', "no-at-sign", "a b@c.d", "a@b@c"]:
+        with pytest.raises(ValueError):
+            asyncio.run(rh.list_all_runs(fc, by_email=bad))
+    assert len(asyncio.run(rh.list_all_runs(fc, limit=1))) == 1

@@ -1,5 +1,6 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import type { AdminUserRow } from '@/lib/accomplish';
+import { UserActivity } from './UserActivity';
 
 interface UserCardProps {
   user: AdminUserRow;
@@ -18,6 +19,7 @@ export const UserCard = memo(function UserCard({
   onDelete,
   disabled,
 }: UserCardProps) {
+  const [showActivity, setShowActivity] = useState(false);
   const handleToggle = useCallback(() => {
     onToggleActive(user.id, !user.isActive);
   }, [onToggleActive, user.id, user.isActive]);
@@ -69,6 +71,13 @@ export const UserCard = memo(function UserCard({
           {user.isActive ? 'Active' : 'Inactive'}
         </span>
         <button
+          onClick={() => setShowActivity((v) => !v)}
+          aria-expanded={showActivity}
+          className="text-[11px] font-medium text-primary hover:underline"
+        >
+          {showActivity ? 'Hide activity' : 'Activity'}
+        </button>
+        <button
           onClick={handleResetPassword}
           disabled={disabled}
           className="text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
@@ -83,6 +92,7 @@ export const UserCard = memo(function UserCard({
           Delete
         </button>
       </div>
+      {showActivity && <UserActivity email={user.email} />}
     </div>
   );
 });

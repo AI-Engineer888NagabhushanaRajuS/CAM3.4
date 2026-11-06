@@ -69,7 +69,7 @@ def get_db_connection():
 _GUARD_SCHEMA_LOCK = threading.Lock()
 
 
-def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: str | None = None, started_by: str | None = None):
+def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: str | None = None, started_by: str | None = None, started_by_email: str | None = None):
     """Triggers workflow and logs the attempt to DB.
 
     When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify. `resume` is the UI's
@@ -111,9 +111,9 @@ def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False, profile: s
                 _sys.path.insert(0, _worker_dir)
             import client as temporal_client
             if resume:
-                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id, None, started_by))
+                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id, None, started_by, started_by_email))
             else:
-                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id, profile, started_by)), "STARTED"
+                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id, profile, started_by, started_by_email)), "STARTED"
             print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} {outcome} for {rfq_id}")
             dify_status = "TRIGGERED"
             dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id,
@@ -278,6 +278,59 @@ def _who(header: Optional[str]) -> Optional[str]:
     return name[:80] or None
 
 
+def _email(header: Optional[str]) -> Optional[str]:
+    """The signed-in user's email as the app reports it (X-CAM-User-Email); only a plain address is kept."""
+    if not isinstance(header, str) or not header:
+        return None
+    from urllib.parse import unquote
+    mail = unquote(header).strip()
+    return mail[:120] if run_history._EMAIL.match(mail) else None
+
+
+def _label(name: Optional[str], email: Optional[str]) -> Optional[str]:
+    return f"{name} <{email}>" if name and email else name
+
+
+def _record_trigger(rfq_id: str, label: Optional[str]) -> None:
+    """rfq_process_tracking.triggered_by = who triggered the run last (the 3.3 tracking column, kept for the active version)."""
+    if not label:
+        return
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE rfq_process_tracking SET triggered_by = %s, updated_at = CURRENT_TIMESTAMP WHERE rfq_id = %s AND is_active = TRUE", (label[:200], rfq_id))
+        conn.commit()
+        cur.close()
+    except Exception as e:  # tracking must never fail the trigger
+        print(f"[TRIGGERED_BY UPDATE ERROR]: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+
+async def _temporal_client():
+    from temporalio.client import Client
+    import sys as _sys, pathlib as _pathlib
+    _worker_dir = str(_pathlib.Path(__file__).parent.parent / "temporal_worker")
+    if _worker_dir not in _sys.path:
+        _sys.path.insert(0, _worker_dir)
+    import client as temporal_client
+    return await Client.connect(temporal_client.config.TEMPORAL_HOST, namespace=temporal_client.config.NAMESPACE)
+
+
+@app.get("/api/runs")
+async def all_runs(limit: int = 50, by: Optional[str] = None, token: dict = Depends(auth.verify_token_any_project)):
+    """Recent pipeline runs of every RFQ (optionally only those started by the user with email `by`). The daemon calls this on behalf
+    of a signed-in user and decides who may see what: it forces `by` to the caller's own address for non-admins."""
+    try:
+        return {"runs": await run_history.list_all_runs(await _temporal_client(), limit=limit, by_email=by)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not read the run history from Temporal: {e}")
+
+
 @app.get("/api/rfq/{rfq_id}/runs")
 async def rfq_runs(rfq_id: str, token: dict = Depends(auth.verify_token)):
     """Every pipeline run of this RFQ from Temporal, newest first, failures explained (SPEC-021)."""
@@ -297,14 +350,17 @@ async def rfq_runs(rfq_id: str, token: dict = Depends(auth.verify_token)):
 
 
 @app.get("/api/dify/start/{rfq_id}")
-async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_token), x_cam_user: Optional[str] = Header(None)):
+async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_token), x_cam_user: Optional[str] = Header(None),
+                              x_cam_user_email: Optional[str] = Header(None)):
     """GET endpoint to manually or externally trigger the Dify workflow for a given RFQ ID."""
     rfq_id = rfq_id.strip()
     if not rfq_id:
         raise HTTPException(status_code=400, detail="rfq_id cannot be empty.")
 
     # Off the event loop: the trigger calls asyncio.run() (Temporal) and blocks on requests (Dify).
-    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True, None, _who(x_cam_user))
+    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True, None, _who(x_cam_user), _email(x_cam_user_email))
+    if _who(x_cam_user):
+        await asyncio.to_thread(_record_trigger, rfq_id, _label(_who(x_cam_user), _email(x_cam_user_email)))
 
     return {
         "success": dify_status in ["TRIGGERED", "SUCCESS"],
@@ -329,6 +385,7 @@ async def upload_rfq_file(
     profile: Optional[str] = Form(None),
     token: dict = Depends(auth.verify_token_form),
     x_cam_user: Optional[str] = Header(None),
+    x_cam_user_email: Optional[str] = Header(None),
 ):
     conn = None
     try:
@@ -371,7 +428,7 @@ async def upload_rfq_file(
         existing_active = cursor.fetchone()
 
         process_stage = 0  # 0 = STAGED_INTAKE
-        triggered_by = "UI_CANVAS_PORT_3000"
+        triggered_by = _label(_who(x_cam_user), _email(x_cam_user_email)) or "UI_CANVAS_PORT_3000"
 
         if existing_active is None:
             new_version = 1
@@ -410,7 +467,7 @@ async def upload_rfq_file(
 
         # Trigger Dify workflow
         # Off the event loop: see start_dify_workflow.
-        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, False, profile, _who(x_cam_user))
+        dify_status, _ = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, False, profile, _who(x_cam_user), _email(x_cam_user_email))
 
         return {
             "success": True,

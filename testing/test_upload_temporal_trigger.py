@@ -28,12 +28,12 @@ def _load_upload_server(monkeypatch):
 
     calls = []
 
-    async def start_rfq_workflow(rfq_id, profile_name=None, client=None):
-        calls.append(("start", rfq_id, profile_name))
+    async def start_rfq_workflow(rfq_id, profile_name=None, started_by=None, started_by_email=None):
+        calls.append(("start", rfq_id, profile_name) if not started_by else ("start", rfq_id, profile_name, started_by, started_by_email))
         return f"rfq-{rfq_id}"
 
-    async def resume_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", client=None):
-        calls.append(("resume", rfq_id))
+    async def resume_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", started_by=None, started_by_email=None):
+        calls.append(("resume", rfq_id) if not started_by else ("resume", rfq_id, started_by, started_by_email))
         return f"rfq-{rfq_id}", "RESUMED"
 
     fake_client.start_rfq_workflow = start_rfq_workflow
@@ -67,3 +67,21 @@ def test_an_upload_can_pick_its_routing_profile(monkeypatch):
     status, summary = us.trigger_dify_workflow_internal("CE-PROF-1", profile="RFQ_Flow")
     assert status == "TRIGGERED" and summary["outcome"] == "STARTED", summary
     assert us.calls == [("start", "CE-PROF-1", "RFQ_Flow")]
+
+
+def test_who_clicked_reaches_the_run_and_the_tracking_row(monkeypatch):
+    # SPEC-021: the signed-in name and email (as the app reports them) go into the workflow memo and rfq_process_tracking.triggered_by.
+    us = _load_upload_server(monkeypatch)
+    tracked = []
+    monkeypatch.setattr(us, "_record_trigger", lambda rfq, label: tracked.append((rfq, label)))
+    result = asyncio.run(us.start_dify_workflow("CE-WHO-1", token={}, x_cam_user="DigiBull%20Tester", x_cam_user_email="tester%40digibull.ai"))
+    assert result["success"] is True
+    assert us.calls == [("resume", "CE-WHO-1", "DigiBull Tester", "tester@digibull.ai")]
+    assert tracked == [("CE-WHO-1", "DigiBull Tester <tester@digibull.ai>")]
+
+
+def test_identity_headers_are_cleaned(monkeypatch):
+    us = _load_upload_server(monkeypatch)
+    assert us._who("%0Abad%00name") == "badname"          # control characters dropped
+    assert us._email("not an email") is None and us._email('a"b@c.d') is None and us._email("a@b.co") == "a@b.co"
+    assert us._label("A", None) == "A" and us._label(None, "a@b.co") is None

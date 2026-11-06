@@ -10,9 +10,12 @@ import { join } from 'node:path';
 import { UnknownOutcomeError, type ActionDeps } from './rfq-chat-actions-types.js';
 import { realEditDeps } from './rfq-chat-edit-deps.js';
 
-/** What the run history shows as "started by" for a start the user confirmed in chat (the upload service's token carries no user). */
-const ASSISTANT_USER = encodeURIComponent('CAM assistant (confirmed in chat)');
 import { fetchRfqStatus } from './rfq-chat-status.js';
+
+/** Who the run history names as the starter of a run the user confirmed in chat; the upload service's token carries no user, so this is sent as headers. */
+const whoHeaders = (actor?: { name: string; email: string }): Record<string, string> => (actor
+  ? { 'X-CAM-User': encodeURIComponent(actor.name), 'X-CAM-User-Email': encodeURIComponent(actor.email) }
+  : { 'X-CAM-User': encodeURIComponent('CAM assistant (confirmed in chat)') });
 
 const bridge = (): string => (process.env.PYTHON_BRIDGE_URL ?? process.env.PYTHON_SERVICE_URL ?? 'http://localhost:3110').replace(/\/$/, '');
 // Compose publishes upload-server on 13100; the bare-metal default is 3100 (same as the web client's RFQ_UPLOAD_URL).
@@ -116,14 +119,14 @@ export function realActionDeps(): ActionDeps {
         throw await failure(res, 'the attachment delete');
       }
     },
-    async upload(rfqId, bom, volume) {
+    async upload(rfqId, bom, volume, actor) {
       const body = new FormData();
       body.append('bom_file', blob(bom.bytes), bom.name);
       body.append('volume_file', blob(volume.bytes), volume.name);
       body.append('rfq_id', rfqId);
       let res: Response;
       try {
-        res = await fetch(`${uploadServer()}/api/rfq/upload`, { method: 'POST', body, headers: { ...(await authHeader(rfqId)), 'X-CAM-User': ASSISTANT_USER }, signal: AbortSignal.timeout(180000) });
+        res = await fetch(`${uploadServer()}/api/rfq/upload`, { method: 'POST', body, headers: { ...(await authHeader(rfqId)), ...whoHeaders(actor) }, signal: AbortSignal.timeout(180000) });
       } catch (err) {
         // The server may have received and finished the request: the caller must not delete anything.
         throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);
@@ -141,12 +144,12 @@ export function realActionDeps(): ActionDeps {
       }
     },
     pipelineState: (rfqId) => fetchRfqStatus(rfqId),
-    async startPipeline(rfqId) {
+    async startPipeline(rfqId, actor) {
       const headers = await authHeader(rfqId); // a failed mint means nothing was sent
       let res: Response;
       try {
         // X-CAM-User is what the run history shows as "started by" (the token carries no user).
-        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers: { ...headers, 'X-CAM-User': ASSISTANT_USER }, signal: AbortSignal.timeout(60000) });
+        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers: { ...headers, ...whoHeaders(actor) }, signal: AbortSignal.timeout(60000) });
       } catch (err) {
         // The server may have started the run before the connection dropped.
         throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);
