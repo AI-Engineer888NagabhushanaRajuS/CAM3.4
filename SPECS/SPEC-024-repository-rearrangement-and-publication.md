@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress (plan written 2026-11-06, results are filled in at the end of this file) |
+| Status | Done 2026-11-06 (results in section 7) |
 | Owner | Harish / Nagabhushana Raju S (Digibull) |
 | Depends on | SPEC-001 to SPEC-023 (nothing in `CAM-Source` changes behaviour) |
 | Safety net | Full copy of the folder (without `node_modules`) at `C:\CAM[3.4]-RFQ_centum_BACKUP-2026-11-06` (5,765 files, 1,270 MB, verified file-for-file) |
@@ -46,20 +46,57 @@ The complete list (every removed path, its kept twin and the hash) is in `SPEC-0
 
 ## 5. Publication
 
-1. A top-level git repository is created at `C:\CAM[3.4]-RFQ_centum`. The 67 commits of `CAM-Source` are kept: they are merged in under the `CAM-Source/` prefix (subtree-style merge, no history rewritten). The nested `.git` of the CAM 3.3 snapshot (`BuLLMQuote-SRIM`) is flattened into the tree; its own repository folder is kept in the backup.
+1. A top-level git repository is created at `C:\CAM[3.4]-RFQ_centum`. The 68 commits of `CAM-Source` are kept: they are merged in under the `CAM-Source/` prefix (subtree-style merge, no history rewritten). The nested `.git` of the CAM 3.3 snapshot (`BuLLMQuote-SRIM`) is flattened into the tree; its own repository folder is kept in the backup.
 2. Pushed to `main` of `AI-Engineer888NagabhushanaRajuS/CAM3.4` in chunks of about 200 to 300 MB, one commit per chunk (see section 7).
 3. The repository is made private before the first push (it holds Centum material).
 
 ## 6. Acceptance
 
-- [ ] Backup exists and matches the source file for file.
-- [ ] Every merged file is in the CSV log with its kept twin; nothing else was deleted.
-- [ ] No path that existed before is unreachable: moved files are listed in section 3, every reference to a moved file was updated (checked by search).
-- [ ] The five polished notes keep all their facts (originals preserved).
-- [ ] `git status` shows nothing untracked except what rule 3 ignores and what the nested `.gitignore` files already ignored (listed in section 8).
-- [ ] `git push` finished for every chunk; the repository on GitHub shows the same file count as the local index.
-- [ ] `CAM-Source` still builds and its tests still pass (nothing in it changed except two documentation paths).
+- [x] Backup exists and matches the source file for file.
+- [x] Every merged file is in the CSV log with its kept twin; nothing else was deleted.
+- [x] No path that existed before is unreachable: moved files are listed in section 3, every reference to a moved file was updated (checked by search).
+- [x] The five polished notes keep all their facts (originals preserved).
+- [x] `git status` shows nothing untracked except what rule 3 ignores and what the nested `.gitignore` files already ignored (listed in section 8).
+- [x] `git push` finished for every chunk; the repository on GitHub shows the same file count as the local index.
+- [x] `CAM-Source` still builds and its tests still pass (nothing in it changed except one documentation path).
 
 ## 7. Results
 
-*(filled in at the end of the work)*
+**Backup.** `C:\CAM[3.4]-RFQ_centum_BACKUP-2026-11-06`: 5,765 files, 1,270 MB, file counts and bytes equal to the source before any change. The two nested `.git` folders (CAM-Source and the CAM 3.3 snapshot) are kept whole in `_nested-git/` inside the backup.
+
+**Moved and merged** (every row is in `SPEC-024-rearrangement-log.csv`, 243 actions):
+
+| Kind | Count |
+|---|---|
+| session documents moved into `SPECS/handoff/` | 6 |
+| rough originals archived in `SPECS/handoff/original-notes/` | 4 |
+| byte-identical duplicates merged away (Encyclopedia 4 copy, 2 RE documents, repeated test uploads in the snapshot's staged inbox) | 228 |
+| zips merged away because the folder next to them already holds every entry (Domain Knowledge, Teaching Series, BAM) | 3 |
+| documentation package zip extracted to a folder, then the zip removed | 1 |
+
+Each merge was guarded by a hash comparison with the kept copy before the file was deleted.
+
+**Polished.** `README.md`, `Start Here.md` (from `Start Here.txt` and `001.txt`), `Reference[KT]/Source Code/README - which repo is the main code.md`, `Reference[KT]/Full Details/CAM 3.3 to 3.4 - how the JSON manifests meet the code.md` (from `json ,. .. other topics.txt`), index pages for `Reference[KT]`, `Eng_Diagram`, `SPECS` and `acceptance_evidence` (the diagram descriptions were checked against the eight images), headings added to the MAP document, and 1,628 Google-Docs escape artefacts in six long documents reduced to the 232 that change rendering. `GOAL_PROMPT.md`, `.claude/CLAUDE.md` and the specification cross-references now point at the new locations.
+
+**Published.** `github.com/AI-Engineer888NagabhushanaRajuS/CAM3.4`, branch `main`, set to **private** before the first push. 4,401 files, equal to the local index (checked through the GitHub API). 77 commits: nine new commits plus the 68 commits of the CAM-Source history as the second parent of the merge commit (tag `v3.3-baseline` pushed too).
+
+| Chunk | Content | Commit |
+|---|---|---|
+| A | front door, specs, handoffs, diagrams, agent setup | `ae1af7c` |
+| B | knowledge base | `18b46df` |
+| C | formula-extraction archives (about 125 MB) | `b4dc121` |
+| D | source snapshots (BAM, CAM 3.3 reference) | `773ffac` |
+| E | acceptance evidence without videos | `b3a3912` |
+| F | proof recordings in three commits (takes 1-9, 10-14, 15-21) | `1371519`, `aa29cd5`, `eee01d6` |
+| G | merge of the CAM-Source history | see `git log` (message amended once before anyone else saw it) |
+
+## 8. What is deliberately not in the repository
+
+- `node_modules/`, the bundled Node runtime and `.env` files (rule 3). `CAM-Source/.env` therefore stays local only; copy `.env.example` and fill it in on a new machine.
+- Rules that already existed in nested `.gitignore` files stay in force: in `CAM-Source` (client BOM uploads in `fastapi-router/staged/`, `*.duckdb`, `dist/`, logs, `.run/`), and in the CAM 3.3 snapshot (its `fastmcp-router/staged/` inbox with Centum BOM uploads, the `Distributor_Verification_Output*.xlsx` files, `dist-electron/`, pytest caches, `theme-init.js`) and in the BAM snapshot (eight `.webm` recordings under `recordings/`). They are client data, caches or build output that their own repositories never committed. If they should be published after all, remove the line from that nested `.gitignore` and add the files.
+- The node runtime inside the history: `node.exe` (87 MB) was committed by an earlier SPEC-006 commit in CAM-Source and remains in the history of that commit (history was not rewritten); it is no longer in the current tree.
+- Git LFS is not used: the 26 proof recordings (557 MB) are ordinary files; GitHub warns about files above 50 MB (two takes are 93 and 95 MB, below the 100 MB limit).
+
+## 9. How to get back
+
+Nothing was destroyed: the backup holds the folder as it was. To undo the publication layout locally, restore `CAM-Source` and the snapshot `.git` folders from `_nested-git/` and delete the top-level `.git`.
