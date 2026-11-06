@@ -1,0 +1,25 @@
+formula_text,kind,occurrences,also_in_SRIM_strings,locations
+"=COUNTIF($C$1:$C{r}, $C{r})",string-literal,1,False,backend/reporting_module/migrations.py:23
+"=IF($AF{r}, $I{r} * INDEX($F${start}:$F${end}, MATCH($A{r},",string-literal,1,False,backend/reporting_module/WORKFLOW.md:291
+"references** (e.g. `=IF($AF{r}, $I{r} * INDEX($F${start}:$F${end}, MATCH($A{r},",doc/config line,1,False,backend/reporting_module/WORKFLOW.md:291
+=SUMPRODUCT(--({w_range}=,string-literal,14,False,backend/reporting_module/build_price_control_diagnostic.py:79; backend/reporting_module/build_price_control_diagnostic.py:81; backend/reporting_module/build_price_control_diagnostic.py:83; backend/reporting_module/build_price_control_diagnostic.py:85; backend/reporting_module/build_price_control_diagnostic.py:91; backend/reporting_module/build_price_control_diagnostic.py:93; backend/reporting_module/build_price_control_diagnostic.py:95; backend/reporting_module/build_price_control_diagnostic.py:97; backend/reporting_module/build_price_control_diagnostic.py:194; backend/reporting_module/build_price_control_diagnostic.py:196; backend/reporting_module/build_price_control_diagnostic.py:198; backend/reporting_module/build_price_control_diagnostic.py:200; backend/reporting_module/build_price_control_diagnostic.py:202; backend/reporting_module/build_price_control_diagnostic.py:204
+"=SUMIFS({n_range},{w_range},",string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:87
+"=SUMIFS({o_range},{w_range},",string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:89
+=COUNT({col_range}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:117
+=COUNTA({col_range}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:118
+=SUMPRODUCT(--ISERROR({col_range})),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:119
+"=COUNTIF({col_range},",string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:120
+=COUNTA({af_range}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:121
+=SUMPRODUCT(--ISERROR({af_range})),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:122
+=COUNTA({w_range}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:123
+=SUMPRODUCT(--ISERROR({w_range})),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:124
+=ISERROR({SHEET}!N{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:148
+=ISERROR({SHEET}!O{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:149
+=ISNUMBER({SHEET}!N{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:150
+=ISNUMBER({SHEET}!O{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:151
+=ISTEXT({SHEET}!N{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:152
+=ISTEXT({SHEET}!O{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:153
+=FORMULATEXT({SHEET}!N{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:175
+=FORMULATEXT({SHEET}!O{r}),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:177
+=SUMPRODUCT(--({af_range}=TRUE)),string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:193
+"=IFERROR({SHEET}!{col}{r}*1,0)",string-literal,1,False,backend/reporting_module/build_price_control_diagnostic.py:228

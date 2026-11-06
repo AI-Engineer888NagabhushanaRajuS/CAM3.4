@@ -1,0 +1,299 @@
+file,line,formula_string
+reports_aclass_parts.py,206,"=IFERROR({inner},""-"")"
+reports_aclass_parts.py,211,"=SUMIFS({_bounded_range(value_column_letter)}, {_bounded_range('C')}, {part_number_cell}, {_bounded_range('AH')}, ""<>TRUE"")"
+reports_aclass_parts.py,206,=IFERROR(
+reports_aclass_parts.py,211,=SUMIFS(
+reports_aclass_parts.py,256,"="" $ ""&TEXT(SUM(${ext_price_letter}${data_start_row}:${ext_price_letter}${data_end_row}),""0.00"")"
+reports_aclass_parts.py,259,"="" $ ""&TEXT(SUM(${ext_vol_cost_letter}${data_start_row}:${ext_vol_cost_letter}${data_end_row}),""0.00"")"
+reports_aclass_parts.py,268,"=ROUND(SUM(${avg_moq_letter}${data_start_row}:${avg_moq_letter}${data_end_row})/SUM(${ext_vol_cost_letter}${data_start_row}:${ext_vol_cost_letter}${data_end_row}),6)"
+reports_aclass_parts.py,256,"="" $ ""&TEXT(SUM($"
+reports_aclass_parts.py,259,"="" $ ""&TEXT(SUM($"
+reports_aclass_parts.py,268,=ROUND(SUM($
+reports_aclass_parts.py,311,"=IFERROR(IF({flag_condition},{cost_value},0),0)"
+reports_aclass_parts.py,311,=IFERROR(IF(
+reports_aclass_parts.py,313,"=IFERROR({part_qty_cell}*{cost_cell},0)"
+reports_aclass_parts.py,313,=IFERROR(
+reports_aclass_parts.py,323,"=IFERROR({ext_price_cell}/SUM(${ext_price_letter}${data_start_row}:${ext_price_letter}${data_end_row}),0)"
+reports_aclass_parts.py,323,=IFERROR(
+reports_aclass_parts.py,327,"=IFERROR({cost_cell}*{ext_vol_cell},0)"
+reports_aclass_parts.py,327,=IFERROR(
+reports_aclass_parts.py,339,"=IFERROR({ext_vol_cell}/{moq_cell},""-"")"
+reports_aclass_parts.py,339,=IFERROR(
+reports_aclass_parts.py,341,"=IFERROR({ext_vol_cost_cell}*{moq_turns_cell},""-"")"
+reports_aclass_parts.py,341,=IFERROR(
+reports_batchwise_cashflow.py,246,"=SUMIF('Ex Inv VL-proto'!$AE$5:$AE$300,$A3,'Ex Inv VL-proto'!$AD$5:$AD$300)"
+reports_batchwise_cashflow.py,247,"=$B3*IFERROR(NUMBERVALUE(LEFT($A3,FIND("" "",$A3))),0)"
+reports_batchwise_cashflow.py,248,=SUM(B3:B4)
+reports_batchwise_cashflow.py,250,"=SUMIF('Ex Inv VL-1'!$AE$5:$AE$200,$A9,'Ex Inv VL-1'!$Z$5:$Z$200)"
+reports_batchwise_cashflow.py,251,"=$C9*IFERROR(NUMBERVALUE(LEFT($A9,FIND("" "",$A9))),0)"
+reports_batchwise_cashflow.py,252,=SUM(B9:B10)
+reports_batchwise_cashflow.py,142,=SUM({letter}{data_start}:{letter}{data_end})
+reports_batchwise_cashflow.py,152,"=SUMIF('Ex Inv VL-proto'!$AE$5:$AE${proto_last_row},$A{r},'Ex Inv VL-proto'!$AD$5:$AD${proto_last_row})"
+reports_batchwise_cashflow.py,155,"=$B{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND("" "",$A{r}))),0)"
+reports_batchwise_cashflow.py,169,"=SUMIF('{sheet_name}'!$AE$5:$AE${ex_inv_last_row},$A{r},'{sheet_name}'!$Z$5:$Z${ex_inv_last_row})"
+reports_batchwise_cashflow.py,171,"=SUMIF('{sheet_name}'!$AE$5:$AE${ex_inv_last_row},$A{r},'{sheet_name}'!$AD$5:$AD${ex_inv_last_row})"
+reports_batchwise_cashflow.py,174,"=$B{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND("" "",$A{r}))),0)"
+reports_batchwise_cashflow.py,175,"=$C{r}*IFERROR(NUMBERVALUE(LEFT($A{r},FIND("" "",$A{r}))),0)"
+reports_batchwise_cashflow.py,142,=SUM(
+reports_batchwise_cashflow.py,152,=SUMIF('Ex Inv VL-proto'!$AE$5:$AE$
+reports_batchwise_cashflow.py,169,=SUMIF('
+reports_batchwise_cashflow.py,171,=SUMIF('
+reports_bom_matrix.py,125,"=IFERROR(IF(UPPER(TRIM({af_val}))=""TRUE"", {val}, {if_false}), """")"
+reports_bom_matrix.py,544,"=IFERROR({_fg_price_lookup('7.0 CBOM VL-1', 'FG-A', '$A9', 500)}*$B9,0)"
+reports_bom_matrix.py,125,=IFERROR(IF(UPPER(TRIM(
+reports_bom_matrix.py,534,=SUM(P9:P9)
+reports_bom_matrix.py,544,=IFERROR(
+reports_bom_matrix.py,550,=P9
+reports_bom_matrix.py,555,"=IFERROR(INDEX('Ex Inv VL-1'!$AC$1:$AC$200, MATCH($A9, 'Ex Inv VL-1'!$A$1:$A$200, 0)), 0)"
+reports_bom_matrix.py,329,=SUM({col_letter}9:{col_letter}{last_data_row})
+reports_bom_matrix.py,463,"=IFERROR(INDEX('{ex_inv_sheet}'!$AC$1:$AC${ex_inv_last_row}, MATCH({a_ref}, '{ex_inv_sheet}'!$A$1:$A${ex_inv_last_row}, 0)), 0)"
+reports_bom_matrix.py,329,=SUM(
+reports_bom_matrix.py,441,"=IFERROR({_fg_price_lookup(cbom_sheet, fg_keys[fi], a_ref, cbom_last_row)}*${fg_qty_letter}{row_num},0)"
+reports_bom_matrix.py,463,=IFERROR(INDEX('
+reports_bom_matrix.py,441,=IFERROR(
+reports_cbom_vl.py,498,"=SUMPRODUCT(($AP${first_data_row}:$AP${last_data_row}=1)*($C${first_data_row}:$C${last_data_row}<>""""))"
+reports_cbom_vl.py,501,=K10-K12
+reports_cbom_vl.py,503,"=SUMPRODUCT(($AP${first_data_row}:$AP${last_data_row}=2)*($C${first_data_row}:$C${last_data_row}<>""""))"
+reports_cbom_vl.py,506,=K14-K11
+reports_cbom_vl.py,508,"=SUMPRODUCT(--((LOWER(TRIM($AF${first_data_row}:$AF${last_data_row}))=""true"")+(LOWER(TRIM($AF${first_data_row}:$AF${last_data_row}))=""false"")))"
+reports_cbom_vl.py,528,"=COUNTIFS($AO${first_data_row}:$AO${last_data_row},FALSE,$AF${first_data_row}:$AF${last_data_row},TRUE)"
+reports_cbom_vl.py,532,"=SUMPRODUCT(($AM${first_data_row}:$AM${last_data_row}=FALSE)*($AP${first_data_row}:$AP${last_data_row}=1)*--(($AF${first_data_row}:$AF${last_data_row}=TRUE)+($AF${first_data_row}:$AF${last_data_row}=""TRUE"")+($AF${first_data_row}:$AF${last_data_row}=1)>0))"
+reports_cbom_vl.py,539,"=SUMPRODUCT(($AN${first_data_row}:$AN${last_data_row}=FALSE)*($AP${first_data_row}:$AP${last_data_row}=1)*--(($AF${first_data_row}:$AF${last_data_row}=TRUE)+($AF${first_data_row}:$AF${last_data_row}=""TRUE"")+($AF${first_data_row}:$AF${last_data_row}=1)>0))"
+reports_cbom_vl.py,554,=SUMPRODUCT(($AQ${first_data_row}:$AQ${last_data_row}=FALSE)*{_is_data_test})
+reports_cbom_vl.py,568,=SUMPRODUCT(($AR${first_data_row}:$AR${last_data_row}=FALSE)*{_is_data_test})
+reports_cbom_vl.py,571,=SUMPRODUCT(($AS${first_data_row}:$AS${last_data_row}=FALSE)*{_is_data_test})
+reports_cbom_vl.py,574,=SUMPRODUCT(($AT${first_data_row}:$AT${last_data_row}=FALSE)*{_is_data_test})
+reports_cbom_vl.py,577,"=SUMPRODUCT({_is_data_test}*(($E${first_data_row}:$E${last_data_row}="""")+ISBLANK($E${first_data_row}:$E${last_data_row})>0))"
+reports_cbom_vl.py,591,='{ex_inv_sheet}'!$A$2
+reports_cbom_vl.py,593,"=IFERROR($M$11/G{total_row},0)"
+reports_cbom_vl.py,447,=SUM(E{summary_data_start}:E{summary_data_end})
+reports_cbom_vl.py,448,=SUM(G{summary_data_start}:G{summary_data_end})
+reports_cbom_vl.py,498,=SUMPRODUCT(($AP$
+reports_cbom_vl.py,503,=SUMPRODUCT(($AP$
+reports_cbom_vl.py,508,=SUMPRODUCT(--((LOWER(TRIM($AF$
+reports_cbom_vl.py,528,=COUNTIFS($AO$
+reports_cbom_vl.py,532,=SUMPRODUCT(($AM$
+reports_cbom_vl.py,539,=SUMPRODUCT(($AN$
+reports_cbom_vl.py,554,=SUMPRODUCT(($AQ$
+reports_cbom_vl.py,568,=SUMPRODUCT(($AR$
+reports_cbom_vl.py,571,=SUMPRODUCT(($AS$
+reports_cbom_vl.py,574,=SUMPRODUCT(($AT$
+reports_cbom_vl.py,577,=SUMPRODUCT(
+reports_cbom_vl.py,577,"="""")+ISBLANK($E$"
+reports_cbom_vl.py,593,=IFERROR($M$11/G
+reports_cbom_vl.py,1025,"=IF($AF{data_row_num},IF($K{data_row_num}="""",TRUE,ROUND(SUMIFS($K${first_data_row}:$K${last_data_row},$C${first_data_row}:$C${last_data_row},$C{data_row_num})/COUNTIFS($C${first_data_row}:$C${last_data_row},$C{data_row_num}),3)=ROUND($K{data_row_num},3)),"""")"
+reports_cbom_vl.py,1030,"=IF($AF{data_row_num}, IF(COUNTIFS($G${first_data_row}:$G${last_data_row}, ""<>""&$G{data_row_num}, $C${first_data_row}:$C${last_data_row}, $C{data_row_num}) > 0, FALSE, TRUE), """")"
+reports_cbom_vl.py,1034,"=IF($C{data_row_num}<>"""", COUNTIF($C$1:$C{data_row_num}, $C{data_row_num}), """")"
+reports_cbom_vl.py,1046,"=IF($AF{data_row_num}, AND(NOT(ISERROR(MATCH($AV{data_row_num}, $AU${first_data_row}:$AU${last_data_row}, 0))), SUMIFS($N${first_data_row}:$N${last_data_row}, $A${first_data_row}:$A${last_data_row}, $A{data_row_num}, $B${first_data_row}:$B${last_data_row}, $C{data_row_num})<>0), """")"
+reports_cbom_vl.py,1060,"=IF($AF{data_row_num}, IF($K{data_row_num}<>"""", INDEX('Scrap Factor'!$C$2:$C${scrap_last_row}, MATCH($K{data_row_num}, 'Scrap Factor'!$A$2:$A${scrap_last_row}, 1)), """"), """")"
+reports_cbom_vl.py,1064,"=IF($AF{data_row_num}, IF($K{data_row_num}<>"""", INDEX('Scrap Factor'!$D$2:$D${scrap_last_row}, MATCH($K{data_row_num}, 'Scrap Factor'!$A$2:$A${scrap_last_row}, 1)), """"), """")"
+reports_cbom_vl.py,1082,"=IF($AF{data_row_num}, IF($A{data_row_num}=$B{data_row_num}, $I{data_row_num}*IFERROR(INDEX('Batch Settings'!$C$2:$C${batch_settings_last_row}, MATCH($A{data_row_num}&""|""&""1"", 'Batch Settings'!$D$2:$D${batch_settings_last_row}, 0)), 0), $I{data_row_num}*IFERROR(INDEX($AG:$AG, SUMPRODUCT(($A${first_data_row}:$A${last_data_row}=$A{data_row_num})*($C${first_data_row}:$C${last_data_row}=$B{data_row_num})*ROW($C${first_data_row}:$C${last_data_row}))), 0)), """")"
+reports_cbom_vl.py,1095,"=IF(AND($AF{data_row_num},$K{data_row_num}<>"""",$AW{data_row_num}<>""""),$AW{data_row_num}*$K{data_row_num},"""")"
+reports_cbom_vl.py,1110,"=SUMIFS($AX${first_data_row}:$AX${last_data_row}, $A${first_data_row}:$A${last_data_row}, $C10, $AH${first_data_row}:$AH${last_data_row}, ""<>TRUE"")"
+reports_cbom_vl.py,1115,=SUM(E10:E10)
+reports_cbom_vl.py,1116,=SUM(G10:G10)
+reports_cbom_vl.py,1123,"=SUMPRODUCT(($AP${first_data_row}:$AP${last_data_row}=1)*($C${first_data_row}:$C${last_data_row}<>""""))"
+reports_cbom_vl.py,1125,=K10-K12
+reports_cbom_vl.py,1126,=K14-K11
+reports_cbom_vl.py,1128,"=COUNTIFS($AO${first_data_row}:$AO${last_data_row},FALSE,$AF${first_data_row}:$AF${last_data_row},TRUE)"
+reports_cbom_vl.py,1132,"=IFERROR($M$11/G{11},0)"
+reports_cbom_vl.py,1143,=SUMPRODUCT(($AQ${first_data_row}:$AQ${last_data_row}=FALSE)*{is_data_test})
+reports_cbom_vl.py,1146,=SUMPRODUCT(($AR${first_data_row}:$AR${last_data_row}=FALSE)*{is_data_test})
+reports_cbom_vl.py,1149,=SUMPRODUCT(($AS${first_data_row}:$AS${last_data_row}=FALSE)*{is_data_test})
+reports_cbom_vl.py,1152,=SUMPRODUCT(($AT${first_data_row}:$AT${last_data_row}=FALSE)*{is_data_test})
+reports_cbom_vl.py,1155,"=SUMPRODUCT({is_data_test}*(($E${first_data_row}:$E${last_data_row}="""")+ISBLANK($E${first_data_row}:$E${last_data_row})>0))"
+reports_cbom_vl.py,443,"=SUMIFS($AX${first_data_row}:$AX${last_data_row}, $A${first_data_row}:$A${last_data_row}, $C{_summary_row}, $AH${first_data_row}:$AH${last_data_row}, ""<>TRUE"")"
+reports_cbom_vl.py,447,=SUM(E
+reports_cbom_vl.py,448,=SUM(G
+reports_cbom_vl.py,1025,=IF($AF
+reports_cbom_vl.py,1025,"="""",TRUE,ROUND(SUMIFS($K$"
+reports_cbom_vl.py,1030,=IF($AF
+reports_cbom_vl.py,1034,=IF($C
+reports_cbom_vl.py,1046,=IF($AF
+reports_cbom_vl.py,1060,=IF($AF
+reports_cbom_vl.py,1064,=IF($AF
+reports_cbom_vl.py,1082,=IF($AF
+reports_cbom_vl.py,1095,=IF(AND($AF
+reports_cbom_vl.py,1110,=SUMIFS($AX$
+reports_cbom_vl.py,1123,=SUMPRODUCT(($AP$
+reports_cbom_vl.py,1128,=COUNTIFS($AO$
+reports_cbom_vl.py,1132,=IFERROR($M$11/G
+reports_cbom_vl.py,1143,=SUMPRODUCT(($AQ$
+reports_cbom_vl.py,1146,=SUMPRODUCT(($AR$
+reports_cbom_vl.py,1149,=SUMPRODUCT(($AS$
+reports_cbom_vl.py,1152,=SUMPRODUCT(($AT$
+reports_cbom_vl.py,1155,=SUMPRODUCT(
+reports_cbom_vl.py,1155,"="""")+ISBLANK($E$"
+reports_cbom_vl.py,443,=SUMIFS($AX$
+reports_cbom_vl.py,714,"=IF($AF{_r}, IFERROR(IF(OR($M{_r}="""", $L{_r}=""""), """", $L{_r}/INDEX($K$1:$K${currency_table_last_row},MATCH($M{_r},$J$1:$J${currency_table_last_row},0))*INDEX($K$1:$K${currency_table_last_row},MATCH($N$1,$J$1:$J${currency_table_last_row},0))), """"), """")"
+reports_cbom_vl.py,729,"=IF(AND($AF{_r},$K{_r}<>""""),$I{_r}*$K{_r},"""")"
+reports_cbom_vl.py,730,"=IF(AND($AF{_r},$K{_r}<>""""),$J{_r}*$K{_r},"""")"
+reports_cbom_vl.py,743,"=IF(AND($AF{_r},$K{_r}<>"""",$AW{_r}<>""""),$AW{_r}*$K{_r},"""")"
+reports_cbom_vl.py,748,"=IF($AF{_r}, IF(OR($T{_r}="""", $T{_r}=0), 0, IFERROR($T{_r}/INDEX($K$1:$K${currency_table_last_row},MATCH($M{_r},$J$1:$J${currency_table_last_row},0))*INDEX($K$1:$K${currency_table_last_row},MATCH($N$1,$J$1:$J${currency_table_last_row},0)), """")), """")"
+reports_cbom_vl.py,780,"=IF($AF{_r}, IF($A{_r}=$B{_r}, $I{_r}*IFERROR(INDEX('Batch Settings'!$C$2:$C${batch_settings_last_row}, MATCH($A{_r}&""|""&""{volume}"", 'Batch Settings'!$D$2:$D${batch_settings_last_row}, 0)), 0), $I{_r}*IFERROR(INDEX($AG:$AG, SUMPRODUCT(($A${first_data_row}:$A${last_data_row}=$A{_r})*($C${first_data_row}:$C${last_data_row}=$B{_r})*ROW($C${first_data_row}:$C${last_data_row}))), 0)), """")"
+reports_cbom_vl.py,844,"=IF($AF{_r}, AND(NOT(ISERROR(MATCH($AV{_r}, $AU${first_data_row}:$AU${last_data_row}, 0))), SUMIFS($N${first_data_row}:$N${last_data_row}, $A${first_data_row}:$A${last_data_row}, $A{_r}, $B${first_data_row}:$B${last_data_row}, $C{_r})<>0), """")"
+reports_cbom_vl.py,851,"=IF($AF{_r}, IFERROR(LEFT($AE{_r}, FIND(""@"", SUBSTITUTE($AE{_r}, ""."", ""@"", LEN($AE{_r})-LEN(SUBSTITUTE($AE{_r}, ""."", """"))))-1), $AE{_r}), """")"
+reports_cbom_vl.py,870,"=IF($AF{_r}, IF($K{_r}<>"""", INDEX('Scrap Factor'!$C$2:$C${scrap_last_row}, MATCH($K{_r}, 'Scrap Factor'!$A$2:$A${scrap_last_row}, 1)), """"), """")"
+reports_cbom_vl.py,874,"=IF($AF{_r}, IF($K{_r}<>"""", INDEX('Scrap Factor'!$D$2:$D${scrap_last_row}, MATCH($K{_r}, 'Scrap Factor'!$A$2:$A${scrap_last_row}, 1)), """"), """")"
+reports_cbom_vl.py,879,"=IF($AF{_r},IF($K{_r}="""",TRUE,ROUND(SUMIFS($K${first_data_row}:$K${last_data_row},$C${first_data_row}:$C${last_data_row},$C{_r})/COUNTIFS($C${first_data_row}:$C${last_data_row},$C{_r}),3)=ROUND($K{_r},3)),"""")"
+reports_cbom_vl.py,884,"=IF($AF{_r}, IF(COUNTIFS($G${first_data_row}:$G${last_data_row}, ""<>""&$G{_r}, $C${first_data_row}:$C${last_data_row}, $C{_r}) > 0, FALSE, TRUE), """")"
+reports_cbom_vl.py,887,"=IF($AF{_r}, AND($K{_r}<>0, $K{_r}<>""""), """")"
+reports_cbom_vl.py,888,"=IF($C{_r}<>"""", COUNTIF($C$1:$C{_r}, $C{_r}), """")"
+reports_cbom_vl.py,903,"=IF($AF{_r}, $B{_r}&""_""&$AI{_r}, """")"
+reports_cbom_vl.py,904,"=IF($AF{_r}, $C{_r}&""_""&$AE{_r}, """")"
+reports_cbom_vl.py,714,=IF($AF
+reports_cbom_vl.py,729,=IF(AND($AF
+reports_cbom_vl.py,730,=IF(AND($AF
+reports_cbom_vl.py,743,=IF(AND($AF
+reports_cbom_vl.py,748,=IF($AF
+reports_cbom_vl.py,748,"=0), 0, IFERROR($T"
+reports_cbom_vl.py,780,=IF($AF
+reports_cbom_vl.py,844,=IF($AF
+reports_cbom_vl.py,851,=IF($AF
+reports_cbom_vl.py,870,=IF($AF
+reports_cbom_vl.py,874,=IF($AF
+reports_cbom_vl.py,879,=IF($AF
+reports_cbom_vl.py,879,"="""",TRUE,ROUND(SUMIFS($K$"
+reports_cbom_vl.py,884,=IF($AF
+reports_cbom_vl.py,887,=IF($AF
+reports_cbom_vl.py,888,=IF($C
+reports_cbom_vl.py,903,=IF($AF
+reports_cbom_vl.py,904,=IF($AF
+reports_ex_inv_vl.py,116,"=IFERROR({inner},{fallback})"
+reports_ex_inv_vl.py,122,"=SUMIFS({_bounded(cbom_sheet, value_col)}, {_bounded(cbom_sheet, 'C')}, {pn_cell}, {_bounded(cbom_sheet, 'AH')}, ""<>TRUE"")"
+reports_ex_inv_vl.py,137,"=IFERROR({inner},"""")"
+reports_ex_inv_vl.py,273,=SUM(AC{data_start_row}:AC{last_data_row})
+reports_ex_inv_vl.py,116,=IFERROR(
+reports_ex_inv_vl.py,122,=SUMIFS(
+reports_ex_inv_vl.py,137,=IFERROR(
+reports_ex_inv_vl.py,153,"=MAX(H{r}-G{r},0)"
+reports_ex_inv_vl.py,154,"=MAX(G{r}-H{r},0)"
+reports_ex_inv_vl.py,156,"=IF(INT(F{r})=F{r}, ROUNDUP(J{r}*(1+K{r}),0), J{r}*(1+K{r}))"
+reports_ex_inv_vl.py,158,"=IF(INT(F{r})=F{r}, ROUNDUP(M{r}*(1+K{r}),0), M{r}*(1+K{r}))"
+reports_ex_inv_vl.py,160,"=IFERROR(O{r}*G{r},0)"
+reports_ex_inv_vl.py,166,"=IF(AND(T{r}<>"""",T{r}>0), MAX(N{r}-H{r},0), 0)"
+reports_ex_inv_vl.py,167,"=IF(V{r}=0,0,IFERROR(ROUNDUP(MAX(V{r},T{r})/S{r},0)*S{r},0))"
+reports_ex_inv_vl.py,168,"=IF(AND(T{r}<>"""",T{r}>0), H{r}+W{r}-N{r}, 0)"
+reports_ex_inv_vl.py,169,"=IFERROR(X{r}*O{r},0)"
+reports_ex_inv_vl.py,170,"=IFERROR(W{r}*O{r},0)"
+reports_ex_inv_vl.py,171,"=IFERROR(IF(L{r}<=T{r},T{r},ROUNDUP(L{r}/S{r},0)*S{r}),0)"
+reports_ex_inv_vl.py,172,"=MAX(AA{r}+I{r}-L{r},0)"
+reports_ex_inv_vl.py,173,"=IFERROR(AB{r}*O{r},0)"
+reports_ex_inv_vl.py,174,"=IFERROR(AA{r}*O{r},0)"
+reports_ex_inv_vl.py,177,=S{r}<=T{r}
+reports_ex_inv_vl.py,273,=SUM(AC
+reports_ex_inv_vl.py,314,=SUM({col_letter}{data_start_row}:{col_letter}{last_data_row})
+reports_ex_inv_vl.py,378,"=MAX(H5-G5,0)"
+reports_ex_inv_vl.py,380,"=IFERROR(MATCH(1,"
+reports_ex_inv_vl.py,399,=IFERROR(ABS(INDEX('Ex Inv VL-proto'!
+reports_ex_inv_vl.py,408,=IFERROR(ABS(INDEX('Ex Inv VL-1'!
+reports_ex_inv_vl.py,153,=MAX(H
+reports_ex_inv_vl.py,154,=MAX(G
+reports_ex_inv_vl.py,156,=IF(INT(F
+reports_ex_inv_vl.py,158,=IF(INT(F
+reports_ex_inv_vl.py,160,=IFERROR(O
+reports_ex_inv_vl.py,166,=IF(AND(T
+reports_ex_inv_vl.py,167,=IF(V
+reports_ex_inv_vl.py,167,"=0,0,IFERROR(ROUNDUP(MAX(V"
+reports_ex_inv_vl.py,168,=IF(AND(T
+reports_ex_inv_vl.py,169,=IFERROR(X
+reports_ex_inv_vl.py,170,=IFERROR(W
+reports_ex_inv_vl.py,171,=IFERROR(IF(L
+reports_ex_inv_vl.py,172,=MAX(AA
+reports_ex_inv_vl.py,173,=IFERROR(AB
+reports_ex_inv_vl.py,174,=IFERROR(AA
+reports_ex_inv_vl.py,293,"=IFERROR(ABS(INDEX('{previous_title}'!O$5:O$1029, MATCH('{title}'!{cpn_cell}, '{previous_title}'!$A$5:$A$1029, 0)) - '{title}'!O{r}),0)"
+reports_ex_inv_vl.py,297,"=IFERROR(INDEX('{previous_title}'!T$5:T$1029, MATCH('{title}'!{cpn_cell}, '{previous_title}'!$A$5:$A$1029, 0)) - '{title}'!T{r},0)"
+reports_ex_inv_vl.py,314,=SUM(
+reports_ex_inv_vl.py,377,=IFERROR(INDEX(
+reports_ex_inv_vl.py,293,=IFERROR(ABS(INDEX('
+reports_ex_inv_vl.py,297,=IFERROR(INDEX('
+reports_lead_time_consolidated.py,137,"=IF($B${grand_total_row_index}=0,0,B{grand_total_row_index}/$B${grand_total_row_index})"
+reports_lead_time_consolidated.py,128,=SUM(B2:B{grand_total_row_index - 1})
+reports_lead_time_consolidated.py,137,=IF($B$
+reports_lead_time_consolidated.py,229,=SUM(B2:B3)
+reports_lead_time_consolidated.py,230,"=IF($B$4=0,0,B4/$B$4)"
+reports_lead_time_consolidated.py,231,"=IF($B$4=0,0,B2/$B$4)"
+reports_lead_time_consolidated.py,128,=SUM(B2:B
+reports_lead_time_consolidated.py,134,"=IF($B${grand_total_row_index}=0,0,B{excel_row}/$B${grand_total_row_index})"
+reports_lead_time_consolidated.py,134,=IF($B$
+reports_mech_em_nre.py,152,"=IF({part_cell}="""","""",IFERROR({value_expr},""""))"
+reports_mech_em_nre.py,152,=IF(
+reports_mech_em_nre.py,152,"="""","""",IFERROR("
+reports_mech_em_nre.py,239,"=IF($A3="""","""",IFERROR(INDEX('7.0 CBOM VL-1'!$D$27:$D$282"
+reports_pcb_nre_fai_charge.py,147,"=IF({part_cell}="""","""",IFERROR({value_expr},""""))"
+reports_pcb_nre_fai_charge.py,147,=IF(
+reports_pcb_nre_fai_charge.py,147,"="""","""",IFERROR("
+reports_pcb_nre_fai_charge.py,246,"=IF($A2="""","""",IFERROR(INDEX('7.0 CBOM VL-1'!$D$27:$D$282"
+reports_price_control.py,233,"=SUMPRODUCT(--({pc_upper}=""CENTUM""),--({is_data_expr}),{ext_price_n})"
+reports_price_control.py,234,"=SUMPRODUCT(--({pc_upper}=""CENTUM""),--({is_data_expr}),{ext_vol_n})"
+reports_price_control.py,239,"=SUMPRODUCT(--(({pc_upper}=""CNP"")+({pc_upper}=""CUSTOMER"")),--({is_data_expr}),{ext_price_n})"
+reports_price_control.py,240,"=SUMPRODUCT(--(({pc_upper}=""CNP"")+({pc_upper}=""CUSTOMER"")),--({is_data_expr}),{ext_vol_n})"
+reports_price_control.py,260,"=IF($C${grand_total_row_number}=0,0,C{excel_row}/$C${grand_total_row_number})"
+reports_price_control.py,233,=SUMPRODUCT(--(
+reports_price_control.py,234,=SUMPRODUCT(--(
+reports_price_control.py,239,=SUMPRODUCT(--((
+reports_price_control.py,240,=SUMPRODUCT(--((
+reports_price_control.py,250,"=SUMPRODUCT(--({pc_upper}=""{upper_name}""),--({is_data_expr}),{ext_price_n})"
+reports_price_control.py,251,"=SUMPRODUCT(--({pc_upper}=""{upper_name}""),--({is_data_expr}),{ext_vol_n})"
+reports_price_control.py,257,=SUM(B2:B{data_row_end})
+reports_price_control.py,257,=SUM(C2:C{data_row_end})
+reports_price_control.py,260,=IF($C$
+reports_price_control.py,250,=SUMPRODUCT(--(
+reports_price_control.py,251,=SUMPRODUCT(--(
+reports_price_control.py,257,=SUM(B2:B
+reports_price_control.py,257,=SUM(C2:C
+reports_revision_history.py,316,"=IFERROR({base}, IFERROR({fallback}, """"))"
+reports_revision_history.py,322,"=IFERROR(SUMIFS('{sheet}'!$G$5:$G${ex_inv_last_row}, '{sheet}'!$A$5:$A${ex_inv_last_row}, {cpn_cell}), """")"
+reports_revision_history.py,334,"=IFERROR({base}, IFERROR({fallback}, """"))"
+reports_revision_history.py,316,=IFERROR(
+reports_revision_history.py,322,=IFERROR(SUMIFS('
+reports_revision_history.py,334,=IFERROR(
+reports_revision_history.py,567,=IFERROR(
+reports_revision_history.py,548,=IFERROR(INDEX(
+reports_revision_history.py,565,=IFERROR(
+reports_revision_history.py,464,"=IFERROR({new_qty_cell}*{new_unit_cell}, """")"
+reports_revision_history.py,471,"=IFERROR({new_sys_cell}-VALUE(SUBSTITUTE(SUBSTITUTE({old_sys_cell},""$"",""""),"","","""")),"""")"
+reports_revision_history.py,464,=IFERROR(
+reports_revision_history.py,471,=IFERROR(
+reports_sum_and_count.py,176,"=AND(a=b, b=c, ...) chaining consecutive columns on the same row."
+reports_sum_and_count.py,379,"=IFERROR(SUMIFS('Sum & Count Detailed'!$C$1:$C$50, 'Sum & Count Detailed'!$A$1:$A$50, A2), 0)"
+reports_sum_and_count.py,385,"=AND(B2=D2, D2=F2, F2=H2)"
+reports_sum_and_count.py,300,"=NOT(AND(${is_sum_same_meta['column']}2=TRUE, ${is_count_same_meta['column']}2=TRUE))"
+reports_sum_and_count.py,184,=AND(
+reports_sum_and_count.py,271,"=IFERROR(SUMIFS({value_range}, {assembly_range}, {assembly_cell}), 0)"
+reports_sum_and_count.py,300,=NOT(AND($
+reports_sum_and_count.py,271,=IFERROR(SUMIFS(
+reports_sum_and_count_detailed.py,137,"=AND(a=b, b=c, ...) chaining consecutive columns on the same row."
+reports_sum_and_count_detailed.py,181,"=IFERROR(AVERAGEIFS({avg_range}, {assembly_range}, {assembly_cell}, {part_range}, {part_cell}), 0)"
+reports_sum_and_count_detailed.py,192,"=IF(SUM(INDEX({criteria}, 0, 1)) > 0, 1, 0)"
+reports_sum_and_count_detailed.py,181,=IFERROR(AVERAGEIFS(
+reports_sum_and_count_detailed.py,192,=IF(SUM(INDEX(
+reports_sum_and_count_detailed.py,395,"=IFERROR(AVERAGEIFS(INDEX('7.0 CBOM Proto'!$I:$I, $AL$1):INDEX('7.0 CBOM Proto'!$I:$I, $AK$1), INDEX('7.0 CBOM Proto'!$B:$B, $AL$1):INDEX('7.0 CBOM Proto'!$B:$B, $AK$1), A2, INDEX('7.0 CBOM Proto'!$C:$C, $AL$1):INDEX('7.0 CBOM Proto'!$C:$C, $AK$1), B2), 0)"
+reports_sum_and_count_detailed.py,302,"=NOT(AND(${is_sum_same_meta['column']}2=TRUE, ${is_count_same_meta['column']}2=TRUE))"
+reports_sum_and_count_detailed.py,145,=AND(
+reports_sum_and_count_detailed.py,302,=NOT(AND($
+reports_summary.py,625,"=SUBTOTAL(109,Summary!${cost_col}${first_asm_row}:${cost_col}${last_asm_row})"
+reports_summary.py,628,"=IFERROR(INDEX('{cbom_sheet1}'!$G$1:$G${cbom_last_row1}, MATCH(""TOTAL"", '{cbom_sheet1}'!$C$1:$C${cbom_last_row1}, 0)),0)"
+reports_summary.py,631,"=IFERROR('{ex_inv_sheet1}'!$A$2,0)"
+reports_summary.py,633,"=IFERROR({cost_col}{moq_cost_row}/{cost_col}{ext_vol_conv_price_row},"""")"
+reports_summary.py,576,"=SUBTOTAL(109,Summary!${cost_col}${first_asm_row}:${cost_col}${last_asm_row})"
+reports_summary.py,579,"=IFERROR(INDEX('{cbom_sheet}'!$G$1:$G${cbom_last_row}, MATCH(""TOTAL"", '{cbom_sheet}'!$C$1:$C${cbom_last_row}, 0)),0)"
+reports_summary.py,582,"=IFERROR('{ex_inv_sheet}'!$A$2,0)"
+reports_summary.py,584,"=IFERROR({cost_col}{moq_cost_row}/{cost_col}{ext_vol_conv_price_row},"""")"
+reports_summary.py,611,"=IFERROR(INDEX('{cbom_sheet1}'!$F$1:$F${cbom_last_row1}, MATCH(Summary!$C{row}, '{cbom_sheet1}'!$C$1:$C${cbom_last_row1}, 0)),"""")"
+reports_summary.py,615,"=IFERROR(INDEX('{cbom_sheet1}'!$E$1:$E${cbom_last_row1}, MATCH(Summary!$C{row}, '{cbom_sheet1}'!$C$1:$C${cbom_last_row1}, 0)),0)"
+reports_summary.py,625,"=SUBTOTAL(109,Summary!$"
+reports_summary.py,628,=IFERROR(INDEX('
+reports_summary.py,631,=IFERROR('
+reports_summary.py,633,=IFERROR(
+reports_summary.py,567,"=IFERROR(INDEX('{cbom_sheet}'!$F$1:$F${cbom_last_row}, MATCH(Summary!$C{r}, '{cbom_sheet}'!$C$1:$C${cbom_last_row}, 0)),"""")"
+reports_summary.py,571,"=IFERROR(INDEX('{cbom_sheet}'!$E$1:$E${cbom_last_row}, MATCH(Summary!$C{r}, '{cbom_sheet}'!$C$1:$C${cbom_last_row}, 0)),0)"
+reports_summary.py,576,"=SUBTOTAL(109,Summary!$"
+reports_summary.py,579,=IFERROR(INDEX('
+reports_summary.py,582,=IFERROR('
+reports_summary.py,584,=IFERROR(
+reports_summary.py,611,=IFERROR(INDEX('
+reports_summary.py,615,=IFERROR(INDEX('
+reports_summary.py,567,=IFERROR(INDEX('
+reports_summary.py,571,=IFERROR(INDEX('
