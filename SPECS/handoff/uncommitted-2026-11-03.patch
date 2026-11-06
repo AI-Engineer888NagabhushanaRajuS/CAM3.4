@@ -1,0 +1,298 @@
+diff --git a/fastapi-router/fastapi_router.py b/fastapi-router/fastapi_router.py
+index fa82330..7f42d1e 100644
+--- a/fastapi-router/fastapi_router.py
++++ b/fastapi-router/fastapi_router.py
+@@ -106,6 +106,12 @@ def _validate_sql_identifier(value: str, field_name: str) -> str:
+         )
+     return value
+ 
++def _daemon_url(path):
++    """The daemon (SSE hub for the web UI) is not part of this service: CAM_DAEMON_URL says where it
++    listens (compose sets host.docker.internal:9334). This used to be a hard-coded mesh IP."""
++    return os.environ.get("CAM_DAEMON_URL", "http://127.0.0.1:9334").rstrip("/") + path
++
++
+ def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_category_name, step_status, error=None):
+     payload = {
+         "rfqId": rfq_id,
+@@ -118,11 +124,14 @@ def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_
+     }
+     if error is not None:
+         payload["error"] = error
+-    httpx.post(
+-    "http://100.121.36.255:9334/api/internal/emit-skill-progress",
+-    json=payload,
+-    timeout=5,
+-    )
++    httpx.post(_daemon_url("/api/internal/emit-skill-progress"), json=payload, timeout=5)
++
++
++def notify_hitl_required(rfq_id, stage):
++    """A tool stopped at a human gate. The UI opens its review screen only on the daemon's `hitl:request`
++    SSE event; the Dify DMR sent it (HTTP Request 3, same body), the Temporal path never did."""
++    httpx.post(_daemon_url("/api/internal/trigger-hitl"),
++               json={"rfqId": rfq_id, "stage": stage, "hitlType": "approval"}, timeout=5)
+ 
+ def _notify_execute_failure(rfq_id, tool_name, error_message):
+     """Best-effort UI notification for any /tool/execute failure path -- a
+@@ -465,6 +474,10 @@ def execute_tool(request: ToolExecuteRequest):
+                             f"RFQ={effective_rfq_id} tool={request.tool_name} -- "
+                             f"awaiting human review"
+                         )
++                        try:
++                            notify_hitl_required(effective_rfq_id, request.tool_name)
++                        except Exception as e:
++                            print(f"[SSE ERROR] (hitl request) {e}")
+                         # This skill's own execution genuinely finished (it's
+                         # the PIPELINE that's paused pending human review, not
+                         # this tool call) -- without a "completed" notification
+diff --git a/fastapi-router/upload_server.py b/fastapi-router/upload_server.py
+index 2d0c50b..3093bd2 100644
+--- a/fastapi-router/upload_server.py
++++ b/fastapi-router/upload_server.py
+@@ -68,10 +68,12 @@ def get_db_connection():
+ _GUARD_SCHEMA_LOCK = threading.Lock()
+ 
+ 
+-def trigger_dify_workflow_internal(rfq_id: str):
++def trigger_dify_workflow_internal(rfq_id: str, resume: bool = False):
+     """Triggers workflow and logs the attempt to DB.
+ 
+-    When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify.
++    When USE_TEMPORAL=true: starts a Temporal RFQWorkflow instead of Dify. `resume` is the UI's
++    "continue" (GET /api/dify/start): the run parked at a human gate is told to carry on instead of a
++    second run being started; an upload (resume=False) starts a run for the new version.
+     When USE_TEMPORAL=false: calls Dify as before (the default is true; see CAM_USE_TEMPORAL).
+ 
+     Guarded by db.try_start_pipeline_run() -- both callers of this function
+@@ -103,10 +105,14 @@ def trigger_dify_workflow_internal(rfq_id: str):
+             if _worker_dir not in _sys.path:
+                 _sys.path.insert(0, _worker_dir)
+             import client as temporal_client
+-            workflow_id = asyncio.run(temporal_client.start_rfq_workflow(rfq_id))
+-            print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} started for {rfq_id}")
++            if resume:
++                workflow_id, outcome = asyncio.run(temporal_client.resume_rfq_workflow(rfq_id))
++            else:
++                workflow_id, outcome = asyncio.run(temporal_client.start_rfq_workflow(rfq_id)), "STARTED"
++            print(f"[TEMPORAL SUCCESS]: Workflow {workflow_id!r} {outcome} for {rfq_id}")
+             dify_status = "TRIGGERED"
+-            dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id}
++            dify_response_summary = {"status": "SUCCESS", "engine": "temporal", "workflow_id": workflow_id,
++                                     "outcome": outcome}
+         except Exception as temporal_err:
+             print(f"[TEMPORAL EXCEPTION]: {temporal_err}")
+             dify_status = "CONNECTION_REFUSED"
+@@ -266,7 +272,7 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
+         raise HTTPException(status_code=400, detail="rfq_id cannot be empty.")
+ 
+     # Off the event loop: the trigger calls asyncio.run() (Temporal) and blocks on requests (Dify).
+-    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id)
++    dify_status, response_summary = await asyncio.to_thread(trigger_dify_workflow_internal, rfq_id, True)
+ 
+     return {
+         "success": dify_status in ["TRIGGERED", "SUCCESS"],
+diff --git a/temporal_worker/client.py b/temporal_worker/client.py
+index 51b233c..d9a60a4 100644
+--- a/temporal_worker/client.py
++++ b/temporal_worker/client.py
+@@ -4,7 +4,9 @@ by hitl_router.py to send HITL decision signals.
+ import importlib.util
+ import os
+ 
+-from temporalio.client import Client
++from temporalio.client import Client, WorkflowExecutionStatus
++from temporalio.common import WorkflowIDConflictPolicy
++from temporalio.service import RPCError, RPCStatusCode
+ 
+ # fastapi-router has its own config.py. hitl_router.py loads that one first, so a bare
+ # `import config` here would return it. Load this folder's config.py by path instead.
+@@ -19,9 +21,9 @@ from workflow import RFQWorkflow  # noqa: E402
+ async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> str:
+     """Start an RFQ workflow and return the workflow ID.
+ 
+-    The workflow ID is per RFQ, not per version. If a run for this RFQ is still running,
+-    Temporal raises WorkflowAlreadyStartedError: the caller must treat that as a failed
+-    trigger, never as a new run (returning the old ID would hide a new version).
++    The workflow ID is per RFQ, not per version, and a new upload IS a new version: it supersedes a run
++    still alive for this RFQ (typically one parked at the scrub gate), which is terminated. Failing the
++    trigger instead left that run behind and made every later upload of the RFQ fail.
+     """
+     client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
+     handle = await client.start_workflow(
+@@ -29,10 +31,34 @@ async def start_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow
+         args=[rfq_id, profile_name],
+         id=get_workflow_id(rfq_id),
+         task_queue=config.TASK_QUEUE,
++        id_conflict_policy=WorkflowIDConflictPolicy.TERMINATE_EXISTING,
+     )
+     return handle.id
+ 
+ 
++async def resume_rfq_workflow(rfq_id: str, profile_name: str = "Standard_BOM_Flow") -> tuple:
++    """The UI's "continue" (GET /api/dify/start): returns (workflow_id, outcome).
++
++    RESUMED - the run was parked at a human gate; it is told to carry on.
++    RUNNING - the run is mid-step; nothing is sent (a decision stored now would pre-approve the NEXT gate).
++    STARTED - no live run (never started, finished, or terminated): start one; it resumes at skill_index.
++    """
++    client = await Client.connect(config.TEMPORAL_HOST, namespace=config.NAMESPACE)
++    handle = client.get_workflow_handle(get_workflow_id(rfq_id))
++    try:
++        running = (await handle.describe()).status == WorkflowExecutionStatus.RUNNING
++    except RPCError as e:
++        if e.status != RPCStatusCode.NOT_FOUND:
++            raise
++        running = False
++    if not running:
++        return await start_rfq_workflow(rfq_id, profile_name), "STARTED"
++    if (await handle.query(RFQWorkflow.hitl_state))["awaiting"]:
++        await handle.signal(RFQWorkflow.human_decision, {"action": "approve", "via": "resume"})
++        return handle.id, "RESUMED"
++    return handle.id, "RUNNING"
++
++
+ async def send_hitl_signal(workflow_id: str, decision: dict):
+     """Send a human_decision signal to a workflow waiting at a HITL gate.
+ 
+diff --git a/temporal_worker/workflow.py b/temporal_worker/workflow.py
+index b6d3ea4..24cc56a 100644
+--- a/temporal_worker/workflow.py
++++ b/temporal_worker/workflow.py
+@@ -18,12 +18,19 @@ with workflow.unsafe.imports_passed_through():
+ class RFQWorkflow:
+     def __init__(self):
+         self._hitl_decision = None
++        self._awaiting_tool = None
+ 
+     @workflow.signal
+     def human_decision(self, decision: dict):
+         """Signal sent by hitl_router when a human approves or rejects a HITL gate."""
+         self._hitl_decision = decision
+ 
++    @workflow.query
++    def hitl_state(self) -> dict:
++        """Is the run parked at a human gate? The UI's "continue" call signals a run only when this says
++        it is waiting, so a stray click can never pre-approve a later gate."""
++        return {"awaiting": self._awaiting_tool is not None, "tool": self._awaiting_tool}
++
+     @workflow.run
+     async def run(self, rfq_id: str, profile_name: str) -> dict:
+         """Execute the full RFQ pipeline for one rfq_id.
+@@ -51,6 +58,11 @@ class RFQWorkflow:
+         tool_args = {"rfq_id": rfq_id}
+         for tool_name in sequence[start_index:]:
+ 
++            # A decision that arrived while nobody was waiting for one must not pre-approve this step's
++            # gate. (A decision sent while THIS tool is still running, before it asks for one, is kept:
++            # the UI may answer the moment it is told a review is needed.)
++            self._hitl_decision = None
++
+             # 2. Call the tool via fastapi_router (unchanged contract)
+             result = await workflow.execute_activity(
+                 activities.execute_tool,
+@@ -72,9 +84,11 @@ class RFQWorkflow:
+ 
+             # 3. HITL gate: block until human sends human_decision signal
+             if result.get("hitl_required") or result.get("hitl") == 1:
++                self._awaiting_tool = tool_name
+                 await workflow.wait_condition(
+                     lambda: self._hitl_decision is not None
+                 )
++                self._awaiting_tool = None
+                 decision = self._hitl_decision
+                 self._hitl_decision = None  # reset for next gate
+ 
+diff --git a/testing/test_temporal_workflow.py b/testing/test_temporal_workflow.py
+index c57ced4..e7042ef 100644
+--- a/testing/test_temporal_workflow.py
++++ b/testing/test_temporal_workflow.py
+@@ -180,6 +180,14 @@ def test_temporal_workflow_hitl_gate_blocks_until_signal():
+                     id="test-workflow-hitl",
+                     task_queue="test-queue-hitl",
+                 )
++                # hitl_router signals only after a human acts, i.e. once the gate was reached. (A decision
++                # sent before that is discarded on purpose: it cannot pre-approve a gate.)
++                for _ in range(200):
++                    if (await handle.query(wf.RFQWorkflow.hitl_state))["awaiting"]:
++                        break
++                    await asyncio.sleep(0.1)
++                else:
++                    raise AssertionError("the run never reached the HITL gate")
+                 # Send approve signal (simulates hitl_router.py)
+                 await handle.signal(wf.RFQWorkflow.human_decision, {"action": "approve"})
+                 result = await handle.result()
+@@ -218,11 +226,12 @@ def test_routing_sequence_error_body_raises_not_empty_success():
+             asyncio.run(act.get_routing_sequence("CE-X", "RFQ_Flow"))
+ 
+ 
+-def test_start_rfq_workflow_refuses_to_mask_a_running_run(monkeypatch):
+-    """The workflow ID is per RFQ. A second start while a run is still running must raise,
+-    not return the old ID: a new upload version must never be reported as triggered."""
++def test_start_rfq_workflow_supersedes_a_running_run_instead_of_masking_it(monkeypatch):
++    """The workflow ID is per RFQ and a new upload is a new version. A second start while a run is
++    still alive (parked at HITL) must terminate it and start a NEW run: it used to raise, which left
++    the old run behind and made every later upload of the RFQ fail. (Fuller cases: test_temporal_resume.)"""
+     import asyncio
+-    from temporalio.exceptions import WorkflowAlreadyStartedError
++    from temporalio.client import WorkflowExecutionStatus
+     from temporalio.testing import WorkflowEnvironment
+     import client as tc
+ 
+@@ -235,8 +244,12 @@ def test_start_rfq_workflow_refuses_to_mask_a_running_run(monkeypatch):
+             # No worker is started, so the workflow stays RUNNING, like a run parked at HITL.
+             first = await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
+             assert first == "rfq-CE-IDEM-1"
+-            with pytest.raises(WorkflowAlreadyStartedError):
+-                await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
++            old_run = (await env.client.get_workflow_handle(first).describe()).run_id
++            second = await tc.start_rfq_workflow("CE-IDEM-1", "RFQ_Flow")
++            assert second == first
++            assert (await env.client.get_workflow_handle(second).describe()).run_id != old_run
++            old = await env.client.get_workflow_handle(first, run_id=old_run).describe()
++            assert old.status == WorkflowExecutionStatus.TERMINATED
+ 
+     asyncio.run(run())
+ 
+diff --git a/testing/test_upload_temporal_trigger.py b/testing/test_upload_temporal_trigger.py
+index 9b4d300..4797c82 100644
+--- a/testing/test_upload_temporal_trigger.py
++++ b/testing/test_upload_temporal_trigger.py
+@@ -26,17 +26,36 @@ def _load_upload_server(monkeypatch):
+     monkeypatch.setattr(us.db, "try_start_pipeline_run", lambda rfq_id: True)
+     fake_client = types.ModuleType("client")
+ 
++    calls = []
++
+     async def start_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", client=None):
++        calls.append(("start", rfq_id))
+         return f"rfq-{rfq_id}"
+ 
++    async def resume_rfq_workflow(rfq_id, profile_name="Standard_BOM_Flow", client=None):
++        calls.append(("resume", rfq_id))
++        return f"rfq-{rfq_id}", "RESUMED"
++
+     fake_client.start_rfq_workflow = start_rfq_workflow
++    fake_client.resume_rfq_workflow = resume_rfq_workflow
+     monkeypatch.setitem(sys.modules, "client", fake_client)
++    us.calls = calls
+     return us
+ 
+ 
+-def test_start_dify_endpoint_starts_temporal_workflow_inside_event_loop(monkeypatch):
++def test_start_dify_endpoint_resumes_the_parked_workflow_inside_event_loop(monkeypatch):
++    # GET /api/dify/start is the UI's "continue" after the QuoteWin/Costing upload.
+     us = _load_upload_server(monkeypatch)
+     result = asyncio.run(us.start_dify_workflow("CE-LOOP-1", token={}))
+     assert result["dify_status"] == "TRIGGERED", result
+     assert result["success"] is True
+     assert result["dify_response"]["workflow_id"] == "rfq-CE-LOOP-1"
++    assert result["dify_response"]["outcome"] == "RESUMED"
++    assert us.calls == [("resume", "CE-LOOP-1")]
++
++
++def test_an_upload_starts_a_run_it_does_not_resume_one(monkeypatch):
++    us = _load_upload_server(monkeypatch)
++    status, summary = us.trigger_dify_workflow_internal("CE-UP-1")
++    assert status == "TRIGGERED" and summary["outcome"] == "STARTED", summary
++    assert us.calls == [("start", "CE-UP-1")]

@@ -1,0 +1,73 @@
+CAM 3.3 to 3.4: how the JSON manifests meet the code, and what to do
+Private working note. Labels used: SOURCE = read in code, DOC = stated in a document, REPORTED = said in chat or by the team, PROPOSAL = my suggestion, OPEN = not found in what I inspected. "Not found" means only in the files I opened. Nothing was run; this is a read of source and documents.
+1. Short answers
+Is current CAM 3.3? DOC/REPORTED yes: Srinath's note (17 Oct) says "CAM 3.2/3.3 is already built via Python scripts outside ISATVON/BAM", and one code comment reads "CAM 3.3 report-only change" (SOURCE: backend/reporting_module/exporter.py line 98). I found no version constant or tag in the repo, and the repo is one squashed commit, so I cannot show which commit is "3.3". OPEN: ask for the real git history.
+What is 3.4? I found no definition of "3.4" in any source I read (the only "3.4" in the code is the fastmcp 3.4.2 library version, unrelated). So 3.4 is your team's plan: fix the 16 reports, add the assistant chat in the middle of the UI, replace Dify with Temporal. The BAM draft doc is titled "CAM 4.0 RFQ automation in BAM" and is a different, bigger target. Keep 3.4 (changes to today's system) and 4.0 (the BAM build flow) apart.
+Can Jinja2 + AST turn JSON manifests into working tools? Yes in design, and BAM has real code for it. But the direction is manifest in, Python code out (not code to JSON). And the generated code is a fixed skeleton plus four pieces an LLM writes at build time. So "works without an LLM" is true when the tool runs, not when it is built.
+Will it work today if you add a manifest? No. In BAM the registered build workflow still calls placeholder stages for the middle and end of the chain, and I found no code anywhere that loads a manifest into CAM's runtime. Today the CAM manifests are descriptions of code that already exists, not inputs that build it.
+Should you generate the 16 reports from a manifest? No. The 16 reports already exist as working code. Put the manifest around that code, and fix it in place. Details below.
+2. What CAM 3.3 is, from the source (SOURCE unless marked)
+Repo: solutionsDigibull/CAM, commit 0d54fd90, one squashed commit. My copy is an API harvest, 64 files. Not read: backend/reporting_module/reports/*, templates, and frontend subtrees (listed as pending in the harvest note). So I cannot describe any individual report tab from code.
+How a request moves today:
+Dify (external service, flow file Dify_DMR_RFQ_Flow.yml in solutionsDigibull/BuLLMQuote_SRIM, dify-orchestration, commit 5409180, 574 lines) starts with the RFQ id.
+Dify calls GET /pipeline/routing-sequence/{rfq_id}/RFQ_Flow on the CAM FastAPI service (backend/fastapi_router.py). It gets the list of skills and the current skill index.
+Dify loops: for each skill it calls POST /tool/execute (fastapi_router.py line 223). The router checks the routing profile (skills can be toggled off), calls the tool through the MCP gateway (tool_calling.py call_tool, blocking, up to 300 s), updates the skill index, and posts progress to the UI (notify_skill_progress, emit-skill-progress).
+An if-else node decides whether to continue. A final HTTP node triggers the human-in-the-loop step (port 9234 trigger-hitl).
+The tools are FastMCP servers. The reporting one is backend/reporting_module/mcp_server.py with six tools: cbom, enrich_erp, enrich_costing_sheet, resolve_final_selection (the human gate), generate_reports, export_reports. Intake tools are separate (scrub_mcp_server.py and the quote-win, ERP and costing-sheet processors).
+Data: DuckDB for CBOM and report tables, Postgres for routing and the system_skills_registry table.
+The 16 reports: constants.py SHEET_NAMES lists CBOM plus 16 report sheets (BOM Matrix, Part Number vs MFG Number, PCB NRE and FAI Charge, Mechanical EM NRE, Missing Notes, Lead Time FG, Lead Time Consolidated, Sum and Count, Sum and Count Detailed, Revision History, A-Class Parts, Price Control, Summary, Batchwise Cashflow, CBOM VL, Ex Inv VL). generate_reports writes the 16 report tables; export_reports builds one workbook by calling a fixed sequence of build_*_sheet functions (exporter.py, 387 lines; DOC from the 1.4.0 manifest text).
+Not found: any Temporal code in CAM or in BuLLMQuote_SRIM. Dify itself has no code in the repo (dify-orchestration README says it is only an external API integration; the flow file is the only artifact).
+3. The manifest to tool pipeline, end to end3a. The target pipeline (DOC and SOURCE in BAM)
+BAM source: repo solutionsDigibull BAM at 9e6749d (server/workers/sbam_workers/...). The intended chain for one Sub-Skill:
+build_manifest (build/manifest.py): makes the manifest. SOURCE: real. It hardcodes the runtime block to Dify, MCP Jungle, SRIM UI Canvas (an ADR default, O-19).
+check_libraries: confirms allowed libraries.
+render_skeleton (build/codegen/params.py, render.py): maps the manifest to parameters, validates them, renders six Python files with Jinja2 in a sandboxed environment from templates/fastmcp-loopy/1.0.0 (template.yaml plus six .j2 files). SOURCE: real modules.
+generate_bodies (build/codegen/bodies.py): an LLM (alias sbam-codegen) fills only four slots (helpers, action_body, check_body, state_queries). An AST pre-check rejects bad imports and patterns (forbidden modules, while loops, raw SQL rules). SOURCE: real module.
+assemble (build/codegen/bundle.py): splices bodies between LLM_BODY markers, formats with Black, parses with Python's ast, hashes the bundle (bundle_sha256), writes a deterministic tar. SOURCE: real module.
+correct (correction.py): a loop that feeds gate findings back to the LLM. SOURCE: real module.
+ast_gate, static_gate, generate_tests, build_promptfoo_suite, run_sandbox_tests, certify: the registered workflow (pipeline/sub_skill_build.py) imports these from build/stubs.py, test/stubs.py and certify/stubs.py, whose docstrings say STUBS. SOURCE: that is what the imports show. main's review at 9e6749d reached the same conclusion: registered stages are stubs and real codegen modules exist unwired.
+What the template produces: one FastMCP server per Sub-Skill with a separate action tool and a fixed check tool, a read-only fresh-state reader, and an append-only state handoff writer (models.py, state.py, state_handoff.py, action_tool.py, check_tool.py, server.py). It is built for the ISATVON loop (do, check, hand off), not for assembling a 16-sheet workbook. openpyxl does not appear in the templates; in BAM it appears only in the ingest loader.
+3b. What is missing between "manifest made" and "tool running" (OPEN items, not guesses)
+The registered build workflow does not call the real codegen yet (above).
+Build-to-runtime handover: ADR 0010 says the generated manifest "is what SRIM will use" (future tense). I found no importer or loader for that in BAM, CAM or BuLLMQuote_SRIM. CAM reads system_skills_registry (backend/db.py lines 635 and 681) but no code in the inspected files writes to it, and none loads backend/docs/*.json. Who fills that table is OPEN.
+Three different registries exist and must not be mixed: workflow registration (BAM registry.py workflow_for), the dependency library registry, and CAM's runtime system_skills_registry.
+BAM's runtime block (Dify, Jungle) names the old runtime. A Temporal runtime for generated tools is not defined in what I read.
+3c. The ten CAM manifests that already exist (SOURCE)
+backend/docs holds ten JSON manifests: four intake (scrub BOM, quote win, ERP, costing sheet) and six reporting (cbom, enrich ERP, enrich costing sheet, resolve final selection, generate reports, export reports). They already use the BAM contract shape: skill_metadata, isatvon_definition (I, S, A, T, V, O, N), srim_runtime_definition, contracts, governance (matches ADR 0010 C-49). Version 1.4.0, status APPROVED. Their text describes the current Dify flow ("Triggered by the Dify DMR's POST /tool/execute ... FastMCP port 8005"), and the governance hash says "TO_BE_COMPUTED_ON_SAVE". So they were written after the code, to describe it. Two different notes say the 16 reports are "one manifest and one tool" (DOC, Srinath), but in code and in these files they are six tools and six manifests. That mismatch is worth settling with Harish.
+Not checked: whether these ten pass BAM's strict manifest validator (sbam_contracts/manifest.py). I did not run any code. PROPOSAL: have the team run it.
+4. Feasibility by part4a. Fix the 16 reports
+Feasible, and it is normal code work, not a generation problem. SOURCE: the pipeline, a validator (validator.py), a batch checker (batch_validate_all_tests.py) and two written defect notes already exist in the repo: backend/Test_fixes/BOM_MATRIX_QTY_ROLLUP_BUG.md (BOM Matrix quantity ignores the parent sub-assembly quantity, proven from output data, generator not available when written) and EXCEL_LOAD_PERFORMANCE.md (slow Excel open, structural analysis, never timed). The gap is the per-tab contract: for each of the 16 tabs I could not find, in the files I read, a written spec of formulas, layout and expected values, or a test per tab. The 1.4.0 manifest only describes the whole workbook (one input rfq_id, one output with sheet names). OPEN: where the reference production workbook and gold files live.
+4b. Assistant chat in the middle of the UI
+Target only. SOURCE: CAM's frontend is a fork of Accomplish (an open-source desktop AI assistant; the harvest note calls it a v3.2 fork, and it is not runtime evidence). REPORTED by your team: the middle chat comes from the Refine and AG Grid drafts; I did not re-inspect those drafts for this note. The backend already pushes progress to the UI (notify_skill_progress to emit-skill-progress, with a hardcoded internal IP in the source, 192.168.1.18:9234). A chat needs: a stable event and message API, and a decision on which tools the chat may call. OPEN: that API does not exist in what I read.
+4c. Dify to Temporal
+Feasible, and smaller than it sounds, because the control logic mostly lives in CAM's FastAPI router, not in Dify. Dify's job is three calls and a loop (section 2). A Temporal workflow can do the same: one activity for the routing sequence, a loop of an execute-tool activity (with timeouts and retries, replacing the blocking 300 s call), and a signal or wait for the human gate (resolve_final_selection). Keep POST /tool/execute unchanged at first, so tools and routing stay as they are. Things that change: the Dify code nodes (I read only the first, which parses the routing response; the other two were not read), the if-else on status, hardcoded hosts (host.docker.internal, 192.168.1.18) become settings, and the manifests' srim_runtime_definition text (router "Dify_Dynamic_Master_Router") needs a new value.
+Keep apart: BAM contains real Temporal code (workflows and tests under server/workers and server/tests/temporal), but it is the build-time engine of a different system. SOURCE says it exists in BAM; it says nothing about CAM runtime operations. Do not treat it as the CAM replacement. Reusing its patterns is a design choice, not a fact.
+4d. Jinja2 + AST for new skills
+Feasible only for the shape the template supports (action tool, check tool, state handoff), with LLM-written bodies and an AST gate. For existing report code it would mean rewriting working, tested logic with an LLM. Not recommended. For new small skills (for example the assistant's tools) it is the intended use once the BAM stubs are replaced.
+5. What to do, in order (PROPOSAL unless marked)
+Pin the baseline. Ask Srinath for the real CAM git history and which commit is 3.3 (the doc says git can be shared). Tag it. Everything below is a diff from that tag.
+Fix the 16 reports in place. Start with the BOM Matrix defect (note already written). Write one expected-output check per tab against the production reference workbook, using the existing batch_validate_all_tests.py as the base. Keep the tool names and inputs unchanged. Get the reports/ folder read first (it was not in my copy).
+Make the manifests match the code. Decide with Harish: six reporting tools with six manifests (as built), or one reporting tool (as the draft says). Compute the real governance hashes. Check the ten files against BAM's validator. This is a document fix, no generation.
+Swap Dify for Temporal behind the same API. Build the workflow from the Dify flow file, run both on one test RFQ and compare the skill index, status and HITL behavior. Move hosts and IPs to config. Only then retire Dify. Update the manifests' runtime block.
+Add the assistant chat after step 4. Define the event and message API first, then the UI panel. The chat calls the same router.
+Treat Jinja2 + AST as the 4.0 track. BAM team replaces the build stubs in order, defines how a certified manifest reaches the runtime registry (the missing importer), and picks a first small new skill as the pilot. Do not use the 16 reports as the pilot.
+
+Short answer first, then I'll write the full version into BRAIN.
+
+
+Yes, the Jinja2+AST idea is real and it's possible - and no, your current code does not do it yet. Here's the honest mechanics:
+
+
+1. JSON manifest (ISATVON) describes the tool: inputs, logic slots, output.
+2. Jinja2 renders that manifest into actual Python code text.
+3. Python's own AST module parses the generated code - this proves it's valid, safe Python and lets you inspect/transform it before running anything.
+4. The validated code gets registered as a FastMCP tool the runtime can call.
+
+
+That's the "JSON in, working tool out" pipeline. No LLM needed at run time - the LLM (if any) only fills the body slots at build time.
+
+
+The catch I verified in your repos: BAM has REAL codegen modules for this, but the registered build workflow still imports stub stages. So today, putting a JSON in does nothing - the bridge between "manifest created" and "tool runs" is not wired. That's the actual 3.4 work, not a new invention.
+
+
+Full write-up with exact code paths, what exists vs what's stub, and the concrete step-by-step for 3.4 (16 reports, assistant UI, Dify→Temporal) is being written now.

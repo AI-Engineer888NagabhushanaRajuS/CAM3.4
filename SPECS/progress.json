@@ -1,0 +1,331 @@
+{
+  "current_spec": "DONE",
+  "repo_path": "C:/CAM[3.4]-RFQ_centum/CAM-Source",
+  "reference_path": "C:/CAM[3.4]-RFQ_centum/Reference[KT]/Source Code/BuLLMQuote-SRIM-containerization-delivery/BuLLMQuote-SRIM",
+  "baseline_tag": "v3.3-baseline",
+  "specs": {
+    "SPEC-001": {
+      "status": "completed",
+      "title": "Baseline + Test Infrastructure",
+      "branch": "feat/spec-001-baseline-infra",
+      "depends_on": [],
+      "commit_sha": "4c090da5ccb94e0caac2d6cf4b571966dc1e2d39"
+    },
+    "SPEC-002": {
+      "status": "completed",
+      "title": "Fix 16 Reports + Per-Tab Validation",
+      "branch": "feat/spec-002-report-validation",
+      "depends_on": [
+        "SPEC-001"
+      ],
+      "commit_sha": "67b3afa7a86dad700db93a73ba9a0943ef487cb1"
+    },
+    "SPEC-003": {
+      "status": "completed",
+      "title": "Manifest-Code Alignment",
+      "branch": "feat/spec-003-manifest-alignment",
+      "depends_on": [
+        "SPEC-001"
+      ],
+      "commit_sha": "e11f890213ea1e77bb6243358ba456abbe669de8"
+    },
+    "SPEC-004": {
+      "status": "completed",
+      "title": "Temporal Workflow Engine",
+      "branch": "feat/spec-004-temporal-orchestrator",
+      "depends_on": [
+        "SPEC-001",
+        "SPEC-002"
+      ],
+      "commit_sha": "da582e57fda9c1fad51a26d5cf8df430728c9f5d"
+    },
+    "SPEC-005": {
+      "status": "completed",
+      "title": "HITL via Temporal Signals",
+      "branch": "feat/spec-005-hitl-temporal-signals",
+      "depends_on": [
+        "SPEC-004"
+      ],
+      "commit_sha": "b26d79008bb5bc238ff30ea36a1920666730a715"
+    },
+    "SPEC-006": {
+      "status": "completed",
+      "title": "RFQ Assistant Chat API + UI Pane",
+      "branch": "feat/spec-006-rfq-chat-pane",
+      "depends_on": [
+        "SPEC-004",
+        "SPEC-005"
+      ],
+      "commit_sha": "d72109d6b2ea5fe99c6be067b5c944d4697bc944"
+    },
+    "SPEC-007": {
+      "status": "completed",
+      "title": "Security Fixes + Temporal Default",
+      "branch": "feat/spec-007-security-temporal-default",
+      "depends_on": [
+        "SPEC-005"
+      ],
+      "commit_sha": "ceef085"
+    },
+    "SPEC-008": {
+      "status": "completed",
+      "title": "Chat via rfq-memory + Shadow-Run Parity",
+      "branch": "feat/spec-008-chat-memory-shadowrun",
+      "depends_on": [
+        "SPEC-006",
+        "SPEC-007"
+      ],
+      "commit_sha": "5af96e5"
+    },
+    "SPEC-009": {
+      "status": "completed",
+      "title": "PostHog Per-Tab Failure Alerts",
+      "branch": "feat/spec-009-posthog-tab-alerts",
+      "depends_on": [
+        "SPEC-002"
+      ],
+      "commit_sha": "edcef82"
+    },
+    "SPEC-010": {
+      "status": "completed",
+      "title": "assistant-ui Runtime + Domain-Aware Chat",
+      "branch": "feat/spec-010-assistant-ui-chat",
+      "depends_on": [
+        "SPEC-006",
+        "SPEC-008"
+      ],
+      "commit_sha": "4088103"
+    },
+    "SPEC-011": {
+      "status": "completed",
+      "title": "Baseline Repair (green suite)",
+      "branch": "feat/spec-011-baseline-repair",
+      "depends_on": [
+        "SPEC-010"
+      ],
+      "commit_sha": "0b57095"
+    },
+    "SPEC-012": {
+      "status": "completed",
+      "title": "Security: SQL hardening + credentials to env",
+      "branch": "feat/spec-012-security",
+      "depends_on": [
+        "SPEC-011"
+      ],
+      "commit_sha": "7791fe1",
+      "pytest_at_commit": {
+        "commit": "7791fe1",
+        "result": "90 passed, 3 skipped",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-012-clean",
+        "commit": "1fe3035",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "90 passed, 3 skipped"
+      }
+    },
+    "SPEC-013": {
+      "status": "completed",
+      "title": "Manifest pipeline: importer, registry writer, manifest-owned routing",
+      "branch": "feat/spec-013-manifest-pipeline",
+      "depends_on": [
+        "SPEC-012"
+      ],
+      "commit_sha": "4d5f33d",
+      "pytest_at_commit": {
+        "commit": "4d5f33d",
+        "result": "123 passed, 3 skipped",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-013-clean",
+        "commit": "6f9c688",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "123 passed, 3 skipped"
+      }
+    },
+    "SPEC-014": {
+      "status": "completed",
+      "title": "Parity harness (offline call-trace; live opt-in)",
+      "branch": "feat/spec-014-parity-harness",
+      "depends_on": [
+        "SPEC-013"
+      ],
+      "commit_sha": "9407f96",
+      "pytest_at_commit": {
+        "commit": "9407f96",
+        "result": "123 passed, 3 skipped, 2 xfailed",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-014-clean",
+        "commit": "5396ef1",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "123 passed, 3 skipped, 2 xfailed"
+      }
+    },
+    "SPEC-015": {
+      "status": "completed",
+      "title": "Cut-over: D1-D9, HITL by signal end to end, clean 8-step run COMPLETED (upload HTTP trigger offline-only; intake e2e not run)",
+      "branch": "feat/spec-015-cutover",
+      "depends_on": [
+        "SPEC-014"
+      ],
+      "commit_sha": "8f1bb01",
+      "pytest_at_commit": {
+        "commit": "b21d7d0",
+        "result": "177 passed, 4 skipped",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-015-clean",
+        "commit": "a387850",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "177 passed, 4 skipped"
+      }
+    },
+    "SPEC-016": {
+      "status": "completed",
+      "title": "Chat pane audit + fixes (browser run not done)",
+      "branch": "feat/spec-016-ui",
+      "depends_on": [
+        "SPEC-015"
+      ],
+      "commit_sha": "e8a8ae9",
+      "pytest_at_commit": {
+        "commit": "06db640",
+        "result": "177 passed, 4 skipped",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-016-clean",
+        "commit": "9c137b7",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "177 passed, 4 skipped"
+      },
+      "scope_note": "Electron/daemon full-app run removed from scope by user decision 2026-11-03; web UI browser run + component test are the acceptance."
+    },
+    "SPEC-017": {
+      "status": "completed",
+      "title": "Bug hunt: round 8 close-out; all OPEN items fixed or defaulted (cbom_vl layout deferred, latent)",
+      "branch": "feat/spec-017-bug-hunt",
+      "depends_on": [
+        "SPEC-016"
+      ],
+      "commit_sha": "0ddad9d",
+      "pytest_at_commit": {
+        "commit": "febef03",
+        "result": "179 passed, 4 skipped",
+        "method": "git worktree at commit, local git-ignored .env copied in, python -m pytest -q"
+      },
+      "clean_branch": {
+        "branch": "feat/spec-017-clean",
+        "commit": "2f97a22",
+        "single_commit_on_SPEC-011_tip": true,
+        "result": "179 passed, 4 skipped"
+      },
+      "scope_note": "A/B/C: workbook uses unit-price tiers (scrap_factor.py), docs say top-80%-of-spend. CONFLICT logged, default = keep code, needs Harish decision. cbom_vl layout deferred."
+    },
+    "VERIFY-2026-11-03": {
+      "status": "completed",
+      "title": "Final verification: reporting rebuild, intake scan/import e2e, upload HTTP trigger e2e, Jungle command, worktree cleanup",
+      "branch": "feat/cam34-verification",
+      "depends_on": [
+        "SPEC-017"
+      ],
+      "commits": {
+        "2af237e": "fix(SPEC-013): Jungle register command matches the installed Jungle (no --transport)",
+        "684183b": "fix(intake): scan_local_file and import_bom run in the compose stack"
+      },
+      "pytest": {
+        "result": "187 passed, 4 skipped, 8 warnings in 26.65s",
+        "command": "python -m pytest -q (from CAM-Source, after the last code change)"
+      },
+      "evidence": {
+        "step_1_reporting_rebuild": "_with_blank_mpn in the running container: 0 before, 6 after rebuild",
+        "step_2_intake": "RFQ-INTAKE-1: scan CLEAN x2 (ClamAV 1.4.3), persisted; AV test string INFECTED; import_bom success, 105 rows",
+        "step_3_upload_trigger": "RFQ-UPLOAD-1 via POST /api/rfq/upload: see SPECS/SPEC-015-cutover.md (Verification 2026-11-03)",
+        "step_4_jungle_argv": "testing/test_manifest_pipeline.py 33 passed; scrub + reporting registered, 8 tools listed",
+        "step_5_worktrees": "12 removed with git worktree remove --force; git worktree list shows only the main checkout"
+      },
+      "open_decisions": [
+        "Which routing profile an upload starts (Standard_BOM_Flow verified; 3.3's live app may have been RFQ_Flow): RFQ_Flow does not run in 3.4 yet",
+        "A/B/C: code uses price tiers (scrap_factor.py), docs say top-80%-of-spend; default keep code",
+        "Postgres/Bifrost/Temporal real password not recorded anywhere (e2e uses a placeholder)"
+      ]
+    },
+    "SPEC-018": {
+      "status": "partial",
+      "title": "Dynamic recalculation: change a value in the app or after processing and every dependent file/entity recalculates in real time",
+      "branch": null,
+      "depends_on": [
+        "SPEC-017"
+      ],
+      "scope_note": "NEW client requirement beyond the locked 3.4 scope; keep behind a flag / separate track. Facts + hypotheses in handoff/HANDOFF-2026-11-03.md section 5. Design panel (workflow wf_20c4b7d6-79a) was stopped before any agent returned; relaunch it, then write SPEC-018. First deliverable must be a golden-parity harness (LibreOffice oracle vs generated workbook).",
+      "measured": "27,664 formula cells / 316 distinct shapes / 57% cross-sheet in one 23-sheet export (RFQ-UPLOAD-1)",
+      "progress_2026-11-05": {
+        "built": [
+          "golden parity harness: testing/formula_parity_oracle.py (LibreOffice recalc + cached-value compare; skips export with no cached values)",
+          "ship gates (RE 2 A1 + A2): no error literals, no tab more than 90% placeholders, on the recalculated export"
+        ],
+        "not_built": [
+          "dynamic recalculation engine (behind no flag; nothing implemented)",
+          "cached values in exports (decision open: Excel Protected View shows blanks without them)"
+        ],
+        "evidence": "testing/test_formula_parity_oracle.py; end-to-end take 22 under acceptance_evidence/proof_take22",
+        "cached_values_update": "DECIDED and built (commit 6159cf8): exports store each formula's value via headless LibreOffice (mcp-tools/reporting/superset/cached_values.py); verified 34,095 of 34,095 on a real export."
+      }
+    },
+    "SPEC-019": {
+      "status": "in_progress_verified_partly",
+      "title": "Conversational assistant: normal chat, RFQ picker popup, All context, conflict prompts, file upload, create RFQ by itself, Playwright MCP",
+      "branch": "wip/cam34-assistant",
+      "depends_on": [
+        "SPEC-016"
+      ],
+      "file": "SPECS/SPEC-019-conversational-assistant.md",
+      "scope_note": "Requirement from Harish 2026-11-05 (ISATVON). Phases A routing+guide+picker, B multi-RFQ evidence, C create-RFQ action with confirmation, D Playwright MCP.",
+      "progress_2026-11-05": {
+        "built": [
+          "intent routing + user guide",
+          "RFQ picker popup / All context / disambiguation / scope chips",
+          "multi-RFQ per-RFQ table",
+          "create-RFQ action with confirmation token, audit and rollback",
+          "Local/OpenRouter/Auto switch + OpenRouter in Settings",
+          "Playwright MCP opt-in (CAM_PLAYWRIGHT_MCP_ORIGIN)",
+          "Cognee LLM writes off by default at the service"
+        ],
+        "proven_live_in_real_ui": [
+          "O1 plain talk",
+          "O2 picker -> GO with cell citation (81 s, then 9.7 s with the 2500-char local evidence budget)",
+          "O3 All context / multi table",
+          "O5 unknown part refused",
+          "O6 create RFQ by chat (cancel and confirm)"
+        ],
+        "not_proven": [
+          "O4 conflict live",
+          "O7 Playwright end to end (needs OpenRouter key)",
+          "an actual OpenRouter answer",
+          "broad/list questions on Local with the small evidence budget (recall may drop)"
+        ],
+        "open_security": [
+          "/auth/token open mint (content endpoint exposure)",
+          "fileRefs rfqId cross-scope",
+          "audit gaps",
+          "rfq id uniqueness unverified"
+        ],
+        "test_data_left": [
+          "RFQ-000017 (failed at stage 0: wrong sample BOM)"
+        ],
+        "handoff": "handoff/HANDOFF-2026-11-05.md section 9"
+      }
+    }
+  },
+  "loop_config": {
+    "interval_hours": 3,
+    "model": "claude-haiku-4-5-20251001",
+    "max_iterations": 12
+  },
+  "next_spec": "SPEC-019"
+}

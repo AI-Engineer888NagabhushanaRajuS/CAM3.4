@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(cd \"/c/CAM[3.4]-RFQ_centum/CAM-Source\")",
+      "Bash(timeout 400 pytest -q --tb=short)",
+      "Bash(ls \"/c/CAM[3.4]-RFQ_centum/SPECS\")",
+      "Bash(ls \"/c/CAM[3.4]-RFQ_centum/Eng_Diagram [ Must follow ]\")",
+      "Bash(cd *)",
+      "Bash(cat \"/c/CAM[3.4]-RFQ_centum/setup_postgres.ps1\")",
+      "Bash(cat \"/c/CAM[3.4]-RFQ_centum/SECRETS.md\")",
+      "mcp__nagabhushana-personas__list_agent_panels"
+    ]
+  }
+}

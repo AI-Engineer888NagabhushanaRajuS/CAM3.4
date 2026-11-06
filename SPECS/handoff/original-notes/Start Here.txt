@@ -1,0 +1,321 @@
+Hi This is a project for Centum ! a client company && CAM is our naming for RFQ automation [ digibull ] 
+
+So we hav Cam3.3 running already & we hav proposed for the cam 4 !! but we r supposed to build the Cam 3.4 now !! later we can build cam4 cause if we implement cam4 all 80% techstck &approach will be changed ; Well JUST FOCUS ON HOW 3.3 works & How To reate 3.4 
+
+Well I hav mapped entire centum from 1.0 to 4.1 here C:\CAM[3.4]-RFQ_centum\Reference[KT]\Full Details
+
+sooo everything including api ,...…. all features is there !! 
+
+but the issue is u hav to focus on building cam3.4 for now 
+
+so what changes , what to replace Everything is structurally typed As follows:
+
+'''C:\CAM[3.4]-RFQ_centum>Tree
+Folder PATH listing
+Volume serial number is 64EB-5159
+C:.
+├───Eng_Diagram [ Must follow ]
+└───Reference[KT]
+    ├───BuLLMQuote-SRIM-containerization-delivery
+    │   └───BuLLMQuote-SRIM
+    │       ├───accomplish-ui
+    │       │   ├───.claude
+    │       │   ├───.devcontainer
+    │       │   ├───.github
+    │       │   │   ├───ISSUE_TEMPLATE
+    │       │   │   └───workflows
+    │       │   ├───.husky
+    │       │   │   └───_
+    │       │   ├───apps
+    │       │   │   ├───daemon
+    │       │   │   │   ├───scripts
+    │       │   │   │   ├───src
+    │       │   │   │   │   ├───auth
+    │       │   │   │   │   ├───opencode
+    │       │   │   │   │   ├───rfq-chat
+    │       │   │   │   │   ├───types
+    │       │   │   │   │   └───whatsapp
+    │       │   │   │   └───__tests__
+    │       │   │   │       └───unit
+    │       │   │   │           ├───opencode
+    │       │   │   │           └───whatsapp
+    │       │   │   ├───desktop
+    │       │   │   │   ├───bundled-skills
+    │       │   │   │   │   ├───consolidation-of-bom
+    │       │   │   │   │   ├───file-upload-scan
+    │       │   │   │   │   └───semantic-standardization
+    │       │   │   │   ├───dist-electron
+    │       │   │   │   │   ├───main
+    │       │   │   │   │   └───preload
+    │       │   │   │   ├───e2e
+    │       │   │   │   │   ├───config
+    │       │   │   │   │   ├───docker
+    │       │   │   │   │   ├───fixtures
+    │       │   │   │   │   ├───pages
+    │       │   │   │   │   ├───provider-tests
+    │       │   │   │   │   │   ├───fixtures
+    │       │   │   │   │   │   ├───helpers
+    │       │   │   │   │   │   └───specs
+    │       │   │   │   │   ├───specs
+    │       │   │   │   │   └───utils
+    │       │   │   │   ├───public
+    │       │   │   │   │   ├───assets
+    │       │   │   │   │   │   ├───ai-logos
+    │       │   │   │   │   │   ├───icons
+    │       │   │   │   │   │   ├───integrations
+    │       │   │   │   │   │   └───usecases
+    │       │   │   │   │   └───fonts
+    │       │   │   │   ├───resources
+    │       │   │   │   │   └───nodejs
+    │       │   │   │   │       └───win32-x64
+    │       │   │   │   │           └───node-v24.15.0-win-x64
+    │       │   │   │   ├───scripts
+    │       │   │   │   ├───src
+    │       │   │   │   │   ├───main
+    │       │   │   │   │   │   ├───analytics
+    │       │   │   │   │   │   ├───config
+    │       │   │   │   │   │   ├───connectors
+    │       │   │   │   │   │   ├───daemon
+    │       │   │   │   │   │   ├───google-accounts
+    │       │   │   │   │   │   ├───identity
+    │       │   │   │   │   │   ├───ipc
+    │       │   │   │   │   │   │   └───handlers
+    │       │   │   │   │   │   │       ├───api-key-handlers
+    │       │   │   │   │   │   │       ├───provider-config-handlers
+    │       │   │   │   │   │   │       └───settings-handlers
+    │       │   │   │   │   │   ├───logging
+    │       │   │   │   │   │   ├───opencode
+    │       │   │   │   │   │   │   └───slack-auth
+    │       │   │   │   │   │   ├───providers
+    │       │   │   │   │   │   │   └───huggingface-local
+    │       │   │   │   │   │   ├───services
+    │       │   │   │   │   │   ├───skills
+    │       │   │   │   │   │   ├───store
+    │       │   │   │   │   │   ├───test-utils
+    │       │   │   │   │   │   ├───types
+    │       │   │   │   │   │   ├───updater
+    │       │   │   │   │   │   └───utils
+    │       │   │   │   │   └───preload
+    │       │   │   │   └───__tests__
+    │       │   │   │       ├───integration
+    │       │   │   │       │   ├───main
+    │       │   │   │       │   │   ├───opencode
+    │       │   │   │       │   │   └───utils
+    │       │   │   │       │   └───preload
+    │       │   │   │       ├───main
+    │       │   │   │       │   └───ipc
+    │       │   │   │       └───unit
+    │       │   │   │           └───main
+    │       │   │   │               ├───config
+    │       │   │   │               ├───connectors
+    │       │   │   │               └───ipc
+    │       │   │   │                   └───helpers
+    │       │   │   └───web
+    │       │   │       ├───locales
+    │       │   │       │   ├───en
+    │       │   │       │   ├───fr
+    │       │   │       │   ├───ru
+    │       │   │       │   └───zh-CN
+    │       │   │       ├───public
+    │       │   │       │   ├───assets
+    │       │   │       │   │   ├───ai-logos
+    │       │   │       │   │   ├───icons
+    │       │   │       │   │   │   └───integrations
+    │       │   │       │   │   └───usecases
+    │       │   │       │   ├───data
+    │       │   │       │   └───fonts
+    │       │   │       ├───src
+    │       │   │       │   └───client
+    │       │   │       │       ├───components
+    │       │   │       │       │   ├───admin
+    │       │   │       │       │   ├───costing-sheets
+    │       │   │       │       │   ├───execution
+    │       │   │       │       │   ├───fde
+    │       │   │       │       │   ├───history
+    │       │   │       │       │   ├───landing
+    │       │   │       │       │   │   └───PlusMenu
+    │       │   │       │       │   ├───layout
+    │       │   │       │       │   ├───rfq
+    │       │   │       │       │   ├───settings
+    │       │   │       │       │   │   ├───connectors
+    │       │   │       │       │   │   │   ├───datadog
+    │       │   │       │       │   │   │   └───lightdash
+    │       │   │       │       │   │   ├───currencies
+    │       │   │       │       │   │   ├───google-accounts
+    │       │   │       │       │   │   ├───hooks
+    │       │   │       │       │   │   ├───integrations
+    │       │   │       │       │   │   ├───projectTracking
+    │       │   │       │       │   │   ├───providers
+    │       │   │       │       │   │   │   └───vertex
+    │       │   │       │       │   │   ├───routingProfile
+    │       │   │       │       │   │   ├───shared
+    │       │   │       │       │   │   └───users
+    │       │   │       │       │   ├───skills
+    │       │   │       │       │   ├───TaskLauncher
+    │       │   │       │       │   └───ui
+    │       │   │       │       ├───config
+    │       │   │       │       ├───constants
+    │       │   │       │       ├───contexts
+    │       │   │       │       ├───hooks
+    │       │   │       │       ├───i18n
+    │       │   │       │       ├───lib
+    │       │   │       │       ├───pages
+    │       │   │       │       │   ├───admin
+    │       │   │       │       │   ├───execution
+    │       │   │       │       │   ├───fde
+    │       │   │       │       │   └───home
+    │       │   │       │       ├───stores
+    │       │   │       │       └───styles
+    │       │   │       └───__tests__
+    │       │   │           ├───integration
+    │       │   │           │   └───renderer
+    │       │   │           │       ├───components
+    │       │   │           │       └───pages
+    │       │   │           └───unit
+    │       │   │               ├───locales
+    │       │   │               └───renderer
+    │       │   │                   ├───components
+    │       │   │                   │   ├───execution
+    │       │   │                   │   └───skills
+    │       │   │                   ├───hooks
+    │       │   │                   ├───lib
+    │       │   │                   ├───stores
+    │       │   │                   └───__helpers__
+    │       │   ├───assests
+    │       │   ├───docs
+    │       │   │   ├───images
+    │       │   │   └───qa-suites
+    │       │   └───packages
+    │       │       └───agent-core
+    │       │           ├───mcp-tools
+    │       │           │   ├───calendar-mcp
+    │       │           │   │   └───src
+    │       │           │   ├───complete-task
+    │       │           │   │   └───src
+    │       │           │   ├───dev-browser
+    │       │           │   │   ├───references
+    │       │           │   │   ├───scripts
+    │       │           │   │   └───src
+    │       │           │   ├───dev-browser-mcp
+    │       │           │   │   └───src
+    │       │           │   │       └───snapshot
+    │       │           │   ├───gmail-mcp
+    │       │           │   │   └───src
+    │       │           │   ├───gws-mcp
+    │       │           │   │   └───src
+    │       │           │   ├───request-connector-auth
+    │       │           │   │   └───src
+    │       │           │   ├───request-google-file-picker
+    │       │           │   │   └───src
+    │       │           │   ├───safe-file-deletion
+    │       │           │   ├───start-task
+    │       │           │   │   └───src
+    │       │           │   └───whatsapp
+    │       │           │       └───src
+    │       │           ├───src
+    │       │           │   ├───browser
+    │       │           │   ├───common
+    │       │           │   │   ├───constants
+    │       │           │   │   ├───schemas
+    │       │           │   │   ├───types
+    │       │           │   │   └───utils
+    │       │           │   ├───connectors
+    │       │           │   ├───daemon
+    │       │           │   ├───factories
+    │       │           │   ├───google-accounts
+    │       │           │   ├───internal
+    │       │           │   │   ├───classes
+    │       │           │   │   └───utils
+    │       │           │   ├───opencode
+    │       │           │   │   ├───completion
+    │       │           │   │   │   └───context-providers
+    │       │           │   │   └───proxies
+    │       │           │   ├───providers
+    │       │           │   ├───sandbox
+    │       │           │   ├───services
+    │       │           │   ├───storage
+    │       │           │   │   ├───migrations
+    │       │           │   │   └───repositories
+    │       │           │   ├───types
+    │       │           │   └───utils
+    │       │           └───tests
+    │       │               ├───connectors
+    │       │               ├───integration
+    │       │               └───unit
+    │       │                   ├───daemon
+    │       │                   ├───google-accounts
+    │       │                   ├───internal
+    │       │                   │   └───classes
+    │       │                   ├───opencode
+    │       │                   │   ├───completion
+    │       │                   │   └───proxies
+    │       │                   ├───providers
+    │       │                   ├───sandbox
+    │       │                   ├───services
+    │       │                   ├───skills
+    │       │                   ├───storage
+    │       │                   │   └───migrations
+    │       │                   └───utils
+    │       ├───database
+    │       ├───deployment
+    │       ├───dify-orchestration
+    │       ├───docker
+    │       ├───docs
+    │       │   ├───APIs
+    │       │   ├───Architecture
+    │       │   ├───Backend
+    │       │   ├───Components
+    │       │   ├───Database
+    │       │   ├───Deployment
+    │       │   ├───DeveloperGuide
+    │       │   ├───DMR
+    │       │   ├───Frontend
+    │       │   ├───MCP
+    │       │   ├───Reference
+    │       │   ├───Reporting
+    │       │   ├───RfqChat
+    │       │   └───Security
+    │       ├───fastmcp-router
+    │       │   └───staged
+    │       │       ├───inbox
+    │       │       └───staging_inbox
+    │       │           └───fde
+    │       │               └───FDE-PROJ-000002
+    │       ├───infra
+    │       │   ├───mcp-jungle
+    │       │   └───postgres
+    │       ├───k8s
+    │       ├───mcp-tools
+    │       │   ├───bom-processing
+    │       │   ├───distributor-pricing
+    │       │   │   └───quote_exports
+    │       │   ├───gerber-integration
+    │       │   │   ├───bom_parser
+    │       │   │   ├───checklist_extractor
+    │       │   │   │   └───config
+    │       │   │   ├───component_intel
+    │       │   │   └───config
+    │       │   ├───intake
+    │       │   ├───reporting
+    │       │   │   └───superset
+    │       │   │       ├───reports
+    │       │   │       └───templates
+    │       │   ├───rfq-memory
+    │       │   ├───scrub-intake
+    │       │   └───shared
+    │       ├───scripts
+    │       └───testing
+    │           └───reference
+    │               └───UBR-BOM&VOL
+    ├───DOMAIN KNOWLEDGE
+    │   ├───adv
+    │   │   └───Domain Knowledge - RFQ and CAM (reference)
+    │   └───basic
+    │       └───Teaching Series - kid to specialist
+    ├───Full Details
+    └───Source Code
+
+C:\CAM[3.4]-RFQ_centum>'''
+
+SO 1st Acquire Domain Knowledge C:\CAM[3.4]-RFQ_centum\Reference[KT]\DOMAIN KNOWLEDGE
+

@@ -1,0 +1,20 @@
+"C:\CAM[3.4]-RFQ_centum\.claude" [ ur memory & setup has a set of oss repos make sure its all setup here ] 
+
+"C:\CAM[3.4]-RFQ_centum\Reference[KT]\Source Code" [the set of related Repos which is directly & in directly connected to this ]
+
+"C:\CAM[3.4]-RFQ_centum\Reference[KT]" [so all kind of basic to advance knowledge is here ]
+
+"C:\CAM[3.4]-RFQ_centum\SPECS" [ we hav to follow agile spec driven development ]
+
+"C:\CAM[3.4]-RFQ_centum\Eng_Diagram [ Must follow ]" [This is my designed feeding u about all repos mainly if u learn all && there is cam3.4 also I told exactly wtf u need to do to complete the cam 3.4]
+
+<C:\CAM[3.4]-RFQ_centum> [The Source REPO]
+
+"C:\CAM[3.4]-RFQ_centum\CAM-Source" [ This is where you Take all the Data from all the places & Build stuff !! ] 
+
+Things to note there was a agent memory was installed & with other repos which would felicitate this Job ! so check if everythg is setup properly 
+
+
+"C:\CAM[3.4]-RFQ_centum\Start Here.txt" This is the starting point a older agent had got ! & it tried but due to auto Compact running Frequently it eventually forgot Everything & It build 50% of the job 
+
+https://www.mr-nagabhushanaraju-s.engineer/api/mcp [ keep hitting my mcp soon ill deploy more better features ] any way u keep using what already it offers 

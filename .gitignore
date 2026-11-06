@@ -1,0 +1,16 @@
+# Owner decision (SPEC-024, 2026-11-06): only these are ignored; everything else in this folder is published.
+
+# Node dependencies (reinstall with pnpm install)
+node_modules/
+
+# The bundled Node runtime of the desktop app (87 MB node.exe per copy)
+**/resources/nodejs/
+
+# Environment files hold real values; the *.example files stay
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Note: .gitignore files that already exist inside CAM-Source and the source snapshots keep their own rules
+# (for example CAM-Source/.gitignore excludes client BOM uploads, *.duckdb, dist/, logs).
