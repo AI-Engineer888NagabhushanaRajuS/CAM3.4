@@ -61,7 +61,8 @@ import type { RfqFileVersion } from './components/rfq/RfqVersionSelectModal';
 import { RfqExecutionCard } from './components/rfq/RfqExecutionCard';
 import { RfqProgressTimeline } from './components/rfq/RfqProgressTimeline';
 import { ChangesPanel } from './components/rfq/ChangesPanel';
-import { RunHistory, RightViewToggle, type RightView } from './components/rfq/RunHistory';
+import { FailedRunNotice, RunHistory, RightViewToggle, type RightView } from './components/rfq/RunHistory';
+import { fetchRuns, type RunEntry } from './lib/runHistory';
 import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
@@ -415,6 +416,19 @@ export function App() {
   // Right pane: the live workflow, or the RFQ's run history (SPEC-021). Back to the workflow whenever another RFQ opens.
   const [rightView, setRightView] = useState<RightView>('workflow');
   useEffect(() => { setRightView('workflow'); }, [customRfqId]);
+  // The newest run of the open RFQ, read from Temporal: a failure caused by a wrong input file sends no progress event,
+  // so without this the pill and the stage list say "Running" forever.
+  const [latestRun, setLatestRun] = useState<RunEntry | null>(null);
+  useEffect(() => {
+    const id = customRfqId.trim();
+    setLatestRun(null);
+    if (!id) return undefined;
+    let stopped = false;
+    const tick = async () => { try { const r = await fetchRuns(id); if (!stopped) setLatestRun(r[0] ?? null); } catch { /* history is optional: keep the last known state */ } };
+    void tick();
+    const t = setInterval(() => void tick(), 8000);
+    return () => { stopped = true; clearInterval(t); };
+  }, [customRfqId]);
 
   // Resumes an existing RFQ: jump the UI to its live process stage, restore
   // the right panel's progress log from DB (rfq.getSkillHistory -- this is
@@ -930,11 +944,12 @@ export function App() {
     // already in flight) the local upload-dispatch signal.
     const hasStarted = stageEntries.length > 0
       || (stageId === 'intake' && (intakeProgress.bomStatus === 'uploading' || intakeProgress.bomStatus === 'processing'));
-    if (stageId === currentWorkflowStage && hasStarted) { return 'running'; }
+    // A run Temporal says failed is not running, whatever the last progress event said (a wrong input file sends none).
+    if (stageId === currentWorkflowStage && hasStarted) { return latestRun?.status === 'failed' ? 'failed' : 'running'; }
     if (stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'completed')) { return 'completed'; }
     if (stageEntries.length === 0 && runCompleted) { return 'skipped'; }
     return 'waiting';
-  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus, runCompleted]);
+  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus, runCompleted, latestRun]);
 
   // RFQ-level status (header pill) -- same underlying signals rolled up to
   // one badge; only meaningful once an RFQ is actually active.
@@ -946,7 +961,7 @@ export function App() {
   // reachable. Folding intakeProgress.bomStatus === 'error' into 'failed'
   // surfaces a real local upload failure that rfqProgressLog alone can't see.
   const rfqStatus: 'running' | 'completed' | 'failed' =
-    rfqProgressLog.some((entry) => entry.stepStatus === 'failed') || intakeProgress.bomStatus === 'error'
+    rfqProgressLog.some((entry) => entry.stepStatus === 'failed') || intakeProgress.bomStatus === 'error' || latestRun?.status === 'failed'
       ? 'failed'
       : runCompleted || currentWorkflowStage === 'reportingAnalytics'
         ? 'completed'
@@ -1519,14 +1534,14 @@ export function App() {
                 self-evidently the content at that point, and every line of
                 header here is vertical space taken away from it. */}
             {!hitlContext && (
-              <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4">
+              <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4">
                 <div className="min-w-0">
                   <h2 className="truncate text-sm font-bold uppercase tracking-wide text-foreground">
                     See your work, flowing here
                   </h2>
                   <p className="truncate text-xs text-muted-foreground">Real-time results and artifacts</p>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   {customRfqId.trim() && <RightViewToggle view={rightView} onChange={setRightView} />}
                   <span className="text-xs text-muted-foreground">
                     {WORKFLOW_STAGES.find((s) => s.id === currentWorkflowStage)?.name ?? currentWorkflowStage}
@@ -1610,7 +1625,8 @@ export function App() {
                         </div>
                       </div>
                     )}
-                    <RfqProgressTimeline entries={rfqProgressLog} />
+                    <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
+                    <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
                     {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
                     {currentWorkflowStage === 'quoteReadiness' && (
                       <div className="space-y-3 px-5 pb-5">

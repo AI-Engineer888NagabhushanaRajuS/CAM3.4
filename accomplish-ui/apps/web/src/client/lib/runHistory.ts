@@ -2,7 +2,7 @@
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
 
-export type RunStatus = 'running' | 'passed' | 'failed' | 'stopped' | 'replaced' | 'cancelled';
+export type RunStatus = 'running' | 'waiting' | 'passed' | 'failed' | 'stopped' | 'replaced' | 'cancelled';
 export type FailureKind = 'invalid_input' | 'configuration' | 'tool_error';
 
 export interface RunFailure {
@@ -23,6 +23,8 @@ export interface RunEntry {
   duration_ms: number | null;
   started_by: string;
   failed_step: string | null;
+  /** Set while status is 'waiting': the step that is parked at a human review. */
+  waiting_on?: string | null;
   failure: RunFailure | null;
   can_rerun: boolean;
 }
@@ -52,5 +54,5 @@ export function badgeWord(r: Pick<RunEntry, 'status' | 'failure'>): string {
   if (r.status === 'failed') {
     return r.failure?.kind === 'invalid_input' ? 'Invalid input' : r.failure?.kind === 'configuration' ? 'Needs setup' : 'Failed';
   }
-  return { running: 'Running', passed: 'Passed', stopped: 'Stopped at review', replaced: 'Replaced by a newer run', cancelled: 'Cancelled' }[r.status as Exclude<RunStatus, 'failed'>];
+  return { running: 'Running', waiting: 'Waiting for your review', passed: 'Passed', stopped: 'Stopped at review', replaced: 'Replaced by a newer run', cancelled: 'Cancelled' }[r.status as Exclude<RunStatus, 'failed'>];
 }

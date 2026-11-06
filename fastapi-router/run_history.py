@@ -60,9 +60,9 @@ def _iso(dt) -> Optional[str]:
     return dt.isoformat() if dt else None
 
 
-def _status(name: str, result_status: Optional[str]) -> str:
+def _status(name: str, result_status: Optional[str], awaiting: Optional[str] = None) -> str:
     if name == "RUNNING":
-        return "running"
+        return "waiting" if awaiting else "running"  # waiting: parked at a human review gate
     if name == "COMPLETED":
         return "stopped" if result_status == "rejected" else "passed"
     if name == "TERMINATED":
@@ -72,8 +72,8 @@ def _status(name: str, result_status: Optional[str]) -> str:
     return "failed"  # FAILED, TIMED_OUT
 
 
-def run_row(ex: Any, started_by: Optional[str], failure_text: Optional[str], result_status: Optional[str]) -> dict:
-    status = _status(getattr(ex.status, "name", str(ex.status)), result_status)
+def run_row(ex: Any, started_by: Optional[str], failure_text: Optional[str], result_status: Optional[str], awaiting: Optional[str] = None) -> dict:
+    status = _status(getattr(ex.status, "name", str(ex.status)), result_status, awaiting)
     start, close = getattr(ex, "start_time", None), getattr(ex, "close_time", None)
     failure = classify_failure(failure_text or "") if status == "failed" else None
     return {
@@ -81,6 +81,7 @@ def run_row(ex: Any, started_by: Optional[str], failure_text: Optional[str], res
         "duration_ms": int((close - start).total_seconds() * 1000) if start and close else None,
         "started_by": started_by or "unknown",
         "failed_step": failure["step"] if failure else None,
+        "waiting_on": _step_label(awaiting) if status == "waiting" else None,
         "failure": failure, "can_rerun": bool(failure and failure["can_rerun"]),
     }
 
@@ -102,8 +103,14 @@ async def list_runs(rfq_id: str, client: Any, limit: int = MAX_RUNS) -> list:
             started_by = (await ex.memo()).get("started_by")
         except Exception:
             started_by = None
-        text = result_status = None
+        text = result_status = awaiting = None
         name = getattr(ex.status, "name", "")
+        if name == "RUNNING":
+            try:  # the workflow's own query: is it parked at a human gate, and at which tool
+                state = await client.get_workflow_handle(ex.id, run_id=ex.run_id).query("hitl_state")
+                awaiting = (state.get("tool") or "review") if state.get("awaiting") else None
+            except Exception:
+                pass
         if name in ("FAILED", "COMPLETED"):
             try:
                 res = await client.get_workflow_handle(ex.id, run_id=ex.run_id).result(follow_runs=False)
@@ -112,6 +119,6 @@ async def list_runs(rfq_id: str, client: Any, limit: int = MAX_RUNS) -> list:
                 text = _cause_text(e)
             except Exception:
                 pass  # a run whose outcome cannot be read still shows, with its status
-        runs.append((ex.start_time, run_row(ex, started_by, text, result_status)))
+        runs.append((ex.start_time, run_row(ex, started_by, text, result_status, awaiting)))
     runs.sort(key=lambda p: p[0].timestamp() if p[0] else 0, reverse=True)
     return [r for _, r in runs][:limit]

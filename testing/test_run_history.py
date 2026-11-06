@@ -59,6 +59,7 @@ class FakeExec:
 class FakeClient:
     def __init__(self, execs, results):
         self.execs, self.results, self.queries = execs, results, []
+        self.queries_state = {}
 
     def list_workflows(self, query, limit):
         self.queries.append(query)
@@ -71,11 +72,15 @@ class FakeClient:
     def get_workflow_handle(self, wid, run_id):
         res = self.results[run_id]
 
+        async def query(name):
+            assert name == "hitl_state"
+            return self.queries_state.get(run_id, {"awaiting": False, "tool": None})
+
         async def result(follow_runs=False):
             if isinstance(res, Exception):
                 raise res
             return res
-        return SimpleNamespace(result=result)
+        return SimpleNamespace(result=result, query=query)
 
 
 def failure_error(text):
@@ -105,6 +110,13 @@ def test_runs_listed_newest_first_with_status_duration_and_who():
     assert by["old"]["status"] == "failed" and by["old"]["started_by"] == "Dana" and by["old"]["can_rerun"] is False
     assert by["old"]["failure"]["kind"] == "invalid_input" and by["old"]["failed_step"] == "Standardize scrub bom"
     assert by["live"]["started_by"] == "unknown"
+
+
+def test_a_running_run_parked_at_a_human_gate_is_waiting_and_names_the_step():
+    fc = FakeClient([FakeExec("gate", "RUNNING", T0, 0)], {"gate": None})
+    fc.queries_state["gate"] = {"awaiting": True, "tool": "centum_intake__standardize_scrub_bom"}
+    (row,) = asyncio.run(rh.list_runs("RFQ-1", fc))
+    assert row["status"] == "waiting" and row["waiting_on"] == "Standardize scrub bom"
 
 
 def test_rfq_id_cannot_inject_into_the_visibility_query():

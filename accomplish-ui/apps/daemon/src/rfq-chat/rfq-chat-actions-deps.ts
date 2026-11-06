@@ -9,6 +9,9 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { UnknownOutcomeError, type ActionDeps } from './rfq-chat-actions-types.js';
 import { realEditDeps } from './rfq-chat-edit-deps.js';
+
+/** What the run history shows as "started by" for a start the user confirmed in chat (the upload service's token carries no user). */
+const ASSISTANT_USER = encodeURIComponent('CAM assistant (confirmed in chat)');
 import { fetchRfqStatus } from './rfq-chat-status.js';
 
 const bridge = (): string => (process.env.PYTHON_BRIDGE_URL ?? process.env.PYTHON_SERVICE_URL ?? 'http://localhost:3110').replace(/\/$/, '');
@@ -120,7 +123,7 @@ export function realActionDeps(): ActionDeps {
       body.append('rfq_id', rfqId);
       let res: Response;
       try {
-        res = await fetch(`${uploadServer()}/api/rfq/upload`, { method: 'POST', body, headers: await authHeader(rfqId), signal: AbortSignal.timeout(180000) });
+        res = await fetch(`${uploadServer()}/api/rfq/upload`, { method: 'POST', body, headers: { ...(await authHeader(rfqId)), 'X-CAM-User': ASSISTANT_USER }, signal: AbortSignal.timeout(180000) });
       } catch (err) {
         // The server may have received and finished the request: the caller must not delete anything.
         throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);
@@ -143,8 +146,7 @@ export function realActionDeps(): ActionDeps {
       let res: Response;
       try {
         // X-CAM-User is what the run history shows as "started by" (the token carries no user).
-        const who = encodeURIComponent('CAM assistant (confirmed in chat)');
-        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers: { ...headers, 'X-CAM-User': who }, signal: AbortSignal.timeout(60000) });
+        res = await fetch(`${uploadServer()}/api/dify/start/${encodeURIComponent(rfqId)}`, { headers: { ...headers, 'X-CAM-User': ASSISTANT_USER }, signal: AbortSignal.timeout(60000) });
       } catch (err) {
         // The server may have started the run before the connection dropped.
         throw new UnknownOutcomeError(`the upload service did not answer (${err instanceof Error ? err.message : String(err)})`);

@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const fetchRuns = vi.fn();
 vi.mock('@/lib/runHistory', async (orig) => ({ ...(await orig<typeof import('@/lib/runHistory')>()), fetchRuns: (id: string) => fetchRuns(id) }));
 
-import { RunHistory, RightViewToggle } from '@/components/rfq/RunHistory';
+import { FailedRunNotice, RunHistory, RightViewToggle } from '@/components/rfq/RunHistory';
 import { badgeWord, formatDuration, type RunEntry } from '@/lib/runHistory';
 
 const run = (over: Partial<RunEntry>): RunEntry => ({
@@ -29,6 +29,7 @@ describe('formatting', () => {
     expect(badgeWord(run({ status: 'failed', failure: failure('invalid_input', false) }))).toBe('Invalid input');
     expect(badgeWord(run({ status: 'failed', failure: failure('tool_error', true) }))).toBe('Failed');
     expect(badgeWord(run({ status: 'replaced' }))).toMatch(/Replaced/);
+    expect(badgeWord(run({ status: 'waiting' }))).toBe('Waiting for your review');
   });
 });
 
@@ -73,5 +74,19 @@ describe('RightViewToggle', () => {
     expect(screen.getByRole('button', { name: 'Workflow' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
     expect(onChange).toHaveBeenCalledWith('history');
+  });
+});
+
+describe('FailedRunNotice', () => {
+  it('appears only when the newest run failed, with the next step and a way to the history', () => {
+    const open = vi.fn();
+    const { rerender } = render(<FailedRunNotice run={run({ status: 'failed', failure: failure('invalid_input', false) })} onOpenHistory={open} />);
+    expect(screen.getByRole('alert').textContent).toContain('next step text');
+    fireEvent.click(screen.getByRole('button', { name: 'See history' }));
+    expect(open).toHaveBeenCalled();
+    rerender(<FailedRunNotice run={run({ status: 'passed' })} onOpenHistory={open} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    rerender(<FailedRunNotice run={null} onOpenHistory={open} />);
+    expect(screen.queryByTestId('failed-run-notice')).toBeNull();
   });
 });

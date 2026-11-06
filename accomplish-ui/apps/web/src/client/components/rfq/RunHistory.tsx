@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowsClockwise, CheckCircle, CircleNotch, Prohibit, StopCircle, WarningCircle } from '@phosphor-icons/react';
+import { ArrowsClockwise, CheckCircle, CircleNotch, HourglassMedium, Prohibit, StopCircle, WarningCircle } from '@phosphor-icons/react';
 import { badgeWord, fetchRuns, formatDuration, type RunEntry, type RunStatus } from '@/lib/runHistory';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ const BUTTON = 'inline-flex min-h-7 items-center gap-1.5 rounded-md border borde
 
 const LOOK: Record<RunStatus, { Icon: typeof CheckCircle; tone: string; spin?: boolean }> = {
   running: { Icon: CircleNotch, tone: 'text-primary', spin: true },
+  waiting: { Icon: HourglassMedium, tone: 'text-amber-700 dark:text-amber-400' },
   passed: { Icon: CheckCircle, tone: 'text-emerald-700 dark:text-emerald-400' },
   failed: { Icon: WarningCircle, tone: 'text-destructive' },
   stopped: { Icon: StopCircle, tone: 'text-amber-700 dark:text-amber-400' },
@@ -54,10 +55,15 @@ function Row({ run, onRerun, busy, latest }: { run: RunEntry; onRerun: () => voi
           {run.started_at ? new Date(run.started_at).toLocaleString() : 'start time unknown'}
         </span>
         <span className="text-xs text-muted-foreground">
-          {run.status === 'running' ? 'in progress' : formatDuration(run.duration_ms)}
+          {run.status === 'running' || run.status === 'waiting' ? 'in progress' : formatDuration(run.duration_ms)}
         </span>
         <span className="text-xs text-muted-foreground">by {run.started_by}</span>
       </div>
+      {run.status === 'waiting' && (
+        <p className="mt-2 text-xs text-foreground/85">
+          {run.waiting_on ?? 'A step'} finished and is waiting for a person to review it. Open the Workflow view to review, then continue.
+        </p>
+      )}
       {f && (
         <div className="mt-2 space-y-1.5 text-xs">
           <p className="text-sm font-semibold text-foreground">{f.title}</p>
@@ -79,6 +85,21 @@ function Row({ run, onRerun, busy, latest }: { run: RunEntry; onRerun: () => voi
   );
 }
 
+/** Shown in the Workflow view when the newest run failed: the pill and the stage list only learn of failures that send a progress event, and a wrong input file does not. */
+export function FailedRunNotice({ run, onOpenHistory }: { run: RunEntry | null; onOpenHistory: () => void }) {
+  if (!run || run.status !== 'failed' || !run.failure) return null;
+  return (
+    <div role="alert" className="mx-5 mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs" data-testid="failed-run-notice">
+      <WarningCircle className="h-4 w-4 shrink-0 text-destructive" weight="fill" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">{run.failure.title}</span>
+        <span className="block text-foreground/85">{run.failure.next_step}</span>
+      </span>
+      <button type="button" className={BUTTON} onClick={onOpenHistory}>See history</button>
+    </div>
+  );
+}
+
 /** Every pipeline run of this RFQ, newest first, a failure explained in plain words (SPEC-021). */
 export function RunHistory({ rfqId, onRerun }: { rfqId: string; onRerun: (rfqId: string) => Promise<void> | void }) {
   const [runs, setRuns] = useState<RunEntry[] | null>(null);
@@ -95,7 +116,7 @@ export function RunHistory({ rfqId, onRerun }: { rfqId: string; onRerun: (rfqId:
   }, [rfqId]);
 
   useEffect(() => { setRuns(null); void load(); }, [load]);
-  const anyRunning = runs?.some((r) => r.status === 'running') ?? false;
+  const anyRunning = runs?.some((r) => r.status === 'running' || r.status === 'waiting') ?? false;
   useEffect(() => {
     if (!anyRunning) return undefined;
     const t = setInterval(() => void load(), POLL_MS);
