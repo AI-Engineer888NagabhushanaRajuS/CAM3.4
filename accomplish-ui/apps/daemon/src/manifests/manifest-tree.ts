@@ -28,12 +28,15 @@ function load(root: string, rel: string): Loaded {
 const jsonFiles = (dir: string, only: RegExp = /\.json$/): string[] => (existsSync(dir) ? readdirSync(dir).filter((f) => only.test(f)).sort() : []);
 const objects = (v: unknown): Doc[] => (Array.isArray(v) ? v.filter((x): x is Doc => !!x && typeof x === 'object') : []);
 
+/** The flag is off only when it is exactly `false`: a file that never had one stays on. */
+const on = (v: unknown): boolean => v !== false;
+
 function skillNode(root: string, entry: Doc) {
   // manifest_file is untrusted data: only its file name is used, and only under skills/.
   const file = String(entry.manifest_file ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
   const path = `skills/${file}`;
   const l = /^[A-Za-z0-9._-]+\.json$/.test(file) ? load(root, path) : null;
-  const base = { path, id: String(entry.skill_id ?? ''), name: String(entry.name ?? ''), sequence: Number(entry.sequence) };
+  const base = { path, id: String(entry.skill_id ?? ''), name: String(entry.name ?? ''), sequence: Number(entry.sequence), enabled: on(entry.enabled) };
   if (!l?.exists) {
     return { ...base, missing: true, subSkills: [] };
   }
@@ -41,8 +44,9 @@ function skillNode(root: string, entry: Doc) {
     return { ...base, invalid: true, hash: l.hash, subSkills: [] };
   }
   const m = metaOf(l.doc);
-  const subSkills = objects(l.doc.sub_skills).map((s) => ({ id: String(s.sub_skill_id ?? ''), name: String(s.sub_skill_name ?? ''), type: String(s.type ?? ''), stepCount: Array.isArray(s.steps) ? s.steps.length : 0 }));
-  return { path, id: m.id ?? base.id, name: m.name ?? base.name, sequence: base.sequence, version: m.version, status: m.status, hash: l.hash, subSkills };
+  const subSkills = objects(l.doc.sub_skills).map((s) => ({ id: String(s.sub_skill_id ?? ''), name: String(s.sub_skill_name ?? ''), type: String(s.type ?? ''), stepCount: Array.isArray(s.steps) ? s.steps.length : 0, enabled: on(s.enabled) }));
+  // SPEC-023: `enabled: false` in the agent's skill_sequence entry or in the skill's own skill_metadata switches the skill off in the left pane.
+  return { path, id: m.id ?? base.id, name: m.name ?? base.name, sequence: base.sequence, version: m.version, status: m.status, hash: l.hash, subSkills, enabled: base.enabled && on(l.doc.skill_metadata?.enabled) };
 }
 
 export function buildTree() {

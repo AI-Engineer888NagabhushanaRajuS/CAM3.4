@@ -64,6 +64,8 @@ import { ChangesPanel } from './components/rfq/ChangesPanel';
 import { FailedRunNotice, RunHistory, RightViewToggle, type RightView } from './components/rfq/RunHistory';
 import { fetchRuns, type RunEntry } from './lib/runHistory';
 import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
+import { skillForStage, unwiredSkills, usePipelineManifest } from './lib/pipelineManifest';
+import type { SettingsTabId } from './components/layout/settings-tabs';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
 import { AdditionalCostingSheetsModal } from './components/costing-sheets/AdditionalCostingSheetsModal';
@@ -88,7 +90,7 @@ const WORKFLOW_STAGES = [
     id: 'intake', mainHeading: 'Upload file', name: 'Intake & Normalization', icon: CloudArrowUp, color: 'emerald', tag: 'INTAKE',
     subSkills: [
       { label: 'Create RFQ', action: 'createRfq' },
-      { label: 'Scan for virus', action: 'info' },
+      { label: 'Scan for virus', action: 'scan' },
       { label: 'Ingest BOM and Volume file', action: 'ingest' },
     ],
   },
@@ -296,9 +298,9 @@ export function App() {
   const [status, setStatus] = useState<AppStatus>('loading');
   const [errorMessage, _setErrorMessage] = useState<string | null>(null);
   const [authSettingsOpen, setAuthSettingsOpen] = useState(false);
-  const [authSettingsTab, setAuthSettingsTab] = useState<
-    'providers' | 'skills' | 'general' | 'about'
-  >('providers');
+  const [authSettingsTab, setAuthSettingsTab] = useState<SettingsTabId>('providers');
+  // SPEC-023: the left pane follows the manifests (enabled flags, sub-skills); null until loaded, then the pane is as it was.
+  const manifestTree = usePipelineManifest();
   const [authSettingsProvider, setAuthSettingsProvider] = useState<ProviderId | undefined>(
     undefined,
   );
@@ -539,6 +541,12 @@ export function App() {
 
   const handleSubSkillClick = useCallback((stageId: WorkflowStageId, action: string) => {
     if (action === 'info') { return; }
+    if (action === 'scan') {
+      // the two engines (BuLL*Sav, Repel Shield): their status, versions and what they caught live in Settings, Security
+      setAuthSettingsTab('security');
+      setAuthSettingsOpen(true);
+      return;
+    }
     goToStage(stageId);
     if (action === 'createRfq') { setRfqCreatePaneOpen(true); return; }
     if (action === 'ingest') { handleIngestClick(); return; }
@@ -1313,8 +1321,11 @@ export function App() {
                     const isSkippedByToggle = !isComingSoon
                       && backingSkills.length > 0
                       && backingSkills.every((skill) => !skill.isEnabled);
-                    const isLocked = isComingSoon || isSkippedByToggle;
-                    const hasSubSkills = stage.subSkills.length > 0;
+                    const skill = skillForStage(manifestTree, stage.id);
+                    const offInManifest = skill?.enabled === false;
+                    const isLocked = isComingSoon || isSkippedByToggle || offInManifest;
+                    const manifestSubs = skill?.subSkills ?? [];
+                    const hasSubSkills = stage.subSkills.length > 0 || manifestSubs.length > 0;
                     // Expansion is derived entirely from currentWorkflowStage, never an
                     // independent toggle -- whether that variable changes because the
                     // backend advanced or because the user clicked a navigable stage
@@ -1328,7 +1339,7 @@ export function App() {
                     // more accurate per-skill derivation from getStageStatus().
                     const stageStatus = isLocked ? 'waiting' : getStageStatus(stage.id as WorkflowStageId);
                     const stageStatusLabel = isLocked
-                      ? 'Locked'
+                      ? (offInManifest ? 'Off in manifest' : 'Locked')
                       : { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', skipped: 'Not in this profile' }[stageStatus];
                     const stageStatusTextClass = {
                       completed: 'text-emerald-500',
@@ -1431,7 +1442,7 @@ export function App() {
                             </button>
 
                             {isExpanded && (
-                              <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="space-y-0.5 px-2 pb-2 pl-2">
+                              <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="space-y-0.5 px-2 pb-2 pl-2" data-testid={`sub-skills-${stage.id}`}>
                                 {stage.subSkills.map((sub) => (
                                   sub.action === 'info' ? (
                                     <div key={sub.label} className="flex items-center gap-2 rounded px-2 py-1 text-[13px] text-muted-foreground/70">
@@ -1453,6 +1464,31 @@ export function App() {
                                     </button>
                                   )
                                 ))}
+                                {manifestSubs.length > 0 && (
+                                  <div className="mt-1 border-t border-border/50 pt-1" data-testid={`manifest-subs-${stage.id}`}>
+                                    <a
+                                      href={`#/manifests?path=${encodeURIComponent(skill?.path ?? '')}`}
+                                      className="flex items-center justify-between rounded px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground/80 hover:text-foreground"
+                                      title="Open this skill's manifest"
+                                    >
+                                      <span className="truncate">{skill?.name ?? 'Manifest'}</span>
+                                      <span aria-hidden>JSON</span>
+                                    </a>
+                                    {manifestSubs.map((sub) => (
+                                      <div
+                                        key={sub.id}
+                                        data-testid="manifest-sub"
+                                        aria-disabled={sub.enabled === false || undefined}
+                                        title={`${sub.name}: ${sub.stepCount} step${sub.stepCount === 1 ? '' : 's'}${sub.type ? ` · ${sub.type}` : ''}${sub.enabled === false ? ' · off in the manifest' : ''}`}
+                                        className={`flex items-center gap-2 rounded px-2 py-1 text-[13px] ${sub.enabled === false ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}
+                                      >
+                                        <span className="w-6 shrink-0 text-[11px] tabular-nums text-muted-foreground/60">{sub.id}</span>
+                                        <span className="min-w-0 flex-1 truncate">{sub.name}</span>
+                                        {sub.enabled === false && <LockSimple className="h-3 w-3 shrink-0" aria-label="Off in the manifest" />}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1460,6 +1496,11 @@ export function App() {
                       </div>
                     );
                   })}
+                  {unwiredSkills(manifestTree).length > 0 && (
+                    <p className="mt-2 px-1 text-[11px] leading-snug text-muted-foreground/70" data-testid="unwired-skills">
+                      In the manifests, not wired to a stage: {unwiredSkills(manifestTree).map((s) => s.name).join(', ')}.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

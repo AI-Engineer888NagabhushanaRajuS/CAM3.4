@@ -38,6 +38,7 @@ const skillMetadata = obj('Identity and version of this skill (or tool) manifest
   created_at: stamp('Creation time'),
   updated_at: stamp('Last update time'),
   supersedes: str('What this replaces'),
+  enabled: bool('false switches this skill off in the left pane (its stage greys out and locks). Missing means on.'),
   architecture_note: str('Design note'),
 }, ['skill_id', 'skill_name', 'version', 'status']);
 
@@ -91,6 +92,7 @@ const step = obj('One step', { step_id: str('Id like "1.1.1"', { pattern: '^\\d+
 const subSkill = obj('One sub-skill', {
   sub_skill_id: str('Id like "1.1"', { pattern: '^\\d+\\.\\d+$' }),
   sub_skill_name: str('Name', { minLength: 1 }),
+  enabled: bool('false greys this sub-skill out in the left pane. Missing means on.'),
   type: str('Kind of sub-skill', { examples: ['Ingestion & CRM Sync', 'Automated Processing', 'Ingestion / Query', 'Human Review Checkpoint', 'Human Final Action'] }),
   steps: list('Steps in order', step, { minItems: 1 }),
 }, ['sub_skill_id', 'sub_skill_name', 'steps']);
@@ -99,7 +101,7 @@ const variableDef = obj('One named edge-case variable.', { description: str('Wha
 const reportVariables = { ...obj('V hoisted to the top level: every edge case as a named variable.', { _comment: str('Note') }), additionalProperties: variableDef };
 const report = obj('One report', { report_id: str('Id like R01', { pattern: '^R\\d{2}$' }), tab_no: { type: 'integer', minimum: 1, description: 'Tab position in the workbook' }, sheet_name: str('Sheet name', { minLength: 1 }), requestor: str('Who asked'), output_format: str('Layout'), current_script: str('Current implementation'), inputs: list('Inputs'), edge_case_variables: list('Variables that affect it'), acceptance_checks: list('Checks') }, ['report_id', 'tab_no', 'sheet_name']);
 
-const skillEntry = obj('One skill entry', { sequence: { type: 'integer', minimum: 1, description: 'Position' }, skill_id: str('Skill id'), manifest_file: str('Relative file, e.g. skills/skill_01_input_standardization.json', { pattern: '^skills/[A-Za-z0-9._-]+\\.json$' }), name: str('Skill name') }, ['sequence', 'skill_id', 'manifest_file']);
+const skillEntry = obj('One skill entry', { sequence: { type: 'integer', minimum: 1, description: 'Position' }, skill_id: str('Skill id'), manifest_file: str('Relative file, e.g. skills/skill_01_input_standardization.json', { pattern: '^skills/[A-Za-z0-9._-]+\\.json$' }), name: str('Skill name'), enabled: bool('false switches this skill off in the left pane. Missing means on.') }, ['sequence', 'skill_id', 'manifest_file']);
 
 export function manifestSchema(kind: SchemaKind): Obj {
   const toolProps: Obj = { skill_metadata: skillMetadata, isatvon_definition: isatvon(kind), contracts, governance };

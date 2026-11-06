@@ -71,6 +71,40 @@ describe('manifests tree and schema (real copied files)', () => {
     expect(t.runtime.every((r: { readOnly: boolean; port: number }) => r.readOnly && r.port > 0)).toBe(true);
   });
 
+  it('SPEC-023: every skill and sub-skill is on when no flag is set; the schema documents the flag', async () => {
+    process.env.CAM_MANIFESTS_DIR = REAL;
+    const { json } = await call('GET', '/api/manifests');
+    expect(json.tree.agent.skills.every((s: { enabled: boolean }) => s.enabled === true)).toBe(true);
+    expect(json.tree.agent.skills.flatMap((s: { subSkills: Array<{ enabled: boolean }> }) => s.subSkills).every((s: { enabled: boolean }) => s.enabled === true)).toBe(true);
+    const schema = (await call('GET', '/api/manifests/schema/skill')).json;
+    expect(schema.properties.skill_metadata.properties.enabled).toMatchObject({ type: 'boolean' });
+  });
+
+  it('SPEC-023: "enabled": false saved in the skill file (DRAFT, through the real save route) switches that skill / sub-skill off in the tree', async () => {
+    const f = (await getFile(SKILL)).json;
+    const doc = JSON.parse(f.text);
+    doc.skill_metadata.enabled = false;
+    doc.sub_skills[1].enabled = false;
+    const res = await put(SKILL, JSON.stringify(doc), f.hash);
+    expect(res.status).toBe(200); // a DRAFT manifest with the flag is accepted and saved
+    const { json } = await call('GET', '/api/manifests');
+    const s1 = json.tree.agent.skills[0];
+    expect(s1.enabled).toBe(false);
+    expect(s1.subSkills[1].enabled).toBe(false);
+    expect(s1.subSkills[0].enabled).toBe(true);
+    expect(json.tree.agent.skills[1].enabled).toBe(true);
+  });
+
+  it('SPEC-023: "enabled": false on the agent skill_sequence entry switches the skill off too', async () => {
+    const agentPath = 'agent/agent_manifest.json';
+    const f = (await getFile(agentPath)).json;
+    const doc = JSON.parse(f.text);
+    doc.skill_sequence[2].enabled = false;
+    expect((await put(agentPath, JSON.stringify(doc), f.hash)).status).toBe(200);
+    const { json } = await call('GET', '/api/manifests');
+    expect(json.tree.agent.skills.map((s: { enabled: boolean }) => s.enabled)).toEqual([true, true, false, true, true, true, true, true, true, true]);
+  });
+
   it('reports a missing skill file as missing:true instead of crashing', async () => {
     rmSync(join(work, SKILL));
     const { json } = await call('GET', '/api/manifests');
