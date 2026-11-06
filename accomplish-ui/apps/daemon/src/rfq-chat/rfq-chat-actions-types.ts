@@ -87,6 +87,8 @@ export interface Attachment {
   role?: string;
   /** Plain-words reasons the run would reject this file (for example no SCRUB BOM sheet). */
   problems?: string[];
+  /** SPEC-023 pre-flight of a BOM workbook: cells that would be NaN / empty / an Excel error in the output. Absent on older bridges. */
+  check?: { checked: boolean; ok: boolean; errors: number; warnings: number };
 }
 
 export interface ScanVerdict {

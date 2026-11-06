@@ -39,7 +39,9 @@ export type UiDirective =
   | { type: 'open_export'; rfqId: string }
   | { type: 'open_settings'; section: 'providers' }
   // SPEC-020: a button that opens the manifest editor (hash route #/manifests?path=<path>); path is relative to manifests/.
-  | { type: 'open_manifest'; path: string; label: string };
+  | { type: 'open_manifest'; path: string; label: string }
+  // SPEC-023: the chosen BOM has cells that would be NaN / error in the output; the button opens the fix dialog (scope = where the file was scanned).
+  | { type: 'fix_input'; scope: string; attachmentId: string; name: string; errors: number; warnings: number };
 
 export interface ChatRequest {
   messages: Array<{ role: string; content: string }>;

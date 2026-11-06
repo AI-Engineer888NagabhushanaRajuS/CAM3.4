@@ -3,7 +3,7 @@ import { resolveFiles } from '../src/rfq-chat/rfq-chat-actions-parse.js';
 import type { ActionDeps, Attachment } from '../src/rfq-chat/rfq-chat-actions-types.js';
 
 /** SPEC-022: what the bridge read INSIDE the released files wins over their names. */
-const att = (id: string, name: string, role?: string, problems?: string[]): Attachment => ({ attachmentId: id, name, sha256: null, role, problems });
+const att = (id: string, name: string, role?: string, problems?: string[], check?: Attachment['check']): Attachment => ({ attachmentId: id, name, sha256: null, role, problems, check });
 const run = async (list: Attachment[]) =>
   resolveFiles('CHAT-1', list.map((a) => ({ attachmentId: a.attachmentId, name: a.name })), { listAttachments: async () => list } as unknown as ActionDeps);
 
@@ -45,6 +45,20 @@ describe('create_rfq file choice by role', () => {
   it('only documents: says none is a spreadsheet', async () => {
     const out = await run([att('d1', 'a.pdf', 'document'), att('d2', 'b.docx', 'document')]);
     expect(out.missing[0]).toContain('None of the 2 attached files is a spreadsheet');
+  });
+
+  it('SPEC-023: a BOM with cells that would be NaN/error is not used; the reply carries what the fix button needs', async () => {
+    const out = await run([att('a1', 'Centum.xlsx', 'scrub_bom', [], { checked: true, ok: false, errors: 3, warnings: 2 })]);
+    expect(out.files).toEqual([]);
+    expect(out.fix).toEqual({ scope: 'CHAT-1', attachmentId: 'a1', name: 'Centum.xlsx', errors: 3, warnings: 2 });
+    expect(out.missing[0]).toContain('3 cells would give NaN or errors');
+  });
+
+  it('SPEC-023: warnings alone do not stop the run, they are mentioned on the card', async () => {
+    const out = await run([att('a1', 'Centum.xlsx', 'scrub_bom', [], { checked: true, ok: true, errors: 0, warnings: 29 })]);
+    expect(out.fix).toBeUndefined();
+    expect(out.files).toHaveLength(2);
+    expect(out.note).toContain('29 warnings');
   });
 
   it('refuses a plain BOM with the reason and issues no files', async () => {

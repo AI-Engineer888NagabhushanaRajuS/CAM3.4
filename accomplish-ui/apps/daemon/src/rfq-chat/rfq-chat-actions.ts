@@ -75,7 +75,10 @@ export function makeChatActions(
         }
         if (files.missing.length > 0) {
           // Files first: asking for a customer is pointless while there is no BOM to start from.
-          return { message: `I can't create an RFQ from these files yet. ${files.missing.join(' ')}` };
+          return {
+            message: `I can't create an RFQ from these files yet. ${files.missing.join(' ')}`,
+            ...(files.fix ? { ui: { type: 'fix_input' as const, ...files.fix } } : {}),
+          };
         }
         const parties = await resolveParties(request, deps);
         if (!parties.customer || !parties.project) {

@@ -77,8 +77,8 @@ export function realActionDeps(): ActionDeps {
       if (!res.ok) {
         throw await failure(res, 'the attachment list');
       }
-      const rows = (await res.json()) as Array<{ attachment_id: string; name: string; sha256?: string | null; role?: string; problems?: string[] }>;
-      return rows.map((r) => ({ attachmentId: r.attachment_id, name: r.name, sha256: r.sha256 ?? null, role: r.role, problems: r.problems }));
+      const rows = (await res.json()) as Array<{ attachment_id: string; name: string; sha256?: string | null; role?: string; problems?: string[]; check?: { checked: boolean; ok: boolean; errors: number; warnings: number } }>;
+      return rows.map((r) => ({ attachmentId: r.attachment_id, name: r.name, sha256: r.sha256 ?? null, role: r.role, problems: r.problems, check: r.check }));
     },
     async readAttachment(scope, attachmentId) {
       // Needs the bridge route GET /api/rfq/{id}/attachments/{attachment_id}/content (not in the bridge yet).

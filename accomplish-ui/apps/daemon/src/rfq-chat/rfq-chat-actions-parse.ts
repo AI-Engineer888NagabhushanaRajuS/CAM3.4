@@ -77,6 +77,8 @@ export interface FileResult {
   blocked: string[];
   /** One line on what was chosen and what was left out, shown with the confirmation card. */
   note: string;
+  /** The chosen BOM has cells that would be NaN / error in the output: it must be fixed before an RFQ is created (SPEC-023). */
+  fix?: { scope: string; attachmentId: string; name: string; errors: number; warnings: number };
 }
 
 /** What the bridge found inside a file, in the words the chat uses. */
@@ -151,11 +153,19 @@ export async function resolveFiles(
       out.missing.push(`Which of ${vol.map((f) => f.att.name).join(' and ')} is the Volume file?`);
       return out;
     }
+    // SPEC-023: a BOM with cells that would be NaN / error in the output is fixed first, not run.
+    const chk = scrubs[0].att.check;
+    if (chk && chk.checked && chk.errors > 0) {
+      out.fix = { scope: scrubs[0].scope, attachmentId: scrubs[0].att.attachmentId, name: scrubs[0].att.name, errors: chk.errors, warnings: chk.warnings };
+      out.missing.push(`${scrubs[0].att.name} cannot start a run yet: ${chk.errors} cell${chk.errors === 1 ? '' : 's'} would give NaN or errors in the output. Fix them (press the button), and I will carry on.`);
+      return out;
+    }
     for (const [role, f] of [['BOM', scrubs[0]], ['VOLUME', vol[0] ?? scrubs[0]]] as const) {
       out.files.push({ role, name: f.att.name, attachmentId: f.att.attachmentId, sha256: f.att.sha256, sourceScope: f.scope });
     }
     const others = found.filter((f) => f !== scrubs[0] && f !== vol[0]).map((f) => f.att.name);
-    out.note = `Using ${scrubs[0].att.name} as the BOM${vol[0] ? ` and ${vol[0].att.name} as the volume file` : ' (its Settings sheet carries the volumes)'}.${others.length ? ` Not used: ${list(others)}.` : ''}${left}`;
+    const warn = chk && chk.warnings > 0 ? ` ${chk.warnings} warning${chk.warnings === 1 ? '' : 's'} (for example blank descriptions) will not stop the run.` : '';
+    out.note = `Using ${scrubs[0].att.name} as the BOM${vol[0] ? ` and ${vol[0].att.name} as the volume file` : ' (its Settings sheet carries the volumes)'}.${others.length ? ` Not used: ${list(others)}.` : ''}${left}${warn}`;
     return out;
   }
   // No role found a BOM. Two spreadsheets, one named like a volume file, is the old name rule (older bridge, unknown layouts).

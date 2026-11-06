@@ -64,7 +64,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
   }, [uploadRfq]);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const { choose, openPicker, settle } = chat;
+  const { choose, openPicker, settle, send } = chat;
   const actions = useMemo<DirectiveActions>(() => ({
     onChoose: choose,
     onOpenPicker: openPicker,
@@ -75,6 +75,8 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
       onSelectRfq(target);
     }),
     onOpenSettings: onOpenModelSettings,
+    onFixed: () => void refresh(),
+    onContinueAfterFix: () => void send('create an RFQ from these files'),
     onUpload: (accept) => {
       setNotice(null);
       if (fileInput.current) {
@@ -82,7 +84,7 @@ export function RFQChatPane({ rfqId, isOpen, onClose, inline = false, onOpenMode
         fileInput.current.click();
       }
     },
-  }), [choose, openPicker, settle, onSelectRfq, onOpenModelSettings]);
+  }), [choose, openPicker, settle, send, refresh, onSelectRfq, onOpenModelSettings]);
 
   if (!isOpen && !inline) return null;
 

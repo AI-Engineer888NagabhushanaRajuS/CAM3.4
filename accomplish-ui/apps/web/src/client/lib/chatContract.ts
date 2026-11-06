@@ -47,7 +47,9 @@ export type UiDirective =
   | { type: 'open_export'; rfqId: string }
   | { type: 'open_settings'; section: 'providers' }
   /** SPEC-020: opens the manifest editor at #/manifests?path=<path> (path relative to manifests/). */
-  | { type: 'open_manifest'; path: string; label: string };
+  | { type: 'open_manifest'; path: string; label: string }
+  /** SPEC-023: the chosen BOM has cells that would be NaN / error in the output; the button opens the fix dialog. */
+  | { type: 'fix_input'; scope: string; attachmentId: string; name: string; errors: number; warnings: number };
 
 export interface ChatResponse {
   message: string;
@@ -151,6 +153,8 @@ export function parseUi(value: unknown): UiDirective | undefined {
       return ui.section === 'providers' ? (ui as unknown as UiDirective) : undefined;
     case 'open_manifest':
       return typeof ui.path === 'string' && ui.path.trim() && typeof ui.label === 'string' ? (ui as unknown as UiDirective) : undefined;
+    case 'fix_input':
+      return typeof ui.scope === 'string' && typeof ui.attachmentId === 'string' && typeof ui.name === 'string' && typeof ui.errors === 'number' ? (ui as unknown as UiDirective) : undefined;
     default:
       return undefined;
   }

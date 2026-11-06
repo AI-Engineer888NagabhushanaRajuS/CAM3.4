@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button';
 import type { DisambiguateOption } from '@/lib/chatContract';
+import { useState } from 'react';
 import { ConfirmActionCard } from './ConfirmActionCard';
+import { InputFixDialog } from './InputFixDialog';
 import { OpenExportDirective, OpenManifestDirective, OpenRfqDirective, OpenSettingsDirective } from './OpenDirectives';
 import type { ChatMsg, ConfirmOutcome } from './useAssistantChat';
 
@@ -13,6 +15,21 @@ export interface DirectiveActions {
   onOpenRfq?: (msgId: string, rfqId: string) => void;
   /** Settings -> Providers; absent when the host cannot. */
   onOpenSettings?: () => void;
+  /** SPEC-023: a corrected BOM replaced the original (refresh the file list). */
+  onFixed?: () => void;
+  /** SPEC-023: the corrected BOM is clean and the user pressed "Continue": carry on with the request. */
+  onContinueAfterFix?: () => void;
+}
+
+/** The chosen BOM would give NaN / errors: a button that opens the fix dialog. */
+function FixInputDirective({ ui, busy, actions }: { ui: Extract<NonNullable<ChatMsg['ui']>, { type: 'fix_input' }>; busy: boolean; actions: DirectiveActions }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 space-y-2">
+      <Button size="sm" disabled={busy} onClick={() => setOpen(true)}>Fix {ui.errors} {ui.errors === 1 ? 'cell' : 'cells'} in {ui.name}</Button>
+      <InputFixDialog open={open} scope={ui.scope} attachmentId={ui.attachmentId} name={ui.name} onClose={() => setOpen(false)} onFixed={actions.onFixed} onContinue={actions.onContinueAfterFix} />
+    </div>
+  );
 }
 
 /** What the daemon asked the UI to draw under an assistant message. The UI only shows it; the user decides. */
@@ -73,6 +90,8 @@ export function Directive({ msg, actions, busy }: { msg: ChatMsg; actions: Direc
       return <OpenSettingsDirective busy={busy} onOpen={actions.onOpenSettings} />;
     case 'open_manifest':
       return <OpenManifestDirective path={ui.path} label={ui.label} />;
+    case 'fix_input':
+      return <FixInputDirective ui={ui} busy={busy} actions={actions} />;
     default:
       return null;
   }

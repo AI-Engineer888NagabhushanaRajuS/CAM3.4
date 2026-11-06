@@ -78,10 +78,15 @@ export function RfqIntakeUploadModal({
       body: formData,
       signal: controller.signal,
     })
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
           logger.error('BOM upload rejected by server', { status: response.status });
-          onUploadError?.(`Server rejected the BOM upload (status ${response.status}).`);
+          // SPEC-023: the pre-flight names the cells that would be NaN / error in the output; say which, and where to fix them.
+          const body = (await response.json().catch(() => null)) as { detail?: { code?: string; message?: string; issues?: Array<{ sheet: string | null; col: string | null; row: number | null; message: string }> } } | null;
+          const d = body?.detail;
+          onUploadError?.(d?.code === 'input_invalid'
+            ? `${d.message} First: ${(d.issues ?? []).slice(0, 3).map((i) => `${i.sheet ?? ''} ${i.col ?? ''}${i.row ?? ''}: ${i.message}`).join(' ')} Attach the file with the paperclip in the assistant to fix these cells there.`
+            : `Server rejected the BOM upload (status ${response.status}).`);
         }
       })
       .catch((err) => {

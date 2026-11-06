@@ -8,6 +8,7 @@ import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
 import { IntakeDashboard } from './IntakeDashboard';
 import { PerimeterSteps, type Phase } from './PerimeterSteps';
 import { ScanProgress } from './ScanProgress';
+import { InputFixDialog } from './InputFixDialog';
 import { ScanResults } from './ScanResults';
 
 interface AttachFilesDialogProps {
@@ -38,6 +39,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const [error, setError] = useState<string | null>(null);
   const [wave, setWave] = useState({ n: 1, of: 1 });
   const [failure, setFailure] = useState<WaveOutcome['failure']>(null);
+  const [fixTarget, setFixTarget] = useState<{ attachmentId: string; name: string } | null>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -131,6 +133,27 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
             <RocketLaunch className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
             {readiness.message}
           </p>
+        )}
+        {phase === 'result' && readiness?.fix && (
+          <Button variant="outline" onClick={() => setFixTarget({ attachmentId: readiness.fix!.attachmentId, name: readiness.fix!.name })} className="w-fit">
+            Fix {readiness.fix.errors} {readiness.fix.errors === 1 ? 'cell' : 'cells'} in {readiness.fix.name}
+          </Button>
+        )}
+        {phase === 'result' && fixTarget && (
+          <InputFixDialog
+            open
+            scope={rfqId}
+            attachmentId={fixTarget.attachmentId}
+            name={fixTarget.name}
+            onClose={() => setFixTarget(null)}
+            onFixed={(fixed, previousId) => {
+              // the corrected copy replaced the original: the result row and the readiness follow it
+              setResponse((r) => r && ({ ...r, results: r.results.map((x) => (x.attachment_id === previousId
+                ? { ...x, attachment_id: fixed.attachment_id, name: fixed.name, sha256: fixed.sha256, check: fixed.check }
+                : x)) }));
+              onReleased();
+            }}
+          />
         )}
         {phase === 'result' && failure && (
           <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-foreground">

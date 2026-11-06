@@ -118,6 +118,15 @@ export interface ScanResult {
   role_reason?: string;
   /** Plain-words reasons the pipeline would reject this file. */
   problems?: string[];
+  /** SPEC-023 pre-flight of a BOM workbook: cells that would be NaN / empty / an Excel error in the output. */
+  check?: FileCheck;
+}
+
+export interface FileCheck {
+  checked: boolean;
+  ok: boolean;
+  errors: number;
+  warnings: number;
 }
 
 export type FileRole = 'scrub_bom' | 'bom' | 'volume' | 'quotewin' | 'document' | 'unknown';
@@ -126,6 +135,8 @@ export interface Readiness {
   ready: boolean;
   /** One sentence for the dialog: what will be used, or why nothing can be created yet. */
   message: string;
+  /** The BOM workbook has cells that would be NaN / error in the output: the dialog offers to fix them. */
+  fix?: { attachmentId: string; name: string; errors: number; warnings: number };
 }
 
 /** Whether the released files are enough to create an RFQ, from their recognised roles (SPEC-022). Mirrors the daemon's create_rfq choice. */
@@ -134,6 +145,14 @@ export function intakeReadiness(results: ScanResult[]): Readiness {
   const of = (role: FileRole) => released.filter((r) => r.role === role);
   const scrub = of('scrub_bom');
   if (scrub.length > 1) return { ready: false, message: `${scrub.map((r) => r.name).join(' and ')} each have a SCRUB BOM sheet. Say which one is the BOM and I will use that.` };
+  if (scrub.length === 1 && scrub[0].check?.checked && scrub[0].check.errors > 0 && scrub[0].attachment_id) {
+    const n = scrub[0].check.errors;
+    return {
+      ready: false,
+      message: `${scrub[0].name} cannot start a run yet: ${n} cell${n === 1 ? '' : 's'} would give NaN or errors in the output. Fix ${n === 1 ? 'it' : 'them'} here.`,
+      fix: { attachmentId: scrub[0].attachment_id, name: scrub[0].name, errors: n, warnings: scrub[0].check.warnings },
+    };
+  }
   if (scrub.length === 1) {
     const vol = of('volume');
     return {
@@ -166,12 +185,13 @@ export interface Attachment {
   role?: FileRole;
   role_label?: string;
   problems?: string[];
+  check?: FileCheck;
 }
 
 /** Short word for a chip: what the file is to the pipeline. `warn` = it cannot start a run. */
-export function roleChip(a: Pick<Attachment, 'role'>): { text: string; warn: boolean } | null {
+export function roleChip(a: Pick<Attachment, 'role' | 'check'>): { text: string; warn: boolean } | null {
   switch (a.role) {
-    case 'scrub_bom': return { text: 'BOM', warn: false };
+    case 'scrub_bom': return a.check?.checked && a.check.errors > 0 ? { text: `BOM: ${a.check.errors} to fix`, warn: true } : { text: 'BOM', warn: false };
     case 'volume': return { text: 'Volume', warn: false };
     case 'quotewin': return { text: 'QuoteWin', warn: false };
     case 'document': return { text: 'Reference', warn: false };
