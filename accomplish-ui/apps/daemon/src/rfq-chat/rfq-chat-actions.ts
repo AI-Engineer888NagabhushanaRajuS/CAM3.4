@@ -84,7 +84,7 @@ export function makeChatActions(
         if (!parties.customer || !parties.project) {
           // The next turn (a button or typed words) is read together with this request, see rfq-chat-service.ts (CREATE_PENDING).
           return {
-            message: `${CREATE_PENDING} ${files.note} ${parties.missing.join(' ')}`.replace(/\s+/g, ' '),
+            message: `${CREATE_PENDING}\n\n${files.note}\n\n${parties.missing.join(' ')}`.replace(/[ \t]+/g, ' '),
             ...(parties.ask ? { ui: { type: 'disambiguate' as const, prompt: parties.ask.prompt, options: parties.ask.options } } : {}),
           };
         }
@@ -99,7 +99,7 @@ export function makeChatActions(
         const card = await issue(sessionKey, 'create_rfq', params, `card issued for ${params.rfqId}`);
         const [bom, vol] = [files.files.find((f) => f.role === 'BOM'), files.files.find((f) => f.role === 'VOLUME')];
         return {
-          message: `Ready to create ${params.rfqId}. ${files.note} Check the details and press Confirm; nothing happens until you do.`.replace(/\s+/g, ' '),
+          message: `Ready to create ${params.rfqId}.\n\n${files.note}\n\nCheck the details and press Confirm; nothing happens until you do.`.replace(/[ \t]+/g, ' '),
           ui: {
             type: 'confirm_action',
             action: 'create_rfq',

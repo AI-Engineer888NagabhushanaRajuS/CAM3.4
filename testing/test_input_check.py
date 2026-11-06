@@ -128,6 +128,36 @@ def test_edits_are_typed_validated_and_never_formulas(tmp_path):
     assert src != dst and openpyxl.load_workbook(src)["SCRUB BOM"]["I3"].value == "ten"   # the original is untouched
 
 
+def _with_saved_result(path, formula, result):
+    """openpyxl writes formulas without a saved result; Excel saves one. Put the result in, like Excel would."""
+    import shutil
+    import zipfile
+    tmp = str(path) + ".tmp"
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                s = data.decode("utf-8")
+                for empty in ("<v></v>", "<v />", "<v/>"):
+                    s = s.replace(f"<f>{formula}</f>{empty}", f"<f>{formula}</f><v>{result}</v>")
+                data = s.encode("utf-8")
+            zout.writestr(item, data)
+    shutil.move(tmp, path)
+
+
+def test_a_formula_with_a_saved_result_is_fine_and_survives_a_fix_as_its_value(tmp_path):
+    rows = [GOOD[0], ["FG-1", 1, "FG-1", "R-100", "Resistor", "Yageo", "RC0603", "RES", "=1+2", "EA", "Active", "31-12-2030"], ["FG-1", 1, "FG-1", "C-1", "Cap", "TDK", "C1", "CAP", "ten", "EA", "Active", "31-12-2030"]]
+    src = book(tmp_path / "f.xlsx", scrub=rows)
+    _with_saved_result(src, "1+2", 3)
+    rep = ic.check(src)
+    assert "formula_unsaved" not in codes(rep) and codes(rep, "error") == ["quantity_text"]   # only the real problem is flagged
+    dst = str(tmp_path / "d.xlsx")
+    ic.apply_edits(src, dst, [{"sheet": "SCRUB BOM", "row": 4, "col": "I", "value": "5"}])
+    after = ic.check(dst)
+    assert after["ok"], after["issues"][:3]               # the formula did not turn into an unsaved one
+    assert openpyxl.load_workbook(dst, data_only=True)["SCRUB BOM"]["I3"].value == 3   # kept as its calculated value
+
+
 # ---- parity with the real step -------------------------------------------------------------------------------------------
 
 def _real_step():

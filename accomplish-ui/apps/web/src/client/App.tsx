@@ -65,6 +65,7 @@ import { FailedRunNotice, RunHistory, RightViewToggle, type RightView } from './
 import { fetchRuns, type RunEntry } from './lib/runHistory';
 import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
 import { skillForStage, unwiredSkills, usePipelineManifest } from './lib/pipelineManifest';
+import { autoDownloadEnabled, claimAutoDownload, saveFromUrl, setAutoDownload } from './lib/autoDownload';
 import type { SettingsTabId } from './components/layout/settings-tabs';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
@@ -403,15 +404,18 @@ export function App() {
   // exportInfo, which answers a different question ("did the export I just
   // triggered succeed") on a different timeline -- see the Quote Readiness
   // export plan for why these two aren't shared.
-  const refreshExportStatus = useCallback(async (rfqId: string) => {
+  const refreshExportStatus = useCallback(async (rfqId: string): Promise<ExportStatus | null> => {
     try {
       const res = await authFetch(`${PYTHON_BRIDGE}/api/bom/export-status/${encodeURIComponent(rfqId)}`, rfqId);
-      if (!res.ok) { setExportStatus(null); return; }
+      if (!res.ok) { setExportStatus(null); return null; }
       const data = await res.json();
-      setExportStatus({ cbom: data.cbom, consolidatedBom: data.consolidatedBom, quoteSummary: data.quoteSummary });
+      const next = { cbom: data.cbom, consolidatedBom: data.consolidatedBom, quoteSummary: data.quoteSummary };
+      setExportStatus(next);
+      return next;
     } catch (err) {
       logger.error('Failed to fetch export status', { err });
       setExportStatus(null);
+      return null;
     }
   }, []);
 
@@ -700,7 +704,12 @@ export function App() {
       // Standard_BOM_Flow's export_reports is macro 9 (reportingAnalytics), so both stages must refresh.
       const exportStage = mappedStage === 'quoteReadiness' || mappedStage === 'reportingAnalytics';
       if (exportStage && event.stepStatus === 'completed') {
-        void refreshExportStatus(event.rfqId);
+        void refreshExportStatus(event.rfqId).then((found) => {
+          // SPEC-023: a run watched live to its end saves the report workbook to the computer by itself (one file, once per RFQ).
+          if (found?.cbom && autoDownloadEnabled() && claimAutoDownload(event.rfqId)) {
+            saveFromUrl(`${PYTHON_BRIDGE}/api/bom/export/${encodeURIComponent(event.rfqId)}/download`);
+          }
+        });
       }
       goToStage(getNextEnabledStage(mappedStage));
     } else {
@@ -1769,6 +1778,17 @@ export function App() {
                               Download Final Quote
                             </button>
                           </div>
+                        )}
+                        {exportStatus?.cbom && (
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              defaultChecked={autoDownloadEnabled()}
+                              onChange={(e) => setAutoDownload(e.target.checked)}
+                              className="h-4 w-4 accent-[var(--brand,currentColor)]"
+                            />
+                            Save the report to my computer when a run finishes
+                          </label>
                         )}
                         {exportStatus && !exportStatus.cbom && !exportStatus.consolidatedBom && !exportStatus.quoteSummary && (
                           <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">

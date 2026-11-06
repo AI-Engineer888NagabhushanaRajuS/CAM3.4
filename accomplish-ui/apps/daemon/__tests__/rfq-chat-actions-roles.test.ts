@@ -20,6 +20,7 @@ describe('create_rfq file choice by role', () => {
     expect(out.blocked).toEqual([]);
     expect(out.files.map((f) => [f.role, f.name])).toEqual([['BOM', 'scrub.xlsx'], ['VOLUME', 'v.xlsx']]);
     expect(out.note).toContain('Left out as reference only: notes.txt');
+    expect(out.note.split('\n').every((l) => l.startsWith('- '))).toBe(true);
   });
 
   it('picks the one BOM workbook out of a folder dump and says what it left out', async () => {

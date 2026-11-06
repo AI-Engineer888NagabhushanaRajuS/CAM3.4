@@ -131,7 +131,8 @@ export async function resolveFiles(
   if (out.blocked.length > 0) {
     return out;
   }
-  const left = ignored.length ? ` Left out as reference only: ${list(ignored)}.` : '';
+  const left = ignored.length ? `Left out as reference only: ${list(ignored)}.` : '';
+  const lines = (...parts: Array<string | false | undefined>): string => parts.filter(Boolean).map((s) => `- ${s}`).join('\n');
   const looked = found.map((f) => `${f.att.name}: ${roleText(f.att.role)}`);
   // SPEC-022: what the bridge read INSIDE the released files wins over their names. The pipeline's first step reads only a
   // workbook with a SCRUB BOM sheet, so a plain BOM is refused here, with the reason, instead of failing a minute later.
@@ -164,8 +165,8 @@ export async function resolveFiles(
       out.files.push({ role, name: f.att.name, attachmentId: f.att.attachmentId, sha256: f.att.sha256, sourceScope: f.scope });
     }
     const others = found.filter((f) => f !== scrubs[0] && f !== vol[0]).map((f) => f.att.name);
-    const warn = chk && chk.warnings > 0 ? ` ${chk.warnings} warning${chk.warnings === 1 ? '' : 's'} (for example blank descriptions) will not stop the run.` : '';
-    out.note = `Using ${scrubs[0].att.name} as the BOM${vol[0] ? ` and ${vol[0].att.name} as the volume file` : ' (its Settings sheet carries the volumes)'}.${others.length ? ` Not used: ${list(others)}.` : ''}${left}${warn}`;
+    const warn = chk && chk.warnings > 0 && `${chk.warnings} warning${chk.warnings === 1 ? '' : 's'} (blank or unusual values) will not stop the run.`;
+    out.note = lines(`Using ${scrubs[0].att.name} as the BOM${vol[0] ? ` and ${vol[0].att.name} as the volume file` : ' (its Settings sheet carries the volumes)'}.`, others.length > 0 && `Not used: ${list(others)}.`, left, warn);
     return out;
   }
   // No role found a BOM. Two spreadsheets, one named like a volume file, is the old name rule (older bridge, unknown layouts).
@@ -178,11 +179,11 @@ export async function resolveFiles(
         out.files.push({ role, name: f.att.name, attachmentId: f.att.attachmentId, sha256: f.att.sha256, sourceScope: f.scope });
       }
     }
-    out.note = `Using ${bom?.att.name} as the BOM and ${vols[0].att.name} as the volume file (chosen by name; I could not read a layout in them).${left}`;
+    out.note = lines(`Using ${bom?.att.name} as the BOM and ${vols[0].att.name} as the volume file (chosen by name; I could not read a layout in them).`, left);
     return out;
   }
   out.missing.push(found.length === 0
     ? `None of the ${refs.length} attached file${refs.length === 1 ? ' is a spreadsheet' : 's is a spreadsheet'}, so there is no BOM to start from. Attach the BOM workbook (a workbook with a sheet named SCRUB BOM).`
-    : `I looked inside ${found.length === 1 ? 'the spreadsheet' : `the ${found.length} spreadsheets`}: ${looked.join('; ')}. None is the BOM workbook the pipeline starts from (a workbook with a sheet named SCRUB BOM). Attach it and say go again.${left}`);
+    : `I looked inside ${found.length === 1 ? 'the spreadsheet' : `the ${found.length} spreadsheets`}:\n${lines(...looked)}\n\nNone is the BOM workbook the pipeline starts from (a workbook with a sheet named SCRUB BOM). Attach it and say go again.${left ? `\n\n${left}` : ''}`);
   return out;
 }

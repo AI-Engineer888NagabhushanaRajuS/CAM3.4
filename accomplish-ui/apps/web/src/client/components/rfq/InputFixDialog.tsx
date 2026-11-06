@@ -143,7 +143,7 @@ export function InputFixDialog({ open, scope, attachmentId, name, onClose, onFix
           <div role="status" className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-sm text-foreground" data-testid="fix-saved">
             <p>
               <b>{saved.name}</b> is the file the run will use.{' '}
-              {saved.downloaded ? 'It was downloaded to your computer.' : 'The download did not start; use the button.'}
+              {saved.downloaded ? 'It was downloaded to your computer.' : 'The download did not start; use the button.'} Formulas in it are saved as their last calculated values.
             </p>
             <Button type="button" size="sm" variant="outline" onClick={() => void redownload()}><DownloadSimple className="mr-1.5 h-4 w-4" aria-hidden />Download again</Button>
           </div>

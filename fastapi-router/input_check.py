@@ -355,13 +355,16 @@ def _typed(value):
 
 def apply_edits(src: str, dst: str, edits: list) -> int:
     """Writes `edits` ([{sheet, row, col, value}]) into a copy of `src` at `dst`; returns how many cells changed. Raises ValueError
-    with a plain sentence for anything it will not do (unknown sheet, bad cell, formula-looking text, too many edits)."""
+    with a plain sentence for anything it will not do (unknown sheet, bad cell, formula-looking text, too many edits).
+    Formulas become their last calculated values in the copy (see below); the original file is never changed."""
     import openpyxl
     if not isinstance(edits, list) or not edits:
         raise ValueError("no corrections were sent")
     if len(edits) > MAX_EDITS:
         raise ValueError(f"at most {MAX_EDITS} cells can be corrected at once")
-    wb = openpyxl.load_workbook(src)
+    # data_only: openpyxl cannot write a formula together with its saved result, and a formula saved without one reads as NaN in
+    # the pipeline (pandas reads saved results only). So the corrected copy keeps each formula's last calculated VALUE, not the formula.
+    wb = openpyxl.load_workbook(src, data_only=True)
     try:
         for e in edits:
             sheet, row, col = e.get("sheet"), e.get("row"), e.get("col")
