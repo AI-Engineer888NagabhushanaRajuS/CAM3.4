@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "rfqId": "RFQ-000017",
+  "message": "Created RFQ-000017 for 000 / UBR-TEST-3.4: BOM Centum_BOM.xlsx and Volume Volume_File.xlsx uploaded, pipeline started. Follow it in the RFQ list.",
+  "steps": [
+    {
+      "step": "create_rfq",
+      "status": "done",
+      "detail": "RFQ-000017"
+    },
+    {
+      "step": "fetch_files",
+      "status": "done"
+    },
+    {
+      "step": "scan_files",
+      "status": "done",
+      "detail": "both engines released both files"
+    },
+    {
+      "step": "upload_files",
+      "status": "done"
+    },
+    {
+      "step": "start_pipeline",
+      "status": "done",
+      "detail": "TRIGGERED"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+=== STARTING ACCEPTANCE RUN: RFQ-CENTUM-PROOF-18 ===
+Navigating to login page...
+[2026-11-04T11:39:30.983872+00:00] Milestone: 01_login_page - Login page loaded with Centum SRIM branding
+Clicking 'Sign in as Tester'...
+[2026-11-04T11:39:33.588304+00:00] Milestone: 02_home_page - Signed in, home page loaded with workflow stages
+Entering RFQ ID: RFQ-CENTUM-PROOF-18...
+[2026-11-04T11:39:35.371846+00:00] Milestone: 03_rfq_id_entered - Entered RFQ ID RFQ-CENTUM-PROOF-18
+Opening Ingest BOM and Volume dialog...
+[2026-11-04T11:39:36.657804+00:00] Milestone: 04_upload_dialog_open - Upload RFQ Files dialog opened
+Found 3 file inputs in dialog.
+[2026-11-04T11:39:37.835062+00:00] Milestone: 05_files_staged - Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)
+Clicking 'Upload & Proceed'...
+[2026-11-04T11:39:40.275921+00:00] Milestone: 06_upload_submitted - BOM and Volume uploaded, workflow triggered
+Waiting for Intake HITL gate (Upload QuoteWin button)...
+Intake HITL gate reached: 'Upload QuoteWin / Costing Sheet' button visible!
+[2026-11-04T11:39:58.421928+00:00] Milestone: 07_intake_hitl_reached - Intake HITL gate reached awaiting QuoteWin
+Clicking 'Upload QuoteWin / Costing Sheet'...
+[2026-11-04T11:39:59.682637+00:00] Milestone: 08_quotewin_modal_open - QuoteWin & Costing Sheet upload modal open
+Found 2 file inputs in QuoteWin dialog.
+[2026-11-04T11:40:00.838578+00:00] Milestone: 09_quotewin_staged - Attached QuoteWin (QuoteWin_File.xlsx)
+Clicking 'Upload & Proceed' in QuoteWin modal...
+[2026-11-04T11:40:03.315898+00:00] Milestone: 10_quotewin_resumed - QuoteWin uploaded, workflow resumed
+No Clear & Resume gate appeared: the run passed the final-selection gate without a human action
+Waiting for CBOM generation to complete in the right pane...
+Waiting for the bridge to report the CBOM export (backend readiness check)...
+CBOM export ready: CBOM_Report_RFQ_CENTUM_PROOF_18_20261104_114045_c3b79ffe.xlsx
+[2026-11-04T11:41:02.251176+00:00] Milestone: 12_workflow_stages_completed - Pipeline completed; Quote Readiness shows the enabled CBOM Download
+[2026-11-04T11:41:02.412735+00:00] Milestone: 12_workflow_stages_completed - Pipeline completed; Quote Readiness shows the CBOM Download
+[2026-11-04T11:41:04.847907+00:00] Milestone: 13_export_downloaded - Export workbook downloaded: C:\CAM[3.4]-RFQ_centum\acceptance_evidence\proof_take17\downloads\CBOM_Report_RFQ_CENTUM_PROOF_18_20261104_114045_c3b79ffe.xlsx
+[2026-11-04T11:41:07.979829+00:00] Milestone: 14_final_settled_ui - Final settled UI state with all proofs visible
+Traceback (most recent call last):
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 333, in <module>
+    run()
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 274, in run
+    video_src = page.video.path()
+                ^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'path'

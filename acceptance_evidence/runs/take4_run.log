@@ -1,0 +1,54 @@
+=== STARTING ACCEPTANCE RUN: RFQ-CENTUM-PROOF-05 ===
+Navigating to login page...
+[2026-11-04T10:33:04.399523+00:00] Milestone: 01_login_page - Login page loaded with Centum SRIM branding
+Clicking 'Sign in as Tester'...
+[2026-11-04T10:33:07.009232+00:00] Milestone: 02_home_page - Signed in, home page loaded with workflow stages
+Entering RFQ ID: RFQ-CENTUM-PROOF-05...
+[2026-11-04T10:33:08.782410+00:00] Milestone: 03_rfq_id_entered - Entered RFQ ID RFQ-CENTUM-PROOF-05
+Opening Ingest BOM and Volume dialog...
+[2026-11-04T10:33:10.076130+00:00] Milestone: 04_upload_dialog_open - Upload RFQ Files dialog opened
+Found 3 file inputs in dialog.
+[2026-11-04T10:33:11.261924+00:00] Milestone: 05_files_staged - Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)
+Clicking 'Upload & Proceed'...
+[2026-11-04T10:33:13.707650+00:00] Milestone: 06_upload_submitted - BOM and Volume uploaded, workflow triggered
+Waiting for Intake HITL gate (Upload QuoteWin button)...
+Intake HITL gate reached: 'Upload QuoteWin / Costing Sheet' button visible!
+[2026-11-04T10:33:37.835875+00:00] Milestone: 07_intake_hitl_reached - Intake HITL gate reached awaiting QuoteWin
+Clicking 'Upload QuoteWin / Costing Sheet'...
+[2026-11-04T10:33:39.088164+00:00] Milestone: 08_quotewin_modal_open - QuoteWin & Costing Sheet upload modal open
+Found 2 file inputs in QuoteWin dialog.
+[2026-11-04T10:33:40.262702+00:00] Milestone: 09_quotewin_staged - Attached QuoteWin (QuoteWin_File.xlsx)
+Clicking 'Upload & Proceed' in QuoteWin modal...
+[2026-11-04T10:33:42.736567+00:00] Milestone: 10_quotewin_resumed - QuoteWin uploaded, workflow resumed
+Monitoring workflow continuation through CBOM, Final Selection, and Reports...
+[2026-11-04T10:34:20.659214+00:00] Milestone: hitl_action_clear_&_resume_pipeline - Clicking 'Clear & Resume Pipeline' (single click)
+[2026-11-04T10:38:45.248567+00:00] Milestone: 12_workflow_stages_completed - Pipeline completed all 8 skills through reporting
+Locating export download button...
+Attempting direct download via Python Bridge...
+Bridge download error: HTTP Error 401: Unauthorized
+[2026-11-04T10:38:45.453183+00:00] Milestone: 13_export_downloaded - Export workbook downloaded: None
+Traceback (most recent call last):
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 357, in <module>
+    run()
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 288, in run
+    cont_btn = page.wait_for_selector("button:has-text('Continue to Quote Readiness')", state="visible", timeout=60000)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\sync_api\_generated.py", line 21370, in wait_for_selector
+    self._sync(
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_sync_base.py", line 111, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_page.py", line 431, in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 395, in wait_for_selector
+    await self._channel.send(
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py", line 78, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py", line 636, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 60000ms exceeded.
+Call log:
+  - waiting for locator("button:has-text('Continue to Quote Readiness')") to be visible
+

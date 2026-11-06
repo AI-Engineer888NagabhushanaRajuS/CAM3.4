@@ -1,0 +1,466 @@
+{
+  "chat": [
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "open RFQ-CENTUM-PROOF-24"
+          }
+        ],
+        "scope": {
+          "mode": "none"
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "Press the button to open RFQ-CENTUM-PROOF-24 in the left and right panes. I do not change the screen myself.",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "none"
+        },
+        "ui": {
+          "type": "open_rfq",
+          "rfqId": "RFQ-CENTUM-PROOF-24"
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "The go / no-go status is GO (Manifest!A32:C32).",
+        "citations": [
+          {
+            "sourceType": "excel_export",
+            "label": "Manifest!A32:C32",
+            "identifier": {
+              "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx",
+              "sheet": "Manifest",
+              "row": 32
+            }
+          }
+        ],
+        "model": "qwen3:8b (local)",
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          },
+          {
+            "role": "assistant",
+            "content": "The go / no-go status is GO (Manifest!A32:C32)."
+          },
+          {
+            "role": "user",
+            "content": "download the reports for RFQ-CENTUM-PROOF-24"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "RFQ-CENTUM-PROOF-24 has exported reports. Press the button to open the downloads.",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "ui": {
+          "type": "open_export",
+          "rfqId": "RFQ-CENTUM-PROOF-24"
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          },
+          {
+            "role": "assistant",
+            "content": "The go / no-go status is GO (Manifest!A32:C32)."
+          },
+          {
+            "role": "user",
+            "content": "download the reports for RFQ-CENTUM-PROOF-24"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24 has exported reports. Press the button to open the downloads."
+          },
+          {
+            "role": "user",
+            "content": "i want to upload a file"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat. Press the button to choose them.",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "ui": {
+          "type": "ask_upload",
+          "accept": [
+            ".xlsx",
+            ".xls",
+            ".csv",
+            ".pdf",
+            ".docx",
+            ".txt"
+          ],
+          "purpose": "Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat."
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          },
+          {
+            "role": "assistant",
+            "content": "The go / no-go status is GO (Manifest!A32:C32)."
+          },
+          {
+            "role": "user",
+            "content": "download the reports for RFQ-CENTUM-PROOF-24"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24 has exported reports. Press the button to open the downloads."
+          },
+          {
+            "role": "user",
+            "content": "i want to upload a file"
+          },
+          {
+            "role": "assistant",
+            "content": "Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat. Press the button to choose them."
+          },
+          {
+            "role": "user",
+            "content": "how do i add my openrouter key?"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-CENTUM-PROOF-24",
+        "message": "To add your OpenRouter key, follow these steps: \n1. Open Settings using the gear icon at the top right (User guide: 13. Settings). \n2. Navigate to the Providers tab (User guide: 13. Settings). \n3. Enter your OpenRouter key in the designated field (User guide: 13. Settings). \n4. Save the key; it will be used for the next question without needing a restart (User guide: 13. Settings).",
+        "citations": [
+          {
+            "sourceType": "user_guide",
+            "label": "User guide: 13. Settings",
+            "identifier": {
+              "file": "docs/CAM-3.4-USER-GUIDE.md",
+              "section": "13"
+            }
+          }
+        ],
+        "model": "qwen3:8b (local)",
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "ui": {
+          "type": "open_settings",
+          "section": "providers"
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "what stage is it at and what has run so far?"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          },
+          {
+            "role": "assistant",
+            "content": "The go / no-go status is GO (Manifest!A32:C32)."
+          },
+          {
+            "role": "user",
+            "content": "download the reports for RFQ-CENTUM-PROOF-24"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24 has exported reports. Press the button to open the downloads."
+          },
+          {
+            "role": "user",
+            "content": "i want to upload a file"
+          },
+          {
+            "role": "assistant",
+            "content": "Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat. Press the button to choose them."
+          },
+          {
+            "role": "user",
+            "content": "how do i add my openrouter key?"
+          },
+          {
+            "role": "assistant",
+            "content": "To add your OpenRouter key, follow these steps: \n1. Open Settings using the gear icon at the top right (User guide: 13. Settings). \n2. Navigate to the Providers tab (User guide: 13. Settings). \n3. Enter your OpenRouter key in the designated field (User guide: 13. Settings). \n4. Save the key; it will be used for the next question without needing a restart (User guide: 13. Settings)."
+          },
+          {
+            "role": "user",
+            "content": "resume the pipeline for RFQ-000017"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-000017",
+        "message": "RFQ-000017 is waiting for a human review (stage 1 of 9). Resolve it on the review screen in the right pane and the same run continues; I did not start anything.",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        }
+      }
+    },
+    {
+      "req": {
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24: stage 9 of 9 (Reports & Analytics). The pipeline has finished. Review pending: no.\n\nLast steps:\n[DONE] Build CBOM Structure + QuoteWin Pricing\n[DONE] Enrich CBOM with Costing Sheet Data\n[DONE] Resolve Final Cost Selection (HITL gate)\n[DONE] Generate CBOM Reports\n[DONE] Export CBOM Reports to Excel"
+          },
+          {
+            "role": "user",
+            "content": "what is the go / no-go status?"
+          },
+          {
+            "role": "assistant",
+            "content": "The go / no-go status is GO (Manifest!A32:C32)."
+          },
+          {
+            "role": "user",
+            "content": "download the reports for RFQ-CENTUM-PROOF-24"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-CENTUM-PROOF-24 has exported reports. Press the button to open the downloads."
+          },
+          {
+            "role": "user",
+            "content": "i want to upload a file"
+          },
+          {
+            "role": "assistant",
+            "content": "Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat. Press the button to choose them."
+          },
+          {
+            "role": "user",
+            "content": "how do i add my openrouter key?"
+          },
+          {
+            "role": "assistant",
+            "content": "To add your OpenRouter key, follow these steps: \n1. Open Settings using the gear icon at the top right (User guide: 13. Settings). \n2. Navigate to the Providers tab (User guide: 13. Settings). \n3. Enter your OpenRouter key in the designated field (User guide: 13. Settings). \n4. Save the key; it will be used for the next question without needing a restart (User guide: 13. Settings)."
+          },
+          {
+            "role": "user",
+            "content": "resume the pipeline for RFQ-000017"
+          },
+          {
+            "role": "assistant",
+            "content": "RFQ-000017 is waiting for a human review (stage 1 of 9). Resolve it on the review screen in the right pane and the same run continues; I did not start anything."
+          },
+          {
+            "role": "user",
+            "content": "resume the pipeline for RFQ-E2E-4"
+          }
+        ],
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "fileRefs": [],
+        "provider": "auto"
+      },
+      "body": {
+        "rfq_id": "RFQ-E2E-4",
+        "message": "RFQ-E2E-4 is at stage 9 of 9 (Reports & Analytics). Check the details and press Confirm to resume its pipeline; nothing happens until you do.",
+        "citations": [],
+        "model": null,
+        "scope": {
+          "mode": "rfqs",
+          "rfqIds": [
+            "RFQ-CENTUM-PROOF-24"
+          ]
+        },
+        "ui": {
+          "type": "confirm_action",
+          "action": "start_pipeline",
+          "summary": "Resume the pipeline of RFQ-E2E-4 (currently stage 9 of 9 (Reports & Analytics)), the same as reopening it in the left pane.",
+          "params": {
+            "rfqId": "RFQ-E2E-4",
+            "stage": 9,
+            "customer": null,
+            "project": null
+          },
+          "confirmToken": "Q95NSEUN-VXFKQtu0mBebd6MyYUBKzsZ",
+          "expiresAt": "2026-11-05T12:21:37.955Z"
+        }
+      }
+    }
+  ],
+  "confirms": [
+    {
+      "ok": true,
+      "message": "Cancelled. Nothing was started.",
+      "steps": []
+    }
+  ],
+  "difyStart": []
+}

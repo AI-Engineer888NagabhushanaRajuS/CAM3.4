@@ -1,0 +1,29 @@
+[2026-11-04T11:02:36.793146+00:00] [DEBUG] [vite] connecting...
+[2026-11-04T11:02:36.803009+00:00] [DEBUG] [vite] connected.
+[2026-11-04T11:02:37.108530+00:00] [LOG] true
+[2026-11-04T11:02:37.108530+00:00] [LOG] [endpoints.ts] Using dev fallback backend URL: http://127.0.0.1:9334
+[2026-11-04T11:02:37.109168+00:00] [LOG] http://localhost:9334
+[2026-11-04T11:02:37.133215+00:00] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-11-04T11:02:38.607789+00:00] [LOG] i18next: languageChanged en
+[2026-11-04T11:02:38.607789+00:00] [LOG] i18next: initialized {debug: true, initAsync: true, ns: Array(7), defaultNS: common, fallbackLng: Array(1)}
+[2026-11-04T11:02:38.608306+00:00] [INFO] [i18n] Initialized with language: en
+[2026-11-04T11:02:38.609323+00:00] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[2026-11-04T11:02:38.609323+00:00] [WARNING] [i18n] Failed to sync initial language preference to main process {error: Error: Session expired — please log in again
+    at rpc (http://localhost:5181/src/client/lib/accom…}
+[2026-11-04T11:02:38.609323+00:00] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found)
+[2026-11-04T11:03:02.978111+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined
+[2026-11-04T11:03:02.978111+00:00] [INFO] [App] Intake HITL received — awaiting QuoteWin/Costing Sheet upload before resuming {rfqId: RFQ-CENTUM-PROOF-10}
+[2026-11-04T11:03:41.910224+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined
+[2026-11-04T11:03:44.159298+00:00] [WARNING] AG Grid: warning #94 'paginationPageSize=25', but 25 is not included in the default paginationPageSizeSelector=[20, 50, 100]. 
+See https://www.ag-grid.com/react-data-grid/errors/94?_version_=35.3.1&pageSizeSet=true&pageSizesSet=false&pageSizeOptions=%7B%220%22%3A20%2C%221%22%3A50%2C%222%22%3A100%7D&paginationPageSizeOption=25
+[2026-11-04T11:03:44.159298+00:00] [WARNING] AG Grid: warning #95 Either set 'paginationPageSizeSelector' to an array that includes 25 or to 'false' to disable the page size selector. 
+See https://www.ag-grid.com/react-data-grid/errors/95?_version_=35.3.1&paginationPageSizeOption=25&paginationPageSizeSelector=paginationPageSizeSelector
+[2026-11-04T11:03:44.159298+00:00] [ERROR] AG Grid: error #200 Unable to use rowGroup as RowGroupingModule is not registered.  Check if you have registered the module:
+
+import { ModuleRegistry } from 'ag-grid-community'; 
+import { RowGroupingModule } from 'ag-grid-enterprise';
+
+ModuleRegistry.registerModules([ RowGroupingModule ]);
+
+For more info see: https://www.ag-grid.com/react-data-grid/modules/ 
+See https://www.ag-grid.com/react-data-grid/errors/200?_version_=35.3.1&gridId=1&gridScoped=false&rowModelType=clientSide&isUmd=false&usesAgGridProvider=false&moduleName=SharedRowGrouping&reasonOrId=rowGroup

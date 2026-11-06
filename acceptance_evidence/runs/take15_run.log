@@ -1,0 +1,57 @@
+=== STARTING ACCEPTANCE RUN: RFQ-CENTUM-PROOF-16 ===
+Navigating to login page...
+[2026-11-04T11:35:03.085041+00:00] Milestone: 01_login_page - Login page loaded with Centum SRIM branding
+Clicking 'Sign in as Tester'...
+[2026-11-04T11:35:05.679957+00:00] Milestone: 02_home_page - Signed in, home page loaded with workflow stages
+Entering RFQ ID: RFQ-CENTUM-PROOF-16...
+[2026-11-04T11:35:07.479591+00:00] Milestone: 03_rfq_id_entered - Entered RFQ ID RFQ-CENTUM-PROOF-16
+Opening Ingest BOM and Volume dialog...
+[2026-11-04T11:35:08.756914+00:00] Milestone: 04_upload_dialog_open - Upload RFQ Files dialog opened
+Found 3 file inputs in dialog.
+[2026-11-04T11:35:09.948688+00:00] Milestone: 05_files_staged - Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)
+Clicking 'Upload & Proceed'...
+[2026-11-04T11:35:12.281142+00:00] Milestone: 06_upload_submitted - BOM and Volume uploaded, workflow triggered
+Waiting for Intake HITL gate (Upload QuoteWin button)...
+Intake HITL gate reached: 'Upload QuoteWin / Costing Sheet' button visible!
+[2026-11-04T11:35:36.465395+00:00] Milestone: 07_intake_hitl_reached - Intake HITL gate reached awaiting QuoteWin
+Clicking 'Upload QuoteWin / Costing Sheet'...
+[2026-11-04T11:35:37.736911+00:00] Milestone: 08_quotewin_modal_open - QuoteWin & Costing Sheet upload modal open
+Found 2 file inputs in QuoteWin dialog.
+[2026-11-04T11:35:38.895176+00:00] Milestone: 09_quotewin_staged - Attached QuoteWin (QuoteWin_File.xlsx)
+Clicking 'Upload & Proceed' in QuoteWin modal...
+[2026-11-04T11:35:41.444771+00:00] Milestone: 10_quotewin_resumed - QuoteWin uploaded, workflow resumed
+No Clear & Resume gate appeared: the run passed the final-selection gate without a human action
+Waiting for CBOM generation to complete in the right pane...
+Waiting for the bridge to report the CBOM export (backend readiness check)...
+CBOM export ready: CBOM_Report_RFQ_CENTUM_PROOF_16_20261104_113627_25268eb5.xlsx
+Traceback (most recent call last):
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 328, in <module>
+    run()
+  File "C:\CAM[3.4]-RFQ_centum\acceptance_evidence\acceptance_runner.py", line 236, in run
+    page.fill("#rfq-search-textbox", RFQ_ID)
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\sync_api\_generated.py", line 17698, in fill
+    self._sync(
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_sync_base.py", line 111, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_page.py", line 932, in fill
+    return await self._main_frame.fill(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 641, in fill
+    await self._fill(**locals_to_params(locals()))
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 653, in _fill
+    await self._channel.send("fill", self._timeout, locals_to_params(locals()))
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py", line 78, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py", line 636, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.fill: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("#rfq-search-textbox")
+    - locator resolved to <input type="text" id="rfq-search-textbox" value="RFQ-CENTUM-PROOF-16" placeholder="Search by RFQ ID, customer, or project" class="w-full text-[11px] pl-8 pr-2.5 py-2 rounded-full border border-transparent bg-muted/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-background transition-colors"/>
+    - fill("RFQ-CENTUM-PROOF-16")
+  - attempting fill action
+    - waiting for element to be visible, enabled and editable
+  - element was detached from the DOM, retrying
+

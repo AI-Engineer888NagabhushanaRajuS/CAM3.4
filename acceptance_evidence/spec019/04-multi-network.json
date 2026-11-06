@@ -1,0 +1,82 @@
+{
+  "url": "http://localhost:9334/api/chat",
+  "status": 200,
+  "req": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      },
+      {
+        "role": "assistant",
+        "content": "Which RFQ do you mean? Pick one or more in the list, or press **All context**, and then ask."
+      },
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      }
+    ],
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24",
+        "RFQ-CENTUM-PROOF-23"
+      ]
+    },
+    "fileRefs": []
+  },
+  "body": {
+    "rfq_id": null,
+    "model": null,
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24",
+        "RFQ-CENTUM-PROOF-23"
+      ]
+    },
+    "message": "Across 2 RFQs, the best-matching rows for your question (copied from the cited cells):\n\n| RFQ | Result | Source |\n|---|---|---|\n| RFQ-CENTUM-PROOF-24 | Field=Go / no-go; Value=GO<br>Supplier=ARROW; Status=No master; Parts awarded=13; Ext Vol Cost V1=13293.65; Ext Vol Cost V2=3564.3 | Manifest!A32:C32<br>New Suppliers!A2:E2 |\n| RFQ-CENTUM-PROOF-23 | Field=Go / no-go<br>Awards Costed BOM=Assembly; D=Description; E=Ext Price #1 (Conv.); F=Ext Vol Qty #1; G=Ext Part Vol Price #1 (Conv.); H=Batch Qty; Currency=Validation | Manifest!A31:C31<br>7.0 CBOM VL-1!A9:AX9 |",
+    "citations": [
+      {
+        "sourceType": "excel_export",
+        "label": "RFQ-CENTUM-PROOF-24 · Manifest!A32:C32",
+        "identifier": {
+          "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx",
+          "sheet": "Manifest",
+          "row": 32,
+          "rfqId": "RFQ-CENTUM-PROOF-24"
+        }
+      },
+      {
+        "sourceType": "excel_export",
+        "label": "RFQ-CENTUM-PROOF-24 · New Suppliers!A2:E2",
+        "identifier": {
+          "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx",
+          "sheet": "New Suppliers",
+          "row": 2,
+          "rfqId": "RFQ-CENTUM-PROOF-24"
+        }
+      },
+      {
+        "sourceType": "excel_export",
+        "label": "RFQ-CENTUM-PROOF-23 · Manifest!A31:C31",
+        "identifier": {
+          "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_23_20261105_073251_56498f4b.xlsx",
+          "sheet": "Manifest",
+          "row": 31,
+          "rfqId": "RFQ-CENTUM-PROOF-23"
+        }
+      },
+      {
+        "sourceType": "excel_export",
+        "label": "RFQ-CENTUM-PROOF-23 · 7.0 CBOM VL-1!A9:AX9",
+        "identifier": {
+          "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_23_20261105_073251_56498f4b.xlsx",
+          "sheet": "7.0 CBOM VL-1",
+          "row": 9,
+          "rfqId": "RFQ-CENTUM-PROOF-23"
+        }
+      }
+    ]
+  }
+}

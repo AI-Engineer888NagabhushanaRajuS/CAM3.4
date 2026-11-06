@@ -1,0 +1,43 @@
+{
+  "url": "http://localhost:9334/api/chat",
+  "status": 200,
+  "req": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      },
+      {
+        "role": "assistant",
+        "content": "Which RFQ do you mean? Pick one or more in the list, or press **All context**, and then ask."
+      },
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      },
+      {
+        "role": "user",
+        "content": "what is the unit price of part ZZZ-NOPE-999 ?"
+      }
+    ],
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24"
+      ]
+    },
+    "fileRefs": []
+  },
+  "body": {
+    "rfq_id": "RFQ-CENTUM-PROOF-24",
+    "message": "I can't find `zzz-nope-999` in the results of **RFQ-CENTUM-PROOF-24** (CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx). Check the spelling, or ask me what the results do contain.",
+    "citations": [],
+    "model": null,
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24"
+      ]
+    }
+  }
+}

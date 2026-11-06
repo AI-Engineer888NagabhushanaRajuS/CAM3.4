@@ -1,0 +1,50 @@
+{
+  "url": "http://localhost:9334/api/chat",
+  "status": 200,
+  "req": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      },
+      {
+        "role": "assistant",
+        "content": "Which RFQ do you mean? Pick one or more in the list, or press **All context**, and then ask."
+      },
+      {
+        "role": "user",
+        "content": "what is the go / no-go status?"
+      }
+    ],
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24"
+      ]
+    },
+    "fileRefs": [],
+    "provider": "auto"
+  },
+  "body": {
+    "rfq_id": "RFQ-CENTUM-PROOF-24",
+    "message": "The go / no-go status is GO (Manifest!A32:C32).",
+    "citations": [
+      {
+        "sourceType": "excel_export",
+        "label": "Manifest!A32:C32",
+        "identifier": {
+          "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx",
+          "sheet": "Manifest",
+          "row": 32
+        }
+      }
+    ],
+    "model": "qwen3:8b (local)",
+    "scope": {
+      "mode": "rfqs",
+      "rfqIds": [
+        "RFQ-CENTUM-PROOF-24"
+      ]
+    }
+  }
+}

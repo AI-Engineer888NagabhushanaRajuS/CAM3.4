@@ -1,0 +1,20 @@
+[2026-11-03T15:36:39.306966+00:00] [DEBUG] [vite] connecting...
+[2026-11-03T15:36:39.325071+00:00] [DEBUG] [vite] connected.
+[2026-11-03T15:36:39.591558+00:00] [LOG] true
+[2026-11-03T15:36:39.591558+00:00] [LOG] [endpoints.ts] Using dev fallback backend URL: http://127.0.0.1:9334
+[2026-11-03T15:36:39.591558+00:00] [LOG] http://localhost:9334
+[2026-11-03T15:36:39.616230+00:00] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-11-03T15:36:41.092873+00:00] [LOG] i18next: languageChanged en
+[2026-11-03T15:36:41.092873+00:00] [LOG] i18next: initialized {debug: true, initAsync: true, ns: Array(7), defaultNS: common, fallbackLng: Array(1)}
+[2026-11-03T15:36:41.092873+00:00] [INFO] [i18n] Initialized with language: en
+[2026-11-03T15:36:41.094509+00:00] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[2026-11-03T15:36:41.094509+00:00] [WARNING] [i18n] Failed to sync initial language preference to main process {error: Error: Session expired — please log in again
+    at rpc (http://localhost:5181/src/client/lib/accom…}
+[2026-11-03T15:36:41.097079+00:00] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found)
+[2026-11-03T15:37:17.579341+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined
+[2026-11-03T15:37:17.579341+00:00] [INFO] [App] Intake HITL received — awaiting QuoteWin/Costing Sheet upload before resuming {rfqId: RFQ-CENTUM-PROOF-02}
+[2026-11-03T15:38:03.124676+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined
+[2026-11-03T15:38:03.132056+00:00] [ERROR] Access to fetch at 'http://localhost:13110/api/bom/alternatives/RFQ-CENTUM-PROOF-02' from origin 'http://localhost:5181' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+[2026-11-03T15:38:03.132056+00:00] [ERROR] Failed to load resource: net::ERR_FAILED
+[2026-11-03T15:38:03.132056+00:00] [ERROR] Access to fetch at 'http://localhost:13110/api/bom/alternatives/RFQ-CENTUM-PROOF-02' from origin 'http://localhost:5181' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+[2026-11-03T15:38:03.133297+00:00] [ERROR] Failed to load resource: net::ERR_FAILED

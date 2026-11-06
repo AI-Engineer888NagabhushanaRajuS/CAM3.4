@@ -1,0 +1,486 @@
+[
+  {
+    "url": "http://localhost:9334/api/chat",
+    "status": 200,
+    "req": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "what is the go / no-go status?"
+        }
+      ],
+      "scope": {
+        "mode": "none"
+      },
+      "fileRefs": [],
+      "provider": "auto"
+    },
+    "body": {
+      "rfq_id": null,
+      "message": "Which RFQ do you mean? Pick one or more in the list, or press **All context**, and then ask.",
+      "citations": [],
+      "model": null,
+      "scope": {
+        "mode": "none"
+      },
+      "ui": {
+        "type": "pick_rfq",
+        "reason": "Which RFQs should I look at?",
+        "options": [
+          {
+            "rfqId": "RFQ-UPLOAD-1",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-INTAKE-1",
+            "customer": null,
+            "project": null,
+            "stage": 0,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-6",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-5",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-4",
+            "customer": null,
+            "project": null,
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-3",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-2",
+            "customer": null,
+            "project": null,
+            "stage": 2,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-E2E-1",
+            "customer": null,
+            "project": null,
+            "stage": 1,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-24",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-23",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-22",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-21",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-20",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-19",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-18",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-17",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-16",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-15",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-14",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-13",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-12",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-11",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-10",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-09",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-08",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-07",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-06",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-05",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-04",
+            "customer": null,
+            "project": null,
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-03",
+            "customer": null,
+            "project": null,
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-02",
+            "customer": null,
+            "project": null,
+            "stage": 8,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-CENTUM-PROOF-01",
+            "customer": null,
+            "project": null,
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000017",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000016",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-000015",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-000014",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000013",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000012",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000011",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 6,
+            "reviewPending": false,
+            "hasExport": true
+          },
+          {
+            "rfqId": "RFQ-000010",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 5,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-00001",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000009",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 4,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000008",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 4,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000007",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 4,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000006",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000005",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000004",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000003",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000002",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": 0,
+            "reviewPending": true,
+            "hasExport": false
+          },
+          {
+            "rfqId": "RFQ-000001",
+            "customer": "000",
+            "project": "UBR-TEST-3.4",
+            "stage": null,
+            "reviewPending": false,
+            "hasExport": false
+          }
+        ],
+        "allowAll": true,
+        "allowMultiple": true
+      }
+    }
+  },
+  {
+    "url": "http://localhost:9334/api/chat",
+    "status": 200,
+    "req": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "what is the go / no-go status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Which RFQ do you mean? Pick one or more in the list, or press **All context**, and then ask."
+        },
+        {
+          "role": "user",
+          "content": "what is the go / no-go status?"
+        }
+      ],
+      "scope": {
+        "mode": "rfqs",
+        "rfqIds": [
+          "RFQ-CENTUM-PROOF-24"
+        ]
+      },
+      "fileRefs": [],
+      "provider": "auto"
+    },
+    "body": {
+      "rfq_id": "RFQ-CENTUM-PROOF-24",
+      "message": "The go / no-go status is GO (Manifest!A32:C32).",
+      "citations": [
+        {
+          "sourceType": "excel_export",
+          "label": "Manifest!A32:C32",
+          "identifier": {
+            "workbook": "CBOM_Report_RFQ_CENTUM_PROOF_24_20261105_095516_07d4b828.xlsx",
+            "sheet": "Manifest",
+            "row": 32
+          }
+        }
+      ],
+      "model": "qwen3:8b (local)",
+      "scope": {
+        "mode": "rfqs",
+        "rfqIds": [
+          "RFQ-CENTUM-PROOF-24"
+        ]
+      }
+    }
+  }
+]

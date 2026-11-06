@@ -1,0 +1,33 @@
+=== STARTING ACCEPTANCE RUN: RFQ-CENTUM-PROOF-21 ===
+Navigating to login page...
+[2026-11-04T12:29:23.556076+00:00] Milestone: 01_login_page - Login page loaded with Centum SRIM branding
+Clicking 'Sign in as Tester'...
+[2026-11-04T12:29:26.256278+00:00] Milestone: 02_home_page - Signed in, home page loaded with workflow stages
+Entering RFQ ID: RFQ-CENTUM-PROOF-21...
+[2026-11-04T12:29:28.081179+00:00] Milestone: 03_rfq_id_entered - Entered RFQ ID RFQ-CENTUM-PROOF-21
+Opening Ingest BOM and Volume dialog...
+[2026-11-04T12:29:29.359733+00:00] Milestone: 04_upload_dialog_open - Upload RFQ Files dialog opened
+Found 3 file inputs in dialog.
+[2026-11-04T12:29:30.569007+00:00] Milestone: 05_files_staged - Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)
+Clicking 'Upload & Proceed'...
+[2026-11-04T12:29:32.954855+00:00] Milestone: 06_upload_submitted - BOM and Volume uploaded, workflow triggered
+Waiting for Intake HITL gate (Upload QuoteWin button)...
+Intake HITL gate reached: 'Upload QuoteWin / Costing Sheet' button visible!
+[2026-11-04T12:29:57.100343+00:00] Milestone: 07_intake_hitl_reached - Intake HITL gate reached awaiting QuoteWin
+Clicking 'Upload QuoteWin / Costing Sheet'...
+[2026-11-04T12:29:58.337402+00:00] Milestone: 08_quotewin_modal_open - QuoteWin & Costing Sheet upload modal open
+Found 2 file inputs in QuoteWin dialog.
+[2026-11-04T12:29:59.503181+00:00] Milestone: 09_quotewin_staged - Attached QuoteWin (QuoteWin_File.xlsx)
+Clicking 'Upload & Proceed' in QuoteWin modal...
+[2026-11-04T12:30:01.949288+00:00] Milestone: 10_quotewin_resumed - QuoteWin uploaded, workflow resumed
+No Clear & Resume gate appeared: the run passed the final-selection gate without a human action
+Waiting for CBOM generation to complete in the right pane...
+Waiting for the bridge to report the CBOM export (backend readiness check)...
+CBOM export ready: CBOM_Report_RFQ_CENTUM_PROOF_21_20261104_123048_d22d83fb.xlsx
+[2026-11-04T12:31:16.250066+00:00] Milestone: 12_workflow_stages_completed - Pipeline completed; Quote Readiness shows the enabled CBOM Download
+[2026-11-04T12:31:16.414372+00:00] Milestone: 12_workflow_stages_completed - Pipeline completed; Quote Readiness shows the CBOM Download
+[2026-11-04T12:31:18.845941+00:00] Milestone: 13_export_downloaded - Export workbook downloaded: C:\CAM[3.4]-RFQ_centum\acceptance_evidence\proof_take20\downloads\CBOM_Report_RFQ_CENTUM_PROOF_21_20261104_123048_d22d83fb.xlsx
+[2026-11-04T12:31:21.994813+00:00] Milestone: 14_final_settled_ui - Final settled UI state with all proofs visible
+Recorded video file: C:\CAM[3.4]-RFQ_centum\acceptance_evidence\proof_take20\video\page@c33f6f911a1a31b75f07bffb87392718.webm (exists: True)
+Workbook sheet names (21): ['Scrap Factor', 'Batch Settings', 'CBOM', 'BOM MATRIX', 'Part Num Vs Mfg Num', 'PCB NRE & FAI Charge', 'Mech & EM NRE', 'Missing Notes', 'Lead Time (FG Wise)', 'Lead Time Consolidated', 'Sum & Count', 'Sum & Count Detailed', 'Revision History', 'A CLASS PARTS', 'Price Control', 'Summary', 'Batchwise Cashflow', '7.0 CBOM VL-1', '7.0 CBOM VL-2', 'Ex Inv VL-1', 'Ex Inv VL-2']
+=== ACCEPTANCE RUN COMPLETE: RFQ-CENTUM-PROOF-21 ===

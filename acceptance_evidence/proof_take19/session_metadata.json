@@ -1,0 +1,173 @@
+{
+  "rfq_id": "RFQ-CENTUM-PROOF-20",
+  "start_utc": "2026-11-04T12:23:08.143036+00:00",
+  "end_utc": "2026-11-04T12:25:14.632815+00:00",
+  "video_file": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\video\\page@ad53e3843b8ab8cc9bc3e118b44c220a.webm",
+  "video_size_bytes": 15176106,
+  "milestones": [
+    {
+      "step": "01_login_page",
+      "desc": "Login page loaded with Centum SRIM branding",
+      "timestamp": "2026-11-04T12:23:11.027893+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\01_login_page.png"
+    },
+    {
+      "step": "02_home_page",
+      "desc": "Signed in, home page loaded with workflow stages",
+      "timestamp": "2026-11-04T12:23:13.967312+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\02_home_page.png"
+    },
+    {
+      "step": "03_rfq_id_entered",
+      "desc": "Entered RFQ ID RFQ-CENTUM-PROOF-20",
+      "timestamp": "2026-11-04T12:23:15.855973+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\03_rfq_id_entered.png"
+    },
+    {
+      "step": "04_upload_dialog_open",
+      "desc": "Upload RFQ Files dialog opened",
+      "timestamp": "2026-11-04T12:23:17.233879+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\04_upload_dialog_open.png"
+    },
+    {
+      "step": "05_files_staged",
+      "desc": "Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)",
+      "timestamp": "2026-11-04T12:23:18.522652+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\05_files_staged.png"
+    },
+    {
+      "step": "06_upload_submitted",
+      "desc": "BOM and Volume uploaded, workflow triggered",
+      "timestamp": "2026-11-04T12:23:21.082504+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\06_upload_submitted.png"
+    },
+    {
+      "step": "07_intake_hitl_reached",
+      "desc": "Intake HITL gate reached awaiting QuoteWin",
+      "timestamp": "2026-11-04T12:23:48.752830+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\07_intake_hitl_reached.png"
+    },
+    {
+      "step": "08_quotewin_modal_open",
+      "desc": "QuoteWin & Costing Sheet upload modal open",
+      "timestamp": "2026-11-04T12:23:50.012734+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\08_quotewin_modal_open.png"
+    },
+    {
+      "step": "09_quotewin_staged",
+      "desc": "Attached QuoteWin (QuoteWin_File.xlsx)",
+      "timestamp": "2026-11-04T12:23:51.177667+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\09_quotewin_staged.png"
+    },
+    {
+      "step": "10_quotewin_resumed",
+      "desc": "QuoteWin uploaded, workflow resumed",
+      "timestamp": "2026-11-04T12:23:53.761435+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\10_quotewin_resumed.png"
+    },
+    {
+      "step": "12_workflow_stages_completed",
+      "desc": "Pipeline completed; Quote Readiness shows the enabled CBOM Download",
+      "timestamp": "2026-11-04T12:25:08.330482+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\12_workflow_stages_completed.png"
+    },
+    {
+      "step": "12_workflow_stages_completed",
+      "desc": "Pipeline completed; Quote Readiness shows the CBOM Download",
+      "timestamp": "2026-11-04T12:25:08.548613+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\12_workflow_stages_completed.png"
+    },
+    {
+      "step": "13_export_downloaded",
+      "desc": "Export workbook downloaded: C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\downloads\\CBOM_Report_RFQ_CENTUM_PROOF_20_20261104_122439_fef226fe.xlsx",
+      "timestamp": "2026-11-04T12:25:11.030899+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\13_export_downloaded.png"
+    },
+    {
+      "step": "14_final_settled_ui",
+      "desc": "Final settled UI state with all proofs visible",
+      "timestamp": "2026-11-04T12:25:14.212767+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take19\\screenshots\\14_final_settled_ui.png"
+    }
+  ],
+  "workbook_audit": {
+    "filename": "CBOM_Report_RFQ_CENTUM_PROOF_20_20261104_122439_fef226fe.xlsx",
+    "size_bytes": 716276,
+    "sheet_count": 21,
+    "sheet_names": [
+      "Scrap Factor",
+      "Batch Settings",
+      "CBOM",
+      "BOM MATRIX",
+      "Part Num Vs Mfg Num",
+      "PCB NRE & FAI Charge",
+      "Mech & EM NRE",
+      "Missing Notes",
+      "Lead Time (FG Wise)",
+      "Lead Time Consolidated",
+      "Sum & Count",
+      "Sum & Count Detailed",
+      "Revision History",
+      "A CLASS PARTS",
+      "Price Control",
+      "Summary",
+      "Batchwise Cashflow",
+      "7.0 CBOM VL-1",
+      "7.0 CBOM VL-2",
+      "Ex Inv VL-1",
+      "Ex Inv VL-2"
+    ],
+    "sample_sheets": {
+      "Scrap Factor": {
+        "max_row": 4,
+        "max_column": 4,
+        "sample_val_A1": "Min Price"
+      },
+      "Batch Settings": {
+        "max_row": 5,
+        "max_column": 4,
+        "sample_val_A1": "FG"
+      },
+      "CBOM": {
+        "max_row": 503,
+        "max_column": 77,
+        "sample_val_A1": "bom_item_id"
+      },
+      "BOM MATRIX": {
+        "max_row": 210,
+        "max_column": 42,
+        "sample_val_A1": "None"
+      },
+      "Part Num Vs Mfg Num": {
+        "max_row": 204,
+        "max_column": 3,
+        "sample_val_A1": "Part Number"
+      },
+      "PCB NRE & FAI Charge": {
+        "max_row": 3,
+        "max_column": 6,
+        "sample_val_A1": "Part Number"
+      },
+      "Mech & EM NRE": {
+        "max_row": 2,
+        "max_column": 6,
+        "sample_val_A1": "None"
+      },
+      "Missing Notes": {
+        "max_row": 83,
+        "max_column": 10,
+        "sample_val_A1": "1. Uncosted Parts"
+      },
+      "Lead Time (FG Wise)": {
+        "max_row": 24,
+        "max_column": 6,
+        "sample_val_A1": "LT in weeks - HCV_BMS_MB"
+      },
+      "Lead Time Consolidated": {
+        "max_row": 29,
+        "max_column": 3,
+        "sample_val_A1": "LT in weeks"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+[2026-11-04T10:18:17.275215+00:00] [DEBUG] [vite] connecting...
+[2026-11-04T10:18:17.288880+00:00] [DEBUG] [vite] connected.
+[2026-11-04T10:18:17.558654+00:00] [LOG] true
+[2026-11-04T10:18:17.560166+00:00] [LOG] [endpoints.ts] Using dev fallback backend URL: http://127.0.0.1:9334
+[2026-11-04T10:18:17.560166+00:00] [LOG] http://localhost:9334
+[2026-11-04T10:18:17.580275+00:00] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-11-04T10:18:19.058993+00:00] [LOG] i18next: languageChanged en
+[2026-11-04T10:18:19.059545+00:00] [LOG] i18next: initialized {debug: true, initAsync: true, ns: Array(7), defaultNS: common, fallbackLng: Array(1)}
+[2026-11-04T10:18:19.060078+00:00] [INFO] [i18n] Initialized with language: en
+[2026-11-04T10:18:19.061140+00:00] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[2026-11-04T10:18:19.061521+00:00] [WARNING] [i18n] Failed to sync initial language preference to main process {error: Error: Session expired — please log in again
+    at rpc (http://localhost:5181/src/client/lib/accom…}
+[2026-11-04T10:18:19.062756+00:00] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found)
+[2026-11-04T10:18:55.580788+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined
+[2026-11-04T10:18:55.580788+00:00] [INFO] [App] Intake HITL received — awaiting QuoteWin/Costing Sheet upload before resuming {rfqId: RFQ-CENTUM-PROOF-03}
+[2026-11-04T10:19:40.876985+00:00] [LOG] ⚠️ HITL Intercept detected! Hydrating data array: undefined

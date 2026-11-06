@@ -1,0 +1,42 @@
+{
+  "url": "http://localhost:9334/api/chat",
+  "status": 200,
+  "req": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "HAI HOW TO USE THIS TOOL ?"
+      }
+    ],
+    "scope": {
+      "mode": "none"
+    },
+    "fileRefs": []
+  },
+  "body": {
+    "rfq_id": null,
+    "message": "Hello! I can help you use CAM 3.4 to turn a customer's BOM into a costed quote. Here’s how: \n\n1. Create an RFQ and upload the BOM and volume files. (User guide: 1. What CAM 3.4 does) \n2. The pipeline standardizes the BOM, fetches online prices, and consolidates price sources. (User guide: 1. What CAM 3.4 does) \n3. Review the decisions that need a person and export the costed BOM (CBOM) and quote workbooks. (User guide: 1. What CAM 3.4 does) \n4. Ask the assistant questions about the results, and it will cite the cells it came from. (User guide: 10. Ask the assistant)",
+    "citations": [
+      {
+        "sourceType": "user_guide",
+        "label": "User guide: 1. What CAM 3.4 does",
+        "identifier": {
+          "file": "docs/CAM-3.4-USER-GUIDE.md",
+          "section": "1"
+        }
+      },
+      {
+        "sourceType": "user_guide",
+        "label": "User guide: 10. Ask the assistant",
+        "identifier": {
+          "file": "docs/CAM-3.4-USER-GUIDE.md",
+          "section": "10"
+        }
+      }
+    ],
+    "model": "qwen3:8b (local)",
+    "scope": {
+      "mode": "none"
+    }
+  }
+}

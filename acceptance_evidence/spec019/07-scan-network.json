@@ -1,0 +1,60 @@
+{
+  "rfq_id": "CHAT-e9d930c9f0144f78aa0b",
+  "engines": [
+    {
+      "id": "clamav",
+      "label": "BuLL*Sav (ClamAV)",
+      "status": "ok",
+      "version": "ClamAV 1.4.3, signatures 28174 (Thu Nov  5 06:26:24 2026)",
+      "detail": ""
+    },
+    {
+      "id": "repel",
+      "label": "Repel Shield",
+      "status": "ok",
+      "version": "1.0"
+    }
+  ],
+  "results": [
+    {
+      "name": "Centum_BOM.xlsx",
+      "size": 14167,
+      "sha256": "5e930f464870b3b1c5b7802417bfea335034f9ccf519d1befb479f4bb950d42e",
+      "ext": ".xlsx",
+      "clamav": {
+        "verdict": "clean",
+        "detail": "No signature matched"
+      },
+      "repel": {
+        "verdict": "clean",
+        "score": 0,
+        "flags": [],
+        "detail": "No heuristic indicators"
+      },
+      "decision": "released",
+      "reason": "Clean on both engines",
+      "ms": 6679,
+      "attachment_id": "5e930f464870"
+    },
+    {
+      "name": "Volume_File.xlsx",
+      "size": 9968,
+      "sha256": "9811b76eaebe61504c1ca82f6d5ebaf34e8fd19a1862389f89d03975b965946c",
+      "ext": ".xlsx",
+      "clamav": {
+        "verdict": "clean",
+        "detail": "No signature matched"
+      },
+      "repel": {
+        "verdict": "clean",
+        "score": 0,
+        "flags": [],
+        "detail": "No heuristic indicators"
+      },
+      "decision": "released",
+      "reason": "Clean on both engines",
+      "ms": 6651,
+      "attachment_id": "9811b76eaebe"
+    }
+  ]
+}

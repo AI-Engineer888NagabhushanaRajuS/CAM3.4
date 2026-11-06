@@ -1,0 +1,91 @@
+{
+  "filename": "CBOM_Report_RFQ_CENTUM_PROOF_18_20261104_114045_c3b79ffe.xlsx",
+  "size_bytes": 716191,
+  "sheet_count": 21,
+  "sheets": {
+    "Scrap Factor": {
+      "rows": 4,
+      "cols": 4
+    },
+    "Batch Settings": {
+      "rows": 5,
+      "cols": 4
+    },
+    "CBOM": {
+      "rows": 503,
+      "cols": 77
+    },
+    "BOM MATRIX": {
+      "rows": 210,
+      "cols": 42
+    },
+    "Part Num Vs Mfg Num": {
+      "rows": 204,
+      "cols": 3
+    },
+    "PCB NRE & FAI Charge": {
+      "rows": 3,
+      "cols": 6
+    },
+    "Mech & EM NRE": {
+      "rows": 2,
+      "cols": 6
+    },
+    "Missing Notes": {
+      "rows": 83,
+      "cols": 10
+    },
+    "Lead Time (FG Wise)": {
+      "rows": 24,
+      "cols": 6
+    },
+    "Lead Time Consolidated": {
+      "rows": 29,
+      "cols": 3
+    },
+    "Sum & Count": {
+      "rows": 5,
+      "cols": 9
+    },
+    "Sum & Count Detailed": {
+      "rows": 245,
+      "cols": 38
+    },
+    "Revision History": {
+      "rows": 205,
+      "cols": 19
+    },
+    "A CLASS PARTS": {
+      "rows": 201,
+      "cols": 38
+    },
+    "Price Control": {
+      "rows": 5,
+      "cols": 4
+    },
+    "Summary": {
+      "rows": 12,
+      "cols": 26
+    },
+    "Batchwise Cashflow": {
+      "rows": 13,
+      "cols": 5
+    },
+    "7.0 CBOM VL-1": {
+      "rows": 280,
+      "cols": 50
+    },
+    "7.0 CBOM VL-2": {
+      "rows": 280,
+      "cols": 50
+    },
+    "Ex Inv VL-1": {
+      "rows": 206,
+      "cols": 38
+    },
+    "Ex Inv VL-2": {
+      "rows": 206,
+      "cols": 38
+    }
+  }
+}

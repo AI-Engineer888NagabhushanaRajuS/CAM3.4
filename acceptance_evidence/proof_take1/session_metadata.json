@@ -1,0 +1,304 @@
+{
+  "rfq_id": "RFQ-CENTUM-PROOF-02",
+  "start_utc": "2026-11-03T15:36:38.661476+00:00",
+  "end_utc": "2026-11-03T15:42:27.669567+00:00",
+  "video_file": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\video\\page@4cb74db4d00f0d8d1e78ba70997996db.webm",
+  "video_size_bytes": 18350080,
+  "milestones": [
+    {
+      "step": "01_login_page",
+      "desc": "Login page loaded with Centum SRIM branding",
+      "timestamp": "2026-11-03T15:36:41.212831+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\01_login_page.png"
+    },
+    {
+      "step": "02_home_page",
+      "desc": "Signed in, home page loaded with workflow stages",
+      "timestamp": "2026-11-03T15:36:43.813929+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\02_home_page.png"
+    },
+    {
+      "step": "03_rfq_id_entered",
+      "desc": "Entered RFQ ID RFQ-CENTUM-PROOF-02",
+      "timestamp": "2026-11-03T15:36:45.627293+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\03_rfq_id_entered.png"
+    },
+    {
+      "step": "04_upload_dialog_open",
+      "desc": "Upload RFQ Files dialog opened",
+      "timestamp": "2026-11-03T15:36:46.944160+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\04_upload_dialog_open.png"
+    },
+    {
+      "step": "05_files_staged",
+      "desc": "Attached BOM (Centum_Scrub_BOM.xlsx) and Volume (Volume_File.xlsx)",
+      "timestamp": "2026-11-03T15:36:48.142256+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\05_files_staged.png"
+    },
+    {
+      "step": "06_upload_submitted",
+      "desc": "BOM and Volume uploaded, workflow triggered",
+      "timestamp": "2026-11-03T15:36:50.541774+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\06_upload_submitted.png"
+    },
+    {
+      "step": "07_intake_hitl_reached",
+      "desc": "Intake HITL gate reached awaiting QuoteWin",
+      "timestamp": "2026-11-03T15:37:17.739523+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\07_intake_hitl_reached.png"
+    },
+    {
+      "step": "08_quotewin_modal_open",
+      "desc": "QuoteWin & Costing Sheet upload modal open",
+      "timestamp": "2026-11-03T15:37:19.032710+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\08_quotewin_modal_open.png"
+    },
+    {
+      "step": "09_quotewin_staged",
+      "desc": "Attached QuoteWin (QuoteWin_File.xlsx)",
+      "timestamp": "2026-11-03T15:37:20.199239+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\09_quotewin_staged.png"
+    },
+    {
+      "step": "10_quotewin_resumed",
+      "desc": "QuoteWin uploaded, workflow resumed",
+      "timestamp": "2026-11-03T15:37:22.748454+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\10_quotewin_resumed.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:03.313344+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:10.577475+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:17.821371+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:25.050021+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:32.287155+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:39.513560+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:46.781933+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:38:54.029169+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:01.271312+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:08.521895+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:15.749535+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:23.000830+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:30.240747+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:37.465525+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:44.713684+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:51.959762+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:39:59.192848+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:06.459638+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:13.693988+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:20.885188+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:28.108258+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:35.331066+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:42.577446+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:49.830323+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:40:57.095842+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:04.320779+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:11.577550+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:18.842718+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:26.099299+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:33.327095+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:40.562427+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:47.813384+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:41:55.056889+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:42:02.300791+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:42:09.543172+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "hitl_action_clear_&_resume_pipeline",
+      "desc": "Clicking 'Clear & Resume Pipeline'",
+      "timestamp": "2026-11-03T15:42:16.775460+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\hitl_action_clear_&_resume_pipeline.png"
+    },
+    {
+      "step": "12_workflow_stages_completed",
+      "desc": "Pipeline completed all 8 skills through reporting",
+      "timestamp": "2026-11-03T15:42:24.001398+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\12_workflow_stages_completed.png"
+    },
+    {
+      "step": "13_export_downloaded",
+      "desc": "Export workbook downloaded: None",
+      "timestamp": "2026-11-03T15:42:24.208481+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\13_export_downloaded.png"
+    },
+    {
+      "step": "14_final_settled_ui",
+      "desc": "Final settled UI state with all proofs visible",
+      "timestamp": "2026-11-03T15:42:27.354148+00:00",
+      "path": "C:\\CAM[3.4]-RFQ_centum\\acceptance_evidence\\proof_take1\\screenshots\\14_final_settled_ui.png"
+    }
+  ],
+  "workbook_audit": {}
+}

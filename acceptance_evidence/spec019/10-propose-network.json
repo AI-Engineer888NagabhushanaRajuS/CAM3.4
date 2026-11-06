@@ -1,0 +1,71 @@
+{
+  "url": "http://localhost:9334/api/chat",
+  "status": 200,
+  "req": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "create an RFQ from these files for customer 000, project UBR-TEST-3.4"
+      }
+    ],
+    "scope": {
+      "mode": "none"
+    },
+    "fileRefs": [
+      {
+        "attachmentId": "5e930f464870",
+        "name": "Centum_BOM.xlsx",
+        "rfqId": "CHAT-29d4ab61b92848fabc92"
+      },
+      {
+        "attachmentId": "9811b76eaebe",
+        "name": "Volume_File.xlsx",
+        "rfqId": "CHAT-29d4ab61b92848fabc92"
+      }
+    ]
+  },
+  "body": {
+    "rfq_id": null,
+    "message": "Ready to create RFQ-000017. Check the details and press Confirm; nothing happens until you do.",
+    "citations": [],
+    "model": null,
+    "scope": {
+      "mode": "none"
+    },
+    "ui": {
+      "type": "confirm_action",
+      "action": "create_rfq",
+      "summary": "Create RFQ-000017 for 000 / UBR-TEST-3.4, upload BOM Centum_BOM.xlsx and Volume Volume_File.xlsx, then start the pipeline.",
+      "params": {
+        "rfqId": "RFQ-000017",
+        "customer": {
+          "id": "67974190-b2c4-49bb-a3fb-fb214255e541",
+          "name": "000"
+        },
+        "project": {
+          "id": "3f9b0964-4baf-4349-b33d-66c736834bd8",
+          "name": "UBR-TEST-3.4"
+        },
+        "files": [
+          {
+            "role": "BOM",
+            "name": "Centum_BOM.xlsx",
+            "attachmentId": "5e930f464870",
+            "sha256": "5e930f464870b3b1c5b7802417bfea335034f9ccf519d1befb479f4bb950d42e",
+            "sourceScope": "CHAT-29d4ab61b92848fabc92"
+          },
+          {
+            "role": "VOLUME",
+            "name": "Volume_File.xlsx",
+            "attachmentId": "9811b76eaebe",
+            "sha256": "9811b76eaebe61504c1ca82f6d5ebaf34e8fd19a1862389f89d03975b965946c",
+            "sourceScope": "CHAT-29d4ab61b92848fabc92"
+          }
+        ],
+        "profile": "default (CAM_DEFAULT_PROFILE)"
+      },
+      "confirmToken": "TfkaMo2CuPOf-P61DG4kIFEN919OTWry",
+      "expiresAt": "2026-11-05T11:21:43.063Z"
+    }
+  }
+}
