@@ -83,7 +83,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" weight="fill" aria-hidden />

@@ -96,6 +96,18 @@ describe('ChangesView', () => {
     expect(screen.getByText(/spacing and line breaks are ignored/)).toBeTruthy();
   });
 
+  it('reads the earlier versions again after a save (the disk text changed), so the new earlier copy is offered', async () => {
+    fetchMock.mockImplementation(async () => answer({ path: 'skills/s.json', versions: [] }));
+    const view = render(<ChangesView path="skills/s.json" current={'{"a":1}'} saved={'{"a":1}'} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous saved version' }));
+    expect(await screen.findByText(/no earlier saved version yet/)).toBeTruthy();
+    fetchMock.mockImplementation(async (url: string) => (String(url).includes('/history/file')
+      ? answer({ stamp: '20261106T100000000Z', savedAt: '2026-11-06T10:00:00.000Z', text: '{"a":1}', hash: 'h', version: '1.0.0' })
+      : answer({ path: 'skills/s.json', versions: [{ stamp: '20261106T100000000Z', savedAt: '2026-11-06T10:00:00.000Z' }] })));
+    view.rerender(<ChangesView path="skills/s.json" current={'{"a":2}'} saved={'{"a":2}'} />); // saved: disk now holds {"a":2}
+    expect(await screen.findByTestId('diff-editor')).toBeTruthy();
+  });
+
   it('with no earlier saved version it says nothing can be compared', async () => {
     fetchMock.mockImplementation(async () => answer({ path: 'skills/s.json', versions: [] }));
     render(<ChangesView path="skills/s.json" current={'{"a":1}'} saved={'{"a":1}'} />);

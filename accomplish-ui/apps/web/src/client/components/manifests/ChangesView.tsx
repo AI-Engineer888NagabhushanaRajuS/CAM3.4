@@ -29,7 +29,8 @@ export function ChangesView({ path, current, saved }: Props) {
   const [previous, setPrevious] = useState<Previous>('loading');
   const [counts, setCounts] = useState<ChangeCounts | null>(null);
 
-  // The newest earlier copy is the file as it was before the last save. Loaded when this tab opens, again when the path changes.
+  // The newest earlier copy is the file as it was before the last save. Loaded when this tab opens, and again when the path or the
+  // text on disk changes (a save makes a new earlier copy).
   useEffect(() => {
     let stopped = false;
     setPrevious('loading');
@@ -38,7 +39,7 @@ export function ChangesView({ path, current, saved }: Props) {
       .then((v) => { if (!stopped) setPrevious(v ? { text: v.text, savedAt: v.savedAt } : null); })
       .catch(() => { if (!stopped) setPrevious('error'); });
     return () => { stopped = true; };
-  }, [path]);
+  }, [path, saved]);
 
   const baseline = pickBaseline(choice, saved, previous);
   const pair = useMemo(() => (baseline.kind === 'diff' ? comparable(baseline.base, current) : null), [baseline, current]);

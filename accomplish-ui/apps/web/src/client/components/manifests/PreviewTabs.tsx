@@ -59,7 +59,7 @@ export function PreviewTabs({ kind, text, subSkills, json, onJump, path, saved }
           </button>
         ))}
       </div>
-      <div role="tabpanel" id="panel-json" aria-labelledby="tab-json" hidden={tab !== 'json'} className="flex min-h-0 flex-1 flex-col">{json}</div>
+      <div role="tabpanel" id="panel-json" aria-labelledby="tab-json" hidden={tab !== 'json'} className={tab === 'json' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>{json}</div>
       {tab === 'generated' && (
         <div role="tabpanel" id="panel-generated" aria-labelledby="tab-generated" className="min-h-0 flex-1">
           <GeneratedView preview={preview} subSkills={subSkills} subSkillId={subSkillId} onSubSkill={setSubSkillId} />

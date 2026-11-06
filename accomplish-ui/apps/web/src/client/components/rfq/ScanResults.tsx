@@ -66,7 +66,7 @@ export function ScanResults({ response }: { response: ScanResponse }) {
           {down.map((e) => e.label).join(' and ')} {down.length > 1 ? 'are' : 'is'} unavailable. Files are held, not released, until both engines can check them.
         </p>
       )}
-      <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+      <ul className="max-h-[46dvh] divide-y divide-border overflow-y-auto rounded-xl border border-border">
         {response.results.map((r, i) => (
           <motion.li
             key={`${r.name}-${r.sha256}`}

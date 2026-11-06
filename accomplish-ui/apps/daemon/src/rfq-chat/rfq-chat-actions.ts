@@ -75,7 +75,9 @@ export function makeChatActions(
         const parties = await resolveParties(request, deps);
         const missing = [...parties.missing, ...files.missing];
         if (missing.length > 0 || !parties.customer || !parties.project) {
-          return { message: `To create the RFQ I still need this. ${missing.join(' ')}` };
+          // The assistant does not carry half an answer to the next message: the reply has to be the whole request again.
+          const again = !parties.customer || !parties.project ? ' Reply with the whole request, for example: create an RFQ from these files for customer <customer>, project <project>.' : '';
+          return { message: `To create the RFQ I still need this. ${missing.join(' ')}${again}` };
         }
         const params: CreateRfqParams = {
           rfqId: await deps.nextRfqId(),
