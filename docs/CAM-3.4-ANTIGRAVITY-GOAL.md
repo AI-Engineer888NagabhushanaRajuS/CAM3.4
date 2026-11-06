@@ -19,7 +19,7 @@ Finish the remaining CAM 3.4 work end to end, including a real user-driven brows
 
 ## Boot and truthful state
 
-1. Read `docs/CAM-3.4-MEGA-GUIDE.md`, root `HANDOFF-2026-11-03.md`, `SPECS/TODO-3.4.md`, `SPECS/progress.json`, and the active SPEC for the next task. When docs conflict, prefer current code + diagrams and record the conflict. Do not re-read long material already summarized in the state below unless new evidence contradicts it.
+1. Read `docs/CAM-3.4-MEGA-GUIDE.md`, `SPECS/handoff/HANDOFF-2026-11-03.md` (repository root), `SPECS/TODO-3.4.md`, `SPECS/progress.json`, and the active SPEC for the next task. When docs conflict, prefer current code + diagrams and record the conflict. Do not re-read long material already summarized in the state below unless new evidence contradicts it.
 2. Inspect `git status --short`, branch, recent commits, Compose project labels, live listeners, and ignored-file rules. Do not expose `.env` values. Before any service restart/build, identify the already-running Compose project and exact override files; don't accidentally create a second project or use another project's ports/volumes.
 3. Run a focused baseline test and then the full suite before final commit: `python -m pytest -q -p no:cacheprovider` from `CAM-Source`. Record fresh output; repair pre-existing failures only if in current scope.
 4. Maintain this file's **Current State** section below as the single persistent goal ledger. Update only after a milestone has evidence or a blocker is proved. Each update records status, evidence path/command, next action, and retry budget remaining. Don't append speculative progress or rewrite the acceptance rules. At startup and after context loss, reread this section and continue at the first incomplete gate.
