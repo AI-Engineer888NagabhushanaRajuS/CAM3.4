@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(netstat -ano)",
+      "Read(//c/Users/ADMIN/Documents/BuLLMQuote-SRIM/fastmcp-router/**)",
+      "Bash(python manage_backend.py start)",
+      "Read(//c/Users/ADMIN/Documents/SRIM/Tools/I n D/distributor_pricing/**)",
+      "Bash(PORT=5181 pnpm dev:web)",
+      "Bash(disown)",
+      "Bash(curl *)",
+      "Bash(python manage_backend.py restart)",
+      "Read(//c/Users/ADMIN/Desktop/Innotech BOM/**)",
+      "Read(//c/Users/ADMIN/Downloads/**)",
+      "Bash(xargs grep -l \"BOM\\\\|VOLUME\\\\|GERBER\")",
+      "Bash(claude mcp *)",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"ProcessId=27524\\\\\" | Select-Object ProcessId,Name,CommandLine,ExecutablePath\")",
+      "Bash(powershell -Command '$p = Get-CimInstance Win32_Process -Filter '\\\\''ProcessId=27524'\\\\''; Get-CimInstance Win32_Process -Filter \"ProcessId=$\\($p.ParentProcessId\\)\" | Select-Object ProcessId,Name,CommandLine')",
+      "Bash(powershell -Command 'Get-CimInstance Win32_Process -Filter \"Name='\\\\''node.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*Downloads*accomplish-ui*'\\\\'' } | Select-Object ProcessId,CommandLine')",
+      "Bash(sort -k2)"
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  }
+}

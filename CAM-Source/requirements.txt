@@ -1,0 +1,53 @@
+# Consolidated Python dependencies for every containerized service in this
+# repo (fastmcp-router/* and mcp-tools/*), built for containerization Phase 2.
+# One shared base image layer for all Python services -- individual services
+# only use a subset of this, but a single consistent install means Docker's
+# layer cache is shared across every service's image instead of rebuilt per
+# service. Version pins copied from live `pip show` output and each service's
+# own requirements.txt where more specific (never loosened).
+
+fastapi==0.137.0
+uvicorn==0.49.0
+fastmcp==3.4.2
+pydantic>=2.7
+
+psycopg2-binary==2.9.12
+duckdb==1.5.3
+asyncpg
+
+PyJWT==2.13.0
+python-dotenv
+
+pandas==2.3.3
+numpy
+openpyxl==3.1.5
+jinja2==3.1.6
+# pandas needs xlrd to read legacy .xls uploads (pd.read_excel raises "Missing optional dependency 'xlrd'" without it).
+xlrd==2.0.1
+
+httpx
+requests
+
+# CAM 3.4: Temporal workflow engine (replaces Dify DMR orchestration)
+temporalio>=1.7.0
+python-magic-bin; sys_platform == 'win32'
+python-magic; sys_platform != 'win32'
+psutil
+
+# cognee is PINNED to exactly 1.4.2, not a >= range -- cognee 1.5.0-1.5.4 ship
+# an Alembic migration that unconditionally imports kuzu, which fails to load
+# its native library on Windows/Python 3.10. Do not bump without re-running
+# that compatibility check -- see mcp-tools/rfq-memory/requirements.txt for
+# the full original reasoning.
+cognee==1.4.2
+ollama
+
+# gerber-integration's own stack (mcp-tools/gerber-integration/requirements.txt)
+# NOTE: that file says `gerbonara>=1.6,<2`, but confirmed this session that no
+# gerbonara release >=1.6 exists on PyPI at all (highest available is 1.5.0)
+# -- a pre-existing error in that file, not introduced here. Pinned to what
+# actually installs; flag this upstream if gerber-integration behavior
+# depends on something only a real 1.6 would have fixed.
+gerbonara>=1.5,<2
+pyyaml>=6.0
+pymupdf

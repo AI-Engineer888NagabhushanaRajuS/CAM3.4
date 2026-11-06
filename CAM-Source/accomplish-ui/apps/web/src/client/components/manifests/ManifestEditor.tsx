@@ -1,0 +1,61 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import Editor, { type OnMount } from '@monaco-editor/react';
+import { modelPath, monaco, registerSchema } from './monacoSetup';
+import { useMonacoTheme } from './useMonacoTheme';
+
+export interface EditorHandle {
+  jumpTo: (line: number, column: number) => void;
+  format: () => void;
+}
+interface Props {
+  path: string;
+  kind: string;
+  /** Defaults to json; the generated-tool preview uses python. */
+  language?: string;
+  schema: object | null;
+  value: string;
+  readOnly: boolean;
+  onChange: (text: string) => void;
+  onSave: () => void;
+}
+
+export const ManifestEditor = forwardRef<EditorHandle, Props>(function ManifestEditor({ path, kind, language = 'json', schema, value, readOnly, onChange, onSave }, ref) {
+  const editor = useRef<Parameters<OnMount>[0] | null>(null);
+  const save = useRef(onSave);
+  save.current = onSave;
+  const theme = useMonacoTheme();
+
+  useEffect(() => { if (schema) registerSchema(path, kind, schema); }, [path, kind, schema]);
+
+  useImperativeHandle(ref, () => ({
+    jumpTo: (line, column) => {
+      const ed = editor.current;
+      if (!ed) return;
+      ed.setPosition({ lineNumber: line, column });
+      ed.revealLineInCenter(line);
+      ed.focus();
+    },
+    format: () => { void editor.current?.getAction('editor.action.formatDocument')?.run(); },
+  }), []);
+
+  return (
+    <Editor
+      height="100%"
+      language={language}
+      path={modelPath(path)}
+      value={value}
+      theme={theme}
+      loading={<p className="p-4 text-sm text-muted-foreground">Loading editor...</p>}
+      onChange={(v) => onChange(v ?? '')}
+      onMount={(ed) => {
+        editor.current = ed;
+        ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => save.current());
+      }}
+      options={{
+        readOnly, tabSize: 2, insertSpaces: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false,
+        automaticLayout: true, wordWrap: 'on', ariaLabel: `${language === 'json' ? 'JSON manifest' : 'Generated ' + language} editor: ${path}`, formatOnPaste: false,
+        domReadOnly: readOnly, fixedOverflowWidgets: true,
+      }}
+    />
+  );
+});

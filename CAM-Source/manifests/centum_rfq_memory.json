@@ -1,0 +1,28 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_rfq_memory",
+  "name": "Centum RFQ Memory Module",
+  "version": "3.4.0",
+  "description": "Cognee-backed versioned memory service for RFQ context: ingest RFQ documents, query semantic memory for part history, track citation lineage across versions.",
+  "mcp_server": "mcp-tools/rfq-memory/memory_service.py",
+  "fastmcp_name": "rfq-memory",
+  "port": 8108,
+  "routing_profile": "Standard_BOM_Flow",
+  "tools": [],
+  "planned_tools": [
+    {
+      "name": "centum_rfq_memory__ingest",
+      "description": "Ingest RFQ-related documents (BOM, quotes, specs) into the versioned semantic memory store.",
+      "inputs": {"rfq_id": "string", "content": "string", "doc_type": "string"},
+      "outputs": {"ingested": "boolean", "node_id": "string"}
+    },
+    {
+      "name": "centum_rfq_memory__query",
+      "description": "Query the semantic memory store for context relevant to a part number or RFQ question.",
+      "inputs": {"rfq_id": "string", "query": "string"},
+      "outputs": {"results": "array", "citations": "array"}
+    }
+  ],
+  "dependencies": ["postgresql:cognee_db"],
+  "notes": "memory_service.py uses cognee==1.4.2 (PINNED). Do NOT bump to 1.5.x — breaks on Python 3.10/Windows. This module is not a FastMCP server yet; tool names above are planned API surface."
+}

@@ -1,0 +1,100 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_09",
+    "skill_name": "Reporting via BullMind",
+    "office_analogy": "Management Reports",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Akshay / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 8 hook[cite: 7]. Action: Generate all 16 Ultiweb Excel reports using OpenPyXL scripts against target templates, register analytical datasets in Apache Superset via REST API, and enable DBHub conversational AI Q&A access[cite: 1, 3, 4, 7]. Check: Verify all 16 Excel files render without calculation errors and Superset REST API returns HTTP 200[cite: 3, 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "costed_bom_master_payload",
+        "gold_standard_loa_excel_template",
+        "ultiweb_report_python_scripts_registry"
+      ],
+      "fresh_state_parameters": ["generated_16_excel_reports", "superset_dashboard_urls"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Execute OpenPyXL FastMCP tool across Jinja2 templates for 16 target sheets, sync Superset datasets, and expose DBHub SQL agent[cite: 1, 3, 4, 7].",
+      "acceptance_check": "Programmatically evaluate: excel_reports_count == 16 AND superset_registration_success == True[cite: 3, 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "OpenPyXL_Superset_BullMind_MCP",
+      "fixed_check_tool": "Excel_Promptfoo_Assertion_Validator",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "all_16_reports_and_dashboards_ready == True",
+      "no_op_condition": "reports_already_rendered == True",
+      "escalation_condition": "openpyxl_rendering_crash OR template_formula_mismatch",
+      "budget_limit": "60000ms"
+    },
+    "o_outcome": {
+      "json_schema": "ReportingArtifactsPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_reporting_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Rendering 16 Excel Reports -> Registering Superset Analytics -> Live"],
+      "database_updates": ["Insert into generated_reports_registry"],
+      "alerts": ["PostHog telemetry logs report generation time; notify management[cite: 1, 7]"],
+      "next_step": "On human Action button press, fire completion hook to Skill 10 (Sales Quote)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "9.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "9.1.1", "action": "Read costed BOM payload from BullMind and process attributes", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "9.2",
+      "sub_skill_name": "Excel reports",
+      "type": "Automated Processing",
+      "steps": [
+        {"step_id": "9.2.1", "action": "Execute OpenPyXL scripts to populate all 16 target Excel sheets (Quotewin Matrix, CBOM VL-1, Batch wise Cashflow, Lead Time Consolidated, etc.)", "mode": "Auto"},
+        {"step_id": "9.2.2", "action": "Run Promptfoo assertions against baseline gold-standard LOA target output file", "mode": "Auto"}
+      ]
+    },
+    {
+      "sub_skill_id": "9.3",
+      "sub_skill_name": "Dashboards and Q&A",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "9.3.1", "action": "Register datasets with Apache Superset REST API and enable DBHub conversational SQL agent", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "9.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "9.4.1", "action": "Human reviews generated management reports and analytics views", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_08_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "generated_reports_registry", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_9"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"costed_bom_id": {"type": "string"}}, "required": ["costed_bom_id"]},
+    "output_schema": {"type": "object", "properties": {"excel_report_paths": {"type": "array"}, "superset_url": {"type": "string"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

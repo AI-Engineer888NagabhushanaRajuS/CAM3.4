@@ -1,0 +1,113 @@
+# Generated from an ISATVON manifest by manifest_codegen.py (preview only; CAM never executes this).
+# Every manifest value enters through the pystr/pyval filters. Edit the manifest, not this file.
+from typing import Any, Optional
+import time
+
+from fastmcp import FastMCP
+from pydantic import BaseModel
+
+SKILL_ID = {{ skill_id | pystr }}
+SKILL_NAME = {{ skill_name | pystr }}
+SUB_SKILL_ID = {{ sub_skill_id | pystr }}
+SUB_SKILL_NAME = {{ sub_skill_name | pystr }}
+VERSION = {{ version | pystr }}
+MAX_ITERATIONS = {{ max_iterations | pyval(quote_formulas) }}
+BUDGET_MS = {{ budget_ms | pyval(quote_formulas) }}
+INSTRUCTIONS = {{ instructions | pystr }}
+SUCCESS_GATE = {{ success_gate | pystr }}
+NO_OP_CONDITION = {{ no_op_condition | pystr }}
+ESCALATION_CONDITION = {{ escalation_condition | pystr }}
+ACCEPTANCE_CHECK = {{ acceptance_check | pystr }}
+OUTCOME_SCHEMA = {{ outcome_schema | pystr }}
+OUTCOME_HANDOFF = {{ outcome_handoff | pystr }}
+
+STEPS: list[dict[str, str]] = [
+{% for s in steps %}
+    {"step_id": {{ s["step_id"] | pystr }}, "action": {{ s["action"] | pystr }}, "mode": {{ s["mode"] | pystr }}},
+{% endfor %}
+]
+
+VARIABLES: dict[str, Any] = {
+{% for k, v in variables %}
+    {{ k | pystr }}: {{ v | pyval(quote_formulas) }},
+{% endfor %}
+}
+
+OUTCOME_FIELDS = ({% for f in outcome_fields %}{{ f["name"] | pystr }}, {% endfor %})
+
+
+class Outcome(BaseModel):
+    """The ISATVON hand-off payload (o_outcome)."""
+
+    status: str
+    reason: str
+    iterations: int
+    awaiting_human: list[str] = []
+{% for f in outcome_fields %}
+    {{ f["name"] }}: Optional[{{ f["type"] }}] = None
+{% endfor %}
+
+
+# ---- business-logic slots: the manifest defines WHAT, these define HOW ----------------------------
+
+def is_no_op(state: dict[str, Any]) -> bool:
+    # TODO(business-logic): evaluate NO_OP_CONDITION against state (work already done: skip the loop).
+    return False
+
+
+def should_escalate(state: dict[str, Any]) -> bool:
+    # TODO(business-logic): evaluate ESCALATION_CONDITION against state.
+    return False
+
+
+def do_step(step: dict[str, str], state: dict[str, Any]) -> dict[str, Any]:
+    # TODO(business-logic): perform step["action"] and return the updated state.
+    return state
+
+
+def check(state: dict[str, Any]) -> bool:
+    # TODO(business-logic): the fixed check; evaluate SUCCESS_GATE / ACCEPTANCE_CHECK against state.
+    # Returns False until implemented, so an unfinished skeleton can never claim success.
+    return False
+
+
+# ---- the ISATVON bounded do / check / hand-off loop -----------------------------------------------
+
+def hand_off(state: dict[str, Any], status: str, reason: str, iterations: int) -> Outcome:
+    fields = {k: state[k] for k in OUTCOME_FIELDS if k in state}
+    return Outcome(status=status, reason=reason, iterations=iterations,
+                   awaiting_human=state.get("awaiting_human", []), **fields)
+
+
+def run_loop(payload: dict[str, Any]) -> Outcome:
+    started = time.monotonic()
+    state: dict[str, Any] = dict(payload)
+    state["awaiting_human"] = [s["step_id"] for s in STEPS if s["mode"] == "Human"]
+    if is_no_op(state):
+        return hand_off(state, "no_op", "no_op_condition", 0)
+    iterations = 0
+    while iterations < MAX_ITERATIONS:
+        iterations += 1
+        for step in STEPS:
+            if step["mode"] == "Human":
+                continue  # a person does this step; it is listed in awaiting_human
+            if (time.monotonic() - started) * 1000 > BUDGET_MS:
+                return hand_off(state, "escalated", "budget_exceeded", iterations)
+            state = do_step(step, state)
+            if should_escalate(state):
+                return hand_off(state, "escalated", "escalation_condition", iterations)
+        if check(state):
+            return hand_off(state, "done", "success_gate", iterations)
+    return hand_off(state, "escalated", "max_iterations", iterations)
+
+
+mcp = FastMCP({{ service_name | pystr }})
+
+
+@mcp.tool(description=INSTRUCTIONS)
+def run_{{ tool_func }}(payload: dict[str, Any]) -> dict[str, Any]:
+    return run_loop(payload).model_dump()
+
+
+if __name__ == "__main__":
+    mcp.run()

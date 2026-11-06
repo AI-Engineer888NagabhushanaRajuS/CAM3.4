@@ -1,0 +1,128 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_01",
+    "skill_name": "Input Standardization",
+    "office_analogy": "The Mail Room",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Nagabhushan / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by manual UI upload or API ingestion[cite: 7]. Action: Ingest and deduplicate raw RFQ files across 22 project input file types (BOMs, mechanical PDF drawings, Gerber files, title blocks)[cite: 7]. Extract schema metadata into Cognee Knowledge Graph, map to Google OKF standard, and sync project record in CRM. Check: Verify ClamAV scan passed, content hash is unique, and Pydantic validation passes[cite: 1, 6, 7]. Bound: Max 3 retry passes on OCR failure before flagging unreadable input edge cases[cite: 1, 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "raw_customer_bom_xlsx",
+        "mechanical_drawings_pdf",
+        "gerber_pcb_cad_zip",
+        "customer_sow_prd_doc",
+        "supplier_master_db",
+        "currency_exchange_rates_table"
+      ],
+      "fresh_state_parameters": ["crm_project_record", "file_content_hash_registry", "cognee_knowledge_graph_node_id"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Ingest via Uppy/tusd gateway, run ClamAV scan, trigger PaddleOCR for scanned PDFs, extract Google OKF graph nodes via Cognee, and bind CRM RFQ ID[cite: 1, 3, 7].",
+      "acceptance_check": "Programmatically evaluate: virus_status == 'CLEAN' AND pydantic_schema_valid == True AND crm_rfq_id_assigned == True[cite: 1, 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "Ingest_PaddleOCR_Cognee_OKF_MCP",
+      "fixed_check_tool": "Jev_Schema_Validator_Script",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 3,
+      "success_gate": "normalized_pkg_valid == True AND crm_linked == True",
+      "no_op_condition": "content_hash_already_ingested == True",
+      "escalation_condition": "unresolvable_file_corruption OR missing_critical_header_columns",
+      "budget_limit": "60000ms"
+    },
+    "o_outcome": {
+      "json_schema": "NormalizedRFQPackagePayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_input_standardization_audit_log' with Google OKF JSON payload[cite: 1, 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Ingesting Files -> Cognee Graph Built -> Awaiting Review Confirmation"],
+      "database_updates": ["Insert into rfq_master_records and crm_sync_table"],
+      "alerts": ["PostHog metric logged for file ingestion latency; notify UI drawer of missing attributes"],
+      "next_step": "On human Action button press, fire completion hook to Skill 2 (Feature Extraction)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "1.1",
+      "sub_skill_name": "Ingest and register",
+      "type": "Ingestion & CRM Sync",
+      "steps": [
+        {"step_id": "1.1.1", "action": "Receive raw RFQ package (BOM, mechanical drawings, Gerber files)", "mode": "Human"},
+        {"step_id": "1.1.2", "action": "Scan and validate: virus scan, file type, size, content hash duplicate check", "mode": "Auto"},
+        {"step_id": "1.1.3", "action": "Build missing-details list and return immediate clarification flags to user", "mode": "Auto"},
+        {"step_id": "1.1.4", "action": "Create/sync CRM case record: RFQ ID, customer details, project promise date", "mode": "Auto"},
+        {"step_id": "1.1.5", "action": "Link ingested RFQ package to CRM case record", "mode": "Auto"}
+      ]
+    },
+    {
+      "sub_skill_id": "1.2",
+      "sub_skill_name": "Identify and read",
+      "type": "Automated Processing",
+      "steps": [
+        {"step_id": "1.2.1", "action": "Identify each file type using Admin File-Type Master rules", "mode": "Auto"},
+        {"step_id": "1.2.2", "action": "Execute PaddleOCR on scanned PDF drawings and title blocks", "mode": "Auto"}
+      ]
+    },
+    {
+      "sub_skill_id": "1.3",
+      "sub_skill_name": "Normalize",
+      "type": "Automated Processing",
+      "steps": [
+        {"step_id": "1.3.1", "action": "Map parsed content into unified Pydantic schema and assign Google OKF metadata nodes", "mode": "Auto"}
+      ]
+    },
+    {
+      "sub_skill_id": "1.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [
+        {"step_id": "1.4.1", "action": "Human confirms normalized RFQ package before hook fires", "mode": "Human"}
+      ]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "UI_Upload_Or_API_Intake"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "rfq_master_records", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_1"}
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "raw_bom_file": {"type": "string"},
+        "mechanical_drawings": {"type": "array"},
+        "gerber_files": {"type": "array"}
+      },
+      "required": ["raw_bom_file"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "rfq_id": {"type": "string"},
+        "google_okf_payload": {"type": "object"},
+        "state_handoff_id": {"type": "string"}
+      }
+    }
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

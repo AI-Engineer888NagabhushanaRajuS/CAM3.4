@@ -1,0 +1,45 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_scrub_intake",
+  "name": "Centum Scrub Intake Module",
+  "version": "3.4.0",
+  "description": "Standardizes the 4 intake files (Scrub BOM, QuoteWin, ERP, Costing Sheet) into DuckDB input tables for one RFQ version.",
+  "mcp_server": "mcp-tools/scrub-intake/scrub_mcp_server.py",
+  "fastmcp_name": "ScrubIntake",
+  "port": 8004,
+  "routing_profile": "Standard_BOM_Flow",
+  "scrub_tools": [
+    "centum_intake__standardize_scrub_bom",
+    "centum_intake__standardize_quote_win",
+    "centum_intake__standardize_erp",
+    "centum_intake__standardize_costing_sheet"
+  ],
+  "tools": [
+    {
+      "name": "centum_intake__standardize_scrub_bom",
+      "description": "Parse and standardize the Scrub BOM Excel file into DuckDB scrub_bom_items table. HITL gate: halts to collect QuoteWin/Costing Sheet if not yet uploaded.",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"row_count": "integer", "warnings": "array"},
+      "hitl_gate": true
+    },
+    {
+      "name": "centum_intake__standardize_quote_win",
+      "description": "Parse and standardize the QuoteWin Excel file into DuckDB quote_win table.",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"row_count": "integer", "warnings": "array"}
+    },
+    {
+      "name": "centum_intake__standardize_erp",
+      "description": "Parse and standardize the ERP master data extract into DuckDB erp table.",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"row_count": "integer", "warnings": "array"}
+    },
+    {
+      "name": "centum_intake__standardize_costing_sheet",
+      "description": "Parse and standardize the Costing Sheet Excel file into DuckDB costing_sheet table.",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"row_count": "integer", "warnings": "array"}
+    }
+  ],
+  "dependencies": ["duckdb:input.duckdb", "postgresql:logic_db"]
+}

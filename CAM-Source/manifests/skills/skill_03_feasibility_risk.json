@@ -1,0 +1,99 @@
+{
+  "skill_metadata": {
+    "macro_category": "Manufacturing_RFQ_Pipeline",
+    "skill_id": "SKILL_03",
+    "skill_name": "Feasibility & Risk",
+    "office_analogy": "The Senior Engineer",
+    "skill_type": "Deterministic_Loopy_MCP",
+    "reusable": true,
+    "version": "1.5.0-draft",
+    "status": "DRAFT",
+    "owner": "Nagabhushan / Harish",
+    "updated_at": "2026-10-27T00:00:00Z"
+  },
+  "isatvon_definition": {
+    "i_instructions": "Triggered by Skill 2 hook[cite: 7]. Action: Evaluate design complexity against EMS internal machine capability constraints (reflow oven zones, minimum component pitch) and flag high-risk items (Long Lead Time parts, End-of-Life EOL components, tight mechanical tolerances) in one single pass[cite: 7]. Check: Ensure every BOM line receives a definitive 'Can-Build' or 'Cannot-Build' verdict with documented risk reasons[cite: 6, 7].",
+    "s_source": {
+      "required_inputs": [
+        "extracted_attribute_set",
+        "scrub_bom_table",
+        "ems_internal_capability_and_constraint_template",
+        "lead_time_consolidated_table",
+        "part_num_vs_mfg_num_master"
+      ],
+      "fresh_state_parameters": ["feasibility_verdict_matrix", "risk_register_table"]
+    },
+    "a_automation": {
+      "orchestration_layer": "Temporal Workflow (SRI Runtime)",
+      "action_step": "Execute rule engine comparing assembly specs against EMS plant constraints and cross-reference lead-time/EOL databases[cite: 7].",
+      "acceptance_check": "Programmatically verify: all_bom_lines_evaluated == True AND risk_flags_registered == True[cite: 6, 7]."
+    },
+    "t_tech_stack": {
+      "execution_layer": "FastMCP Engine",
+      "action_tool": "EMS_Feasibility_Risk_Evaluator_MCP",
+      "fixed_check_tool": "Constraint_Satisfaction_Checker",
+      "gateway": "Bifrost Gateway",
+      "telemetry_observer": "PostHog Audit Logger"
+    },
+    "v_variables": {
+      "max_iterations": 2,
+      "success_gate": "feasibility_verdict_complete == True",
+      "no_op_condition": "bom_is_empty == True",
+      "escalation_condition": "unresolvable_machine_constraint_violation",
+      "budget_limit": "30000ms"
+    },
+    "o_outcome": {
+      "json_schema": "FeasibilityAndRiskPayload",
+      "state_handoff_file": "Append to PostgreSQL 'rfq_feasibility_risk_audit_log'[cite: 6, 7]."
+    },
+    "n_next": {
+      "ui_updates": ["Status: Evaluating Machine Rules -> Feasibility Verdict & Risk Flags Generated"],
+      "database_updates": ["Insert into rfq_feasibility_verdicts and risk_register"],
+      "alerts": ["PostHog logs high-risk flag occurrences; alert senior engineer"],
+      "next_step": "On human Action button press, fire completion hook to Skill 4 (Distributor & Source Selection)[cite: 7]."
+    }
+  },
+  "sub_skills": [
+    {
+      "sub_skill_id": "3.1",
+      "sub_skill_name": "Receive and query",
+      "type": "Ingestion / Query",
+      "steps": [{"step_id": "3.1.1", "action": "Read extracted attributes, Scrub BOM, EMS plant constraints, and lead-time data", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "3.2",
+      "sub_skill_name": "Compare",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "3.2.1", "action": "Compare design complexity with machine constraints; generate can-build/cannot-build verdict per line item", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "3.3",
+      "sub_skill_name": "Flag risks",
+      "type": "Automated Processing",
+      "steps": [{"step_id": "3.3.1", "action": "Flag long-lead-time parts, EOL status, and high-tolerance mechanical fits", "mode": "Auto"}]
+    },
+    {
+      "sub_skill_id": "3.4",
+      "sub_skill_name": "Review",
+      "type": "Human Review Checkpoint",
+      "steps": [{"step_id": "3.4.1", "action": "Senior engineer reviews feasibility verdict and risk flags on unified screen", "mode": "Human"}]
+    }
+  ],
+  "sri_runtime_definition": {
+    "orchestration": {"router": "Temporal_Durable_Workflow", "trigger": "Skill_02_Hook_Payload"},
+    "execution": {"engine": "FastMCP_Execution_Engine"},
+    "gateway": {"route_via": "Bifrost_Gateway"},
+    "persistence": {"database": "PostgreSQL", "table": "rfq_feasibility_verdicts", "action": "Insert_SQL"},
+    "audit": {"telemetry": "PostHog_Session_And_Event_Telemetry"},
+    "ui": {"target": "Refine_AG_Grid_Accordion_Wizard", "method": "Wizard_Step_3"}
+  },
+  "contracts": {
+    "input_schema": {"type": "object", "properties": {"attribute_set_id": {"type": "string"}}, "required": ["attribute_set_id"]},
+    "output_schema": {"type": "object", "properties": {"feasibility_verdict": {"type": "string"}, "risk_flags": {"type": "array"}}}
+  },
+  "governance": {
+    "deterministic_hash": "sha256:COMPUTED_ON_SAVE",
+    "lifecycle": {"state": "DRAFT", "approval_required_for_change": true, "immutable_after_approval": true},
+    "versioning": {"major": 1, "minor": 5, "patch": 0}
+  }
+}

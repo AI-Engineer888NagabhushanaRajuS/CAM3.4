@@ -1,0 +1,279 @@
+# CAM 3.4 docker-compose stack.
+# Port offsets deliberately avoid collision with the live bare-metal
+# centum-intake stack. Temporal services added in SPEC-004.
+#
+# Usage:
+#   docker compose up -d postgres temporal      # infra first
+#   docker compose up -d                         # remaining services
+
+x-python-common: &python-common
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  volumes:
+    - ./database:/app/database
+    # upload_server saves uploads here and records the absolute path; every tool container reads
+    # that same path, so they must all see one volume at one location (WORKDIR of upload-server
+    # is /app/fastapi-router, so its staged/inbox is this path).
+    - inbox:/app/fastapi-router/staged/inbox
+
+x-python-env: &python-env
+  LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/logic_db_2
+  FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/file_metadata_db_2
+  STAGING_LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/staging_logic_db_2
+  STAGING_FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/staging_file_metadata_db_2
+  JWT_SECRET: ${JWT_SECRET:?set a real secret}
+  REPORTING_DATABASE_DIR: /app/database
+  CENTUM_INPUT_DB: /app/database/input_db.duckdb
+  REPORTING_INPUT_DB: /app/database/input_db.duckdb
+  # intake, distributor-pricing and gerber-integration share this one file (3.3 shared.db_config.DB_PATH).
+  BOM_STORAGE_DB: /app/database/bom_storage.duckdb
+  # Temporal connection for services that use CAM_USE_TEMPORAL=true
+  CAM_TEMPORAL_HOST: temporal:7233
+  CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
+  CAM_HITL_ROUTER_URL: http://hitl-router:5102
+  # rfq-memory-server's ingest/reset listener (fastapi-router/rfq_memory_client.py). It has no JWT: the
+  # network is its boundary. Inside the stack only containers on cam34-net reach it by this name; on the
+  # host it is published on 127.0.0.1 only, so nothing off this machine can open a connection to it.
+  RFQ_MEMORY_INTERNAL_URL: http://rfq-memory-server:8109
+
+networks:
+  default:
+    name: cam34-net
+
+services:
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: centum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: postgres
+    volumes:
+      # postgres:18+ expects the volume at /var/lib/postgresql (major-version subdirectories).
+      - postgres-data:/var/lib/postgresql
+      # Init scripts run only from the top level of this folder (not subfolders).
+      - ./database/pg_dump_seed:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U centum -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Temporal server (single-process dev mode -- cassandra-less, in-memory history)
+  # For production switch to the temporalio/auto-setup image with a real Cassandra/
+  # Postgres persistence backend.
+  temporal:
+    image: temporalio/auto-setup:1.24
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # auto-setup 1.24 accepts postgres12/postgres12_pgx (not 'postgresql').
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: centum
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "7233:7233"    # gRPC frontend
+      - "8233:8233"    # HTTP API
+    healthcheck:
+      # The server listens on the container address, not 127.0.0.1; tctl must dial that address.
+      test: ["CMD-SHELL", "tctl --address $(hostname -i):7233 cluster health"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  temporal-ui:
+    image: temporalio/ui:2.26.0   # the 2.26 tag does not exist
+    restart: unless-stopped
+    depends_on: [temporal]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8082:8080"   # 8080 is Keycloak on the dev machine
+
+  # fastapi-router/* services
+  upload-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: upload_server.py }
+    environment:
+      <<: *python-env
+      CAM_USE_TEMPORAL: ${CAM_USE_TEMPORAL:-true}
+    ports: ["13100:3100"]
+
+  fastapi-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: fastapi_router.py }
+    environment:
+      <<: *python-env
+      # D6: each MCP server is its own container; route each manifest to its service name.
+      CAM_MCP_HOST_CENTUM_REPORTING: reporting-mcp-server
+      CAM_MCP_HOST_CENTUM_INTAKE: intake-mcp-server
+      CAM_MCP_HOST_CENTUM_DISTRIBUTOR_PRICING: distributor-pricing-mcp-server
+      CAM_MCP_HOST_CENTUM_GERBER_INTEGRATION: gerber-integration-mcp-server
+      CAM_MCP_HOST_CENTUM_SCRUB_INTAKE: scrub-intake-mcp-server
+      # The daemon runs on the host (SSE hub for the UI); progress and HITL pushes go there.
+      CAM_DAEMON_URL: http://host.docker.internal:9334
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["15100:5100"]
+
+  # Python Bridge (duck_db_api.py): the UI's auth token, BOM edits, previews, exports and downloads.
+  python-bridge:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      # ClamAV: engine 1 of the twin scan of files attached in the RFQ assistant (scan_engines.py)
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: duck_db_api.py, INSTALL_CLAMAV: "true" }
+    environment:
+      <<: *python-env
+      REPORTING_EXPORTS_DIR: /app/exports
+      CLAMSCAN_PATH: clamscan
+    volumes:
+      - ./database:/app/database
+      - inbox:/app/fastapi-router/staged/inbox
+      - exports:/app/exports
+    ports: ["13110:3110"]
+
+  hitl-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastapi-router, ENTRYPOINT: hitl_router.py }
+    environment:
+      <<: *python-env
+      CAM_USE_TEMPORAL: ${CAM_USE_TEMPORAL:-true}
+    ports: ["15102:5102"]
+
+  # Temporal worker -- runs the RFQWorkflow activity loop
+  temporal-worker:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: temporal_worker, ENTRYPOINT: worker.py }
+    environment:
+      <<: *python-env
+      CAM_TEMPORAL_HOST: temporal:7233
+      CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  # mcp-tools/* services
+  reporting-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py, INSTALL_LIBREOFFICE: "true" }
+    environment:
+      <<: *python-env
+      REPORTING_EXPORTS_DIR: /app/exports
+      LIBREOFFICE_BIN: soffice
+    volumes:
+      - ./database:/app/database
+      - inbox:/app/fastapi-router/staged/inbox
+      - exports:/app/exports
+    ports: ["18105:8105"]
+
+  intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/intake, ENTRYPOINT: mcp_server.py, INSTALL_CLAMAV: "true" }
+    environment:
+      <<: *python-env
+      CLAMSCAN_PATH: clamscan
+      # bom_processing maps BOM headers with a local model; Ollama runs on the host.
+      CAM_OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["18002:8002"]
+
+  distributor-pricing-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/distributor-pricing, ENTRYPOINT: mcp_server.py }
+    environment:
+      <<: *python-env
+      # shared/ (highlight_style) lives in mcp-tools/shared, one level above this service.
+      PYTHONPATH: /app/mcp-tools
+    # Optional: the file is git-ignored (it holds secrets). Compose must not fail on a fresh checkout.
+    env_file:
+      - path: mcp-tools/distributor-pricing/.env
+        required: false
+    ports: ["18003:8003"]
+
+  gerber-integration-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/gerber-integration, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18007:8007"]
+
+  scrub-intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/scrub-intake, ENTRYPOINT: scrub_mcp_server.py }
+    environment:
+      <<: *python-env
+      OLLAMA_HOST: host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["18004:8004"]
+
+  rfq-memory-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args:
+        SERVICE_DIR: mcp-tools/rfq-memory
+        ENTRYPOINT: memory_service.py
+        EXTRA_REQUIREMENTS: mcp-tools/rfq-memory/requirements.txt   # cognee 1.4.2 + its litellm pin
+    environment:
+      <<: *python-env
+      # Inside the container both listeners bind all interfaces; exposure is decided by `ports` below.
+      RFQ_MEMORY_CHAT_HOST: 0.0.0.0
+      RFQ_MEMORY_INTERNAL_HOST: 0.0.0.0
+      # Cognee's LLM + embeddings run on the host's Ollama (config.py defaults: ollama/qwen3:8b,
+      # nomic-embed-text; both must be pulled).
+      OLLAMA_ENDPOINT: http://host.docker.internal:11434
+      # Optional. The owner's OpenRouter key lives in the app's Settings, and the .env value is often a
+      # placeholder: config.py would switch Cognee to OpenRouter for ANY non-empty key and every cognify
+      # would 401. So Ollama is forced unless .env sets RFQ_MEMORY_LLM_PROVIDER=openrouter next to a real key.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      RFQ_MEMORY_LLM_PROVIDER: ${RFQ_MEMORY_LLM_PROVIDER:-ollama}
+      # Off unless "1": every Cognee write (remember/ingest) runs LLM jobs that starved the chat model on the shared Ollama.
+      RFQ_MEMORY_LLM_WRITES: ${RFQ_MEMORY_LLM_WRITES:-}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    # Chat (JWT on every route) is published for the host daemon; ingest/reset only on host loopback.
+    ports: ["18108:8108", "127.0.0.1:18109:8109"]
+
+volumes:
+  postgres-data:
+  inbox:
+  exports:

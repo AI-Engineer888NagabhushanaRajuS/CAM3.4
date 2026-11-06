@@ -1,0 +1,196 @@
+# Fab-note / RFQ text patterns for the PCBA checklist.
+#
+# Finish, material, thickness, copper weight and the mask/silk colours are NOT
+# in Gerber geometry — they live in the fab drawing, README or fab notes that
+# ship alongside it. This table is how those are recovered from text.
+#
+# Every pattern is case-insensitive. `confidence` is what a hit is worth: an
+# explicit labelled value ("Surface Finish: ENIG") is trusted more than a bare
+# keyword found loose in a paragraph. Nothing here reaches confidence 1.0 — a
+# text scan is evidence, not measurement, and the operator confirms it on the
+# wizard.
+#
+# Regexes are single-quoted so YAML leaves backslashes alone. A double-quoted
+# scalar eats them and every \s becomes an "unknown escape" parse error.
+
+enums:
+  finish:
+    confidence: 0.80
+    labelled_confidence: 0.92
+    labels: ['surface finish', 'finish', 'plating']
+    values:
+      ENIG: ['enig', 'electroless nickel immersion gold', 'immersion gold']
+      ENEPIG: ['enepig']
+      HASL-LF: ['hasl lf', 'lead[- ]free hasl', 'hasl lead[- ]free', 'lf hasl']
+      HASL: ['hasl', 'hot air solder level']
+      OSP: ['osp', 'organic solderability']
+      IMMERSION-SILVER: ['immersion silver', 'imm ag']
+      IMMERSION-TIN: ['immersion tin', 'imm sn']
+      HARD-GOLD-FINGERS: ['hard gold', 'gold finger']
+
+  material:
+    confidence: 0.80
+    labelled_confidence: 0.92
+    labels: ['material', 'laminate', 'substrate', 'base material']
+    values:
+      'Rogers 4350B': ['ro4350', 'rogers 4350', 'rogers']
+      'Polyimide Flex': ['polyimide', 'flex core']
+      'Aluminum Core': ['aluminium core', 'aluminum core', 'mcpcb', 'metal core']
+      'Ceramic': ['ceramic', 'alumina']
+      'FR4 TG170': ['tg170', 'tg 170', 'high[- ]tg', 's1000-2']
+      'FR4 TG150': ['tg150', 'tg 150']
+      'Standard FR4': ['fr-?4', 'glass epoxy']
+
+  mask_colour:
+    confidence: 0.70
+    labelled_confidence: 0.92
+    labels: ['solder mask', 'soldermask', 'mask colour', 'mask color', 'mask']
+    values:
+      'Matte Black': ['matte black']
+      'Green': ['green']
+      'Blue': ['blue']
+      'Red': ['red']
+      'Black': ['black']
+      'White': ['white']
+      'Yellow': ['yellow']
+      'Purple': ['purple']
+
+  silk_colour:
+    confidence: 0.70
+    labelled_confidence: 0.92
+    labels: ['silkscreen', 'silk screen', 'silk', 'legend', 'overlay']
+    values:
+      'White': ['white']
+      'Black': ['black']
+      'Yellow': ['yellow']
+
+  ipc_class:
+    confidence: 0.85
+    labelled_confidence: 0.95
+    labels: ['ipc class', 'ipc-a-610', 'ipc a 610', 'class', 'workmanship']
+    values:
+      'Class III': ['class 3', 'class iii', 'class-3']
+      'Class II': ['class 2', 'class ii', 'class-2']
+      'Class I': ['class 1', 'class-1']
+
+numerics:
+  pcb_thickness_mm:
+    confidence: 0.88
+    patterns:
+      - '(?:board|pcb)?\s*thickness\s*[:=]?\s*([0-9]*\.?[0-9]+)\s*mm'
+      - '([0-9]*\.?[0-9]+)\s*mm\s*(?:board|pcb)?\s*thick'
+    # imperial fab notes are common; inches are converted, not discarded
+    inch_patterns:
+      - '(?:board|pcb)?\s*thickness\s*[:=]?\s*([0-9]*\.?[0-9]+)\s*(?:inch|in|")'
+      - '([0-9]*\.?[0-9]+)\s*(?:inch|in|")\s*thick'
+    mm_per_inch: 25.4
+    min: 0.1
+    max: 10.0
+
+  copper_thickness_oz:
+    confidence: 0.88
+    patterns:
+      - 'copper\s*(?:weight|thickness)?\s*[:=]?\s*([0-9]*\.?[0-9]+)\s*oz'
+      - '([0-9]*\.?[0-9]+)\s*oz\s*(?:copper|cu)'
+      - '([0-9]*\.?[0-9]+)\s*oz'
+    micron_patterns:
+      - 'copper\s*(?:weight|thickness)?\s*[:=]?\s*([0-9]*\.?[0-9]+)\s*(?:um|µm|micron)'
+    micron_per_oz: 35.0
+    min: 0.25
+    max: 10.0
+
+  boards_per_panel:
+    integer: true
+    confidence: 0.85
+    patterns:
+      - '([0-9]+)\s*-?\s*up\b'
+      - '(?:boards?|pcs?)\s*(?:per|/)\s*panel\s*[:=]?\s*([0-9]+)'
+      - 'panel\s*of\s*([0-9]+)'
+    min: 1
+    max: 200
+
+  lead_time_weeks:
+    integer: true
+    confidence: 0.85
+    patterns:
+      - 'lead\s*time\s*[:=]?\s*([0-9]+)\s*(?:weeks?|wks?)'
+      - '([0-9]+)\s*(?:weeks?|wks?)\s*lead\s*time'
+    min: 1
+    max: 104
+
+  holes_to_mask_for_wave:
+    integer: true
+    confidence: 0.80
+    patterns:
+      - 'mask\s*([0-9]+)\s*holes?'
+      - '([0-9]+)\s*holes?\s*(?:to\s*)?(?:be\s*)?mask'
+    min: 0
+    max: 100000
+
+booleans:
+  resin_filled_via:
+    confidence: 0.85
+    patterns: ['resin[- ]fill', 'via\s*fill', 'filled\s*via', 'ipc-?4761\s*type\s*vi']
+    negations: ['no resin', 'not resin[- ]filled', 'unfilled via']
+  peelable_mask:
+    confidence: 0.85
+    patterns: ['peelable', 'peel[- ]?able mask']
+    negations: ['no peelable']
+  rohs:
+    confidence: 0.90
+    patterns: ['rohs', 'lead[- ]free', 'pb[- ]free']
+    negations: ['non[- ]rohs', 'not rohs', 'leaded process']
+  conformal_coat:
+    confidence: 0.85
+    patterns: ['conformal coat', 'acrylic coat', 'parylene', 'humiseal']
+    negations: ['no conformal', 'without conformal']
+  cleaning:
+    confidence: 0.85
+    patterns: ['aqueous clean', 'post[- ]?assembly clean', 'ultrasonic clean',
+               'clean after', 'wash after reflow']
+    negations: ['no clean', 'no-clean', 'does not require clean']
+  wavable:
+    confidence: 0.80
+    patterns: ['wave solder', 'wavable', 'wave-solderable']
+    negations: ['no wave', 'not wavable', 'do not wave']
+
+dates:
+  date:
+    confidence: 0.88
+    labels: ['date', 'rfq date', 'document date', 'issued', 'revision date']
+    # ISO first: 04/05/2024 is ambiguous, 2024-04-05 is not
+    patterns:
+      - '([0-9]{4}-[0-9]{2}-[0-9]{2})'
+      - '([0-9]{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+[0-9]{4})'
+      - '((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+[0-9]{1,2},?\s+[0-9]{4})'
+
+texts:
+  customer:
+    confidence: 0.85
+    labels: ['customer', 'client', 'end customer', 'legal entity']
+  product_name:
+    confidence: 0.85
+    labels: ['product name', 'product', 'project', 'assembly name']
+  triode_pn:
+    confidence: 0.88
+    labels: ['triode pn', 'triode p/n', 'part number', 'part no', 'p/n']
+  opp_number:
+    confidence: 0.88
+    labels: ['opp number', 'opp no', 'opp', 'opportunity']
+  spam_number:
+    confidence: 0.88
+    labels: ['spam#', 'spam number', 'spam no', 'spam']
+  notes:
+    confidence: 0.75
+    labels: ['notes', 'note', 'assembly notes', 'special instructions']
+
+build_quantities:
+  confidence: 0.85
+  patterns:
+    - '(?:build\s*)?q(?:ty|uantity)\s*[0-9]?\s*[:=]\s*([0-9][0-9,/\s]*)'
+    - 'quantit(?:y|ies)\s*[:=]\s*([0-9][0-9,/\s]*)'
+  max_tiers: 4
+
+# Native CAD / ODB++ payloads, detected by file extension or folder name.
+odb_extensions: ['.tgz', '.odb', '.brd', '.pcbdoc', '.kicad_pcb', '.cam', '.ipc']
+odb_dir_names: ['odb', 'odb++', 'odbpp']

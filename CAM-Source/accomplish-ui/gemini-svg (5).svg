@@ -1,0 +1,140 @@
+<svg viewBox="0 0 1200 700" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background:#f8fafc; font-family: Inter, system-ui, sans-serif;">
+  
+  <!-- TOP APP HEADER BAR -->
+  <rect x="0" y="0" width="1200" height="40" fill="#0f172a"/>
+  <text x="20" y="25" fill="#f8fafc" font-size="13" font-weight="700" letter-spacing="0.5">SRIM 3.2 — ENTERPRISE RFQ OPERATOR CANVAS</text>
+  <rect x="940" y="10" width="150" height="20" rx="10" fill="#1e293b"/>
+  <circle cx="952" cy="20" r="4" fill="#22c55e"/>
+  <text x="962" y="24" fill="#cbd5e1" font-size="10" font-weight="600">AIR-GAPPED LOCAL</text>
+  <text x="1110" y="25" fill="#94a3b8" font-size="12">🔔 (2)</text>
+
+  <!-- PANE BOUNDARIES -->
+  <!-- LEFT PANE: MACRO-SKILL ACCORDION -->
+  <rect x="12" y="52" width="280" height="610" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <!-- MIDDLE PANE: OPTION A EXECUTION SHELL -->
+  <rect x="304" y="52" width="560" height="610" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+  <!-- RIGHT PANE: AG GRID DATA PLANE -->
+  <rect x="876" y="52" width="312" height="610" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+
+  <!-- ==================== LEFT PANE: MACRO & SUB-SKILL ACCORDION ==================== -->
+  <text x="24" y="78" fill="#0f172a" font-size="14" font-weight="700">RFQ Pipeline</text>
+  <text x="24" y="92" fill="#64748b" font-size="10">Macro-Skills &amp; Sub-Skill Governance</text>
+
+  <!-- 1. UPLOAD FILE (ACTIVE MACRO-SKILL) -->
+  <rect x="24" y="106" width="256" height="120" rx="6" fill="#f0f9ff" stroke="#38bdf8" stroke-width="1"/>
+  <text x="36" y="124" fill="#0369a1" font-size="11" font-weight="700">v 1. Upload File</text>
+  <!-- Sub-skills -->
+  <!-- Create RFQ Button/Action -->
+  <rect x="48" y="132" width="220" height="24" rx="4" fill="#0284c7"/>
+  <text x="56" y="148" fill="#ffffff" font-size="10" font-weight="700">● Create RFQ (Triggers Middle Shell)</text>
+  <!-- Scan for virus -->
+  <text x="56" y="174" fill="#64748b" font-size="10">• Scan for virus</text>
+  <!-- Ingest BOM and Volume file -->
+  <text x="56" y="194" fill="#64748b" font-size="10">• Ingest BOM and Volume file</text>
+
+  <!-- 2. EXTRACT FEATURES (DISABLED MACRO-SKILL) -->
+  <rect x="24" y="234" width="256" height="28" rx="4" fill="#f8fafc" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="36" y="252" fill="#94a3b8" font-size="10" font-weight="500">&gt; 2. Extract Features</text>
+  <text x="256" y="252" fill="#94a3b8" font-size="9">🔒</text>
+
+  <!-- 3. DISTRIBUTOR PRICING (COLLAPSED MACRO-SKILL) -->
+  <rect x="24" y="268" width="256" height="28" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="36" y="286" fill="#334155" font-size="10" font-weight="600">&gt; 3. Distributor Pricing</text>
+  <text x="256" y="286" fill="#64748b" font-size="9">∨</text>
+
+  <!-- 4. ERP & QUOTING TOOLS (DISABLED MACRO-SKILL) -->
+  <rect x="24" y="302" width="256" height="28" rx="4" fill="#f8fafc" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="36" y="320" fill="#94a3b8" font-size="10" font-weight="500">&gt; 4. ERP &amp; Quoting tools</text>
+  <text x="256" y="320" fill="#94a3b8" font-size="9">🔒</text>
+
+  <!-- 5. ANALYZE FEASIBILITY & RISKS (DISABLED MACRO-SKILL) -->
+  <rect x="24" y="336" width="256" height="28" rx="4" fill="#f8fafc" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="36" y="354" fill="#94a3b8" font-size="10" font-weight="500">&gt; 5. Analyze feasibility &amp; Risks</text>
+  <text x="256" y="354" fill="#94a3b8" font-size="9">🔒</text>
+
+  <!-- 6. CONSOLIDATE PRICING SOURCES (COLLAPSED MACRO-SKILL) -->
+  <rect x="24" y="370" width="256" height="28" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="36" y="388" fill="#334155" font-size="10" font-weight="600">&gt; 6. Consolidate Pricing Sources</text>
+  <text x="256" y="388" fill="#64748b" font-size="9">∨</text>
+
+  <!-- 7. FINALIZE PRICE (COLLAPSED MACRO-SKILL) -->
+  <rect x="24" y="404" width="256" height="28" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="36" y="422" fill="#334155" font-size="10" font-weight="600">&gt; 7. Finalize Price</text>
+  <text x="256" y="422" fill="#64748b" font-size="9">∨</text>
+
+  <!-- 8. QUOTE READINESS (COLLAPSED MACRO-SKILL) -->
+  <rect x="24" y="438" width="256" height="28" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="36" y="456" fill="#334155" font-size="10" font-weight="600">&gt; 8. Quote Readiness</text>
+  <text x="256" y="456" fill="#64748b" font-size="9">∨</text>
+
+  <!-- LEFT FOOTER -->
+  <line x1="24" y1="610" x2="280" y2="610" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="24" y="630" fill="#0284c7" font-size="9" font-weight="600">📢 What's New in SRIM 3.2</text>
+  <text x="24" y="648" fill="#0f172a" font-size="10" font-weight="700">⚡ DIGIBULL AI</text>
+  <text x="96" y="648" fill="#64748b" font-size="9">| tester@digibull.ai</text>
+
+  <!-- ==================== MIDDLE PANE: OPTION A EXECUTION SHELL ==================== -->
+  <!-- Middle Header -->
+  <rect x="304" y="52" width="560" height="40" rx="8" fill="#f8fafc"/>
+  <line x1="304" y1="92" x2="864" y2="92" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="320" y="76" fill="#0f172a" font-size="12" font-weight="700">RFQ Setup Shell</text>
+  <text x="420" y="76" fill="#0284c7" font-size="10" font-weight="600">• Action: Sub-Skill 1.1 Create RFQ</text>
+
+  <!-- OPTION A INTERACTIVE POP-UP WIZARD CARD -->
+  <rect x="334" y="112" width="500" height="380" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.5" filter="drop-shadow(0 4px 12px rgba(0,0,0,0.08))"/>
+  
+  <text x="358" y="140" fill="#0f172a" font-size="14" font-weight="700">🚀 Create RFQ &amp; Upload BOM</text>
+  <text x="358" y="156" fill="#64748b" font-size="10">Fill metadata and attach BOM / Volume file to begin macro-skill execution.</text>
+
+  <!-- Customer Dropdown -->
+  <text x="358" y="186" fill="#334155" font-size="10" font-weight="600">Customer *</text>
+  <rect x="358" y="192" width="216" height="28" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="366" y="210" fill="#94a3b8" font-size="10">Select Customer...</text>
+
+  <!-- Project Dropdown -->
+  <text x="590" y="186" fill="#334155" font-size="10" font-weight="600">Project *</text>
+  <rect x="590" y="192" width="220" height="28" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="598" y="210" fill="#94a3b8" font-size="10">Select Project...</text>
+
+  <!-- Auto Suggested RFQ ID -->
+  <text x="358" y="238" fill="#334155" font-size="10" font-weight="600">RFQ ID (Auto-Suggested)</text>
+  <rect x="358" y="244" width="452" height="28" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="366" y="262" fill="#0f172a" font-size="10" font-weight="600">RFQ-000092</text>
+
+  <!-- Combined Dropzone for BOM & Volume File -->
+  <rect x="358" y="286" width="452" height="120" rx="6" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="4"/>
+  <text x="584" y="334" text-anchor="middle" fill="#0284c7" font-size="11" font-weight="600">📁 Drop BOM (.xlsx) and Volume File here</text>
+  <text x="584" y="350" text-anchor="middle" fill="#64748b" font-size="9">Triggers automatic virus scan &amp; FastMCP parsing</text>
+
+  <!-- Action Buttons -->
+  <rect x="632" y="420" width="80" height="28" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="654" y="438" fill="#475569" font-size="10" font-weight="600">Cancel</text>
+  
+  <rect x="720" y="420" width="90" height="28" rx="4" fill="#0f172a"/>
+  <text x="732" y="438" fill="#ffffff" font-size="10" font-weight="600">⚡ Create RFQ</text>
+
+  <!-- Command Box -->
+  <rect x="320" y="580" width="528" height="60" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="336" y="604" fill="#94a3b8" font-size="11">Type /slash commands, @supplier tools, or ask DigiBull Agent...</text>
+  <rect x="332" y="612" width="76" height="20" rx="3" fill="#e2e8f0"/>
+  <text x="340" y="626" fill="#475569" font-size="9">/ingest-bom</text>
+
+  <!-- ==================== RIGHT PANE: AG GRID ==================== -->
+  <text x="892" y="78" fill="#0f172a" font-size="13" font-weight="700">Data &amp; Inspection Plane</text>
+  <text x="892" y="92" fill="#64748b" font-size="10">AG Grid Enterprise Output</text>
+
+  <rect x="892" y="106" width="280" height="534" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <rect x="892" y="106" width="280" height="28" fill="#e2e8f0"/>
+  <text x="902" y="124" fill="#475569" font-size="10" font-weight="700">MPN</text>
+  <text x="970" y="124" fill="#475569" font-size="10" font-weight="700">QTY</text>
+  <text x="1020" y="124" fill="#475569" font-size="10" font-weight="700">UNIT ($)</text>
+  <text x="1110" y="124" fill="#475569" font-size="10" font-weight="700">FLAGS</text>
+
+  <text x="1032" y="340" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600">Awaiting Ingestion...</text>
+
+  <!-- FOOTER STATUS BAR -->
+  <rect x="0" y="668" width="1200" height="32" fill="#0f172a"/>
+  <text x="20" y="688" fill="#94a3b8" font-size="10">Engine: Local Qwen2.5-VL:7b</text>
+  <text x="240" y="688" fill="#94a3b8" font-size="10">FastMCP Workers: 12 Active</text>
+  <text x="1020" y="688" fill="#22c55e" font-size="10" font-weight="600">● System Ready (0.12ms)</text>
+</svg>

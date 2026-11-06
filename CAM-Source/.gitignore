@@ -1,0 +1,57 @@
+# Client data — NEVER commit these
+fastapi-router/staged/inbox/*.xlsx
+fastapi-router/staged/inbox/*.zip
+fastapi-router/staged/inbox/*.xls
+fastapi-router/staged/staging_inbox/**
+mcp-tools/distributor-pricing/quote_exports/*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# DuckDB files (runtime data, not source)
+*.duckdb
+*.duckdb.wal
+database/*.duckdb
+
+# Logs
+*.log
+service_logs/
+.backend_services_state.json
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.pkl
+*_raw_result.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# accomplish-ui build artifacts (source checked in, build output is not)
+accomplish-ui/**/node_modules/
+accomplish-ui/**/.next/
+accomplish-ui/**/dist/
+accomplish-ui/**/.turbo/
+
+# SPEC-013 registry-writer receipts (operational state, not source)
+manifests/_receipts/
+manifests/*.tmp
+
+# run-cam34.ps1 logs
+.run/
+
+# Cognee local data
+database/cognee_data/
+
+# SPEC-020: generated copies of edited manifests (history is local, not source)
+manifests/.history/
