@@ -1,0 +1,237 @@
+# Real, functional docker-compose stack for Centum/BuLLMQuote-SRIM --
+# containerization Phases 0-3 (see C:\Users\ADMIN\.claude\plans\swirling-strolling-shore.md).
+#
+# Scope: Centum/BuLLMQuote-SRIM ONLY. CAM (a separate, live, client-serving
+# deployment) is never referenced here except as a one-time read-only data
+# source already copied into database/ by database/sync_from_cam.py --
+# nothing in this file starts, stops, or connects to anything of CAM's.
+#
+# Postgres here is a BRAND NEW, separate instance -- seeded from a one-time
+# pg_dump of only Centum's 4 databases (logic_db_2, file_metadata_db_2,
+# cognee_memory_db, srim), never the shared bare-metal instance CAM also
+# depends on. See database/pg_dump_seed/ and docs/ in this repo.
+#
+# Dify / MCP Jungle / Bifrost are NOT included here -- Phases 0-3 deliberately
+# reach back to this host's EXISTING shared instances over the NetBird mesh
+# (CENTUM_DIFY_URL / CENTUM_MCP_JUNGLE_URL below). Standing up independent
+# copies of those is Phase 4, out of scope for this compose file. See
+# infra/mcp-jungle/register-centum-servers.sh for the 2 MCP Jungle
+# registrations this project owns on the shared gateway.
+#
+# YAML note: anchors can't merge a *nested* key (there is no `*anchor.build`
+# syntax in YAML) -- each service below writes its own full `build:` block
+# rather than trying to partially merge one, even though it repeats
+# `context`/`dockerfile` each time. Everything else (restart/depends_on/
+# volumes/environment base) IS shared via the anchors below.
+#
+# Usage:
+#   docker compose up -d postgres          # start the DB first, wait healthy
+#   docker compose up -d                   # everything else
+#   docker compose logs -f <service>
+#
+# Ports: every host-exposed port here is deliberately DIFFERENT from Centum's
+# 13 live bare-metal ports (3100/5100/5102/8002/8003/8007/8105/8106/8108/
+# 3110/5281/8188/9334) -- see docs/SYSTEM-AND-TECH-STACK.md for that list.
+# Nothing in this file can collide with the currently-running system.
+
+x-python-common: &python-common
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  volumes:
+    - ./database:/app/database
+
+x-python-env: &python-env
+  LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/logic_db_2
+  FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/file_metadata_db_2
+  STAGING_LOGIC_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_logic_db_2
+  STAGING_FILE_METADATA_DB_URL: postgresql://centum:${POSTGRES_PASSWORD:-changeme}@postgres:5432/staging_file_metadata_db_2
+  JWT_SECRET: ${JWT_SECRET:?set a real secret, never the shipped dev default}
+  DIFY_BASE_URL: ${CENTUM_DIFY_URL:?set to this host's existing Dify, e.g. http://100.121.36.255/v1}
+  DIFY_API_KEY: ${CENTUM_DIFY_API_KEY:?}
+  ENABLE_FDE_ROUTES: "1"
+  REPORTING_DATABASE_DIR: /app/database
+  CENTUM_INPUT_DB: /app/database/input_db.duckdb
+
+networks:
+  default:
+    name: centum-net
+
+services:
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: centum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/pg_dump_seed:/docker-entrypoint-initdb.d/seed:ro
+      - ./infra/postgres/init-restore.sh:/docker-entrypoint-initdb.d/00-restore.sh:ro
+    ports:
+      - "15432:5432"  # deliberately not 5432 -- the shared bare-metal instance already owns that port on the host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U centum -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------
+  # fastmcp-router/* -- 5 services sharing one directory, one image recipe
+  # ---------------------------------------------------------------------
+
+  upload-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastmcp-router, ENTRYPOINT: upload_server.py }
+    environment: *python-env
+    ports: ["13100:3100"]
+
+  fastapi-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastmcp-router, ENTRYPOINT: fastapi_router.py }
+    environment: *python-env
+    ports: ["15100:5100"]
+
+  hitl-router:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastmcp-router, ENTRYPOINT: hitl_router.py }
+    environment: *python-env
+    ports: ["15102:5102"]
+
+  python-bridge:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastmcp-router, ENTRYPOINT: duck_db_api.py }
+    environment: *python-env
+    ports: ["13110:3110"]
+
+  bom-qa-lookup:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: fastmcp-router, ENTRYPOINT: bom_qa_lookup_server.py }
+    environment: *python-env
+    ports: ["18106:8106"]
+
+  # ---------------------------------------------------------------------
+  # mcp-tools/* -- each already its own self-contained directory
+  # ---------------------------------------------------------------------
+
+  reporting-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/reporting/superset, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18105:8105"]
+
+  intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/intake, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18002:8002"]
+
+  distributor-pricing-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/distributor-pricing, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    env_file: [mcp-tools/distributor-pricing/.env]  # DIGIKEY_*/MOUSER_*/ELEMENT14_* -- service-specific, not in python-env
+    ports: ["18003:8003"]
+
+  gerber-integration-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/gerber-integration, ENTRYPOINT: mcp_server.py }
+    environment: *python-env
+    ports: ["18007:8007"]
+
+  rfq-memory-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/rfq-memory, ENTRYPOINT: memory_service.py }
+    env_file: [mcp-tools/rfq-memory/.env]  # OPENROUTER_API_KEY
+    environment:
+      <<: *python-env
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
+    ports: ["18108:8108", "18109:8109"]
+
+  scrub-intake-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/scrub-intake, ENTRYPOINT: scrub_mcp_server.py }
+    environment:
+      <<: *python-env
+      OLLAMA_HOST: host.docker.internal:11434  # NOT 127.0.0.1 inside a container -- Ollama runs on the host
+      MCP_JUNGLE_URL: ${CENTUM_MCP_JUNGLE_URL:?this host's existing shared MCP Jungle, e.g. http://100.121.36.255:8080/mcp}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["18004:8004"]
+
+  # ---------------------------------------------------------------------
+  # Frontend
+  # ---------------------------------------------------------------------
+
+  web:
+    build:
+      context: ./accomplish-ui
+      dockerfile: ../docker/accomplish-ui-web.Dockerfile
+    restart: unless-stopped
+    ports: ["15281:80"]
+
+  daemon:
+    build:
+      context: ./accomplish-ui
+      dockerfile: ../docker/accomplish-ui-daemon.Dockerfile
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      <<: *python-env
+      ACCOMPLISH_DAEMON_DEV: "0"
+    volumes:
+      - daemon-data:/data
+    ports: ["19334:9334"]
+
+  superset:
+    image: apache/superset:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./database:/app/database:ro
+      - superset-home:/app/superset_home
+    ports: ["18188:8088"]
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?set a real secret}
+
+volumes:
+  postgres-data:
+  superset-home:
+  daemon-data:

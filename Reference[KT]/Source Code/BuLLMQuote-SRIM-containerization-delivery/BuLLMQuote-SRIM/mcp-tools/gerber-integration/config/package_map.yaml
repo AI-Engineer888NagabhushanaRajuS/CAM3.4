@@ -1,0 +1,115 @@
+# Package family -> placement class + loss/attrition factors (§A7).
+# Lookup is by normalised package token (uppercase, non-alphanumerics stripped).
+# Unmapped packages fall back to default_class with a warning.
+#
+# Class routing follows the Triode master reference §6, which groups QFN with
+# DFN as "Leadless" rather than with fine-pitch QFP, and splits 0201/01005 and
+# micro-BGA into their own tiers.
+#
+# Loss factors follow reference §9 "Component Scrap & PCBA Margin Adjustments":
+#   Overage: 0201/01005 passives   5.0%   min 50 pcs leader loss on feeder
+#   Overage: ICs & microcontrollers 0.5%  zero scrap if component > $20.00
+
+default_class: PLACE-SMD-STANDARD
+default_family: UNKNOWN
+default_loss_factor: 1.02
+default_attrition_factor: 1.02
+
+families:
+  "0201":
+    match: ["0201", "01005", "0603METRIC", "0402METRIC", "R0201", "C0201"]
+    placement_class: PLACE-SMD-ULTRA-FINE
+    loss_factor: 1.05
+    attrition_factor: 1.08
+  "0402":
+    match: ["0402", "1005METRIC", "R0402", "C0402"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.05
+    attrition_factor: 1.02
+  "0603":
+    match: ["0603", "1608METRIC", "R0603", "C0603"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  "0805":
+    match: ["0805", "2012METRIC", "R0805", "C0805"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  "1206":
+    match: ["1206", "3216METRIC"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  "1210":
+    match: ["1210", "3225METRIC"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  "2010":
+    match: ["2010", "5025METRIC"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  "2512":
+    match: ["2512", "6332METRIC"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.03
+    attrition_factor: 1.02
+  SOIC:
+    match: ["SOIC", "SO8", "SO14", "SO16", "SOP", "MSOP", "SOJ"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.005
+    attrition_factor: 1.02
+  SOT:
+    match: ["SOT", "SOT23", "SOT223", "SOT89", "TO252", "TO263", "DPAK"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.02
+    attrition_factor: 1.02
+  SSOP:
+    match: ["SSOP", "TSSOP", "TSOP", "QSOP"]
+    placement_class: PLACE-SMD-FINE-PITCH
+    loss_factor: 1.005
+    attrition_factor: 1.02
+  QFP:
+    match: ["QFP", "LQFP", "TQFP", "PQFP", "MQFP"]
+    placement_class: PLACE-SMD-FINE-PITCH
+    loss_factor: 1.005
+    attrition_factor: 1.02
+  QFN:
+    match: ["QFN", "VQFN", "WQFN", "UQFN", "MLF", "MLP"]
+    placement_class: PLACE-DFN
+    loss_factor: 1.005
+    attrition_factor: 1.04
+  DFN:
+    match: ["DFN", "VDFN", "WDFN", "SON", "USON"]
+    placement_class: PLACE-DFN
+    loss_factor: 1.005
+    attrition_factor: 1.04
+  BGA:
+    match: ["BGA", "FBGA", "TFBGA", "VFBGA", "UBGA", "PBGA", "LFBGA", "WLCSP", "CSP", "LGA"]
+    placement_class: PLACE-BGA
+    loss_factor: 1.005
+    attrition_factor: 1.06
+  UBGA-FINE:
+    match: ["MICROBGA", "UBGA04", "WLCSP04"]
+    placement_class: PLACE-BGA-MICRO
+    loss_factor: 1.005
+    attrition_factor: 1.08
+  CONNECTOR:
+    match: ["CONN", "USB", "HDR", "HEADER", "PINHEADER", "RECEPTACLE", "TERMINAL", "JACK", "SOCKET", "RJ45", "MOUNTINGHOLE", "TESTPOINT", "FIDUCIAL"]
+    placement_class: PLACE-SMD-STANDARD
+    loss_factor: 1.00
+    attrition_factor: 1.00
+  THT:
+    match: ["THT", "DIP", "PDIP", "TO92", "TO220", "TO247", "AXIAL", "RADIAL", "SWTH", "DO35", "DO41", "PINSOCKET"]
+    placement_class: PLACE-THT
+    loss_factor: 1.02
+    attrition_factor: 1.00
+    is_tht: true
+
+# Reference-designator prefixes that never get placed (no cost, no SKU).
+non_placed_refdes_prefixes: ["TP", "FID", "H", "MH", "LOGO", "NT"]
+
+# Fine-pitch pitch threshold in mm — packages at or below this are fine-pitch.
+fine_pitch_mm: 0.50

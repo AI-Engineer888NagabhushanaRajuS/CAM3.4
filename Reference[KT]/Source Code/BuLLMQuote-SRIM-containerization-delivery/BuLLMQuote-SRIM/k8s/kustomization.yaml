@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: centum
+resources:
+  - 00-namespace.yaml
+  - 01-config.yaml
+  - 02-postgres.yaml
+  - 03-python-services.yaml
+  - 04-frontend.yaml
+  - 05-superset.yaml

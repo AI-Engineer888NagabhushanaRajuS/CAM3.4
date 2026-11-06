@@ -1,0 +1,574 @@
+app:
+  description: DMR for RFQ_Flow (intake + distributor pricing) -- new project,
+    duplicated from Dify_DMR (6).yml with only the routing-sequence lookup's
+    hardcoded profile name changed from Standard_BOM_Flow to RFQ_Flow.
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: Dify_DMR_RFQ_Flow
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: 1780657320543-source-1780659086713-target
+      selected: false
+      source: '1780657320543'
+      sourceHandle: source
+      target: '1780659086713'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        sourceType: iteration-start
+        targetType: http-request
+      id: 1780659274341start-source-1780659397450-target
+      selected: false
+      source: 1780659274341start
+      sourceHandle: source
+      target: '1780659397450'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: 1781097522415-source-1780657320543-target
+      selected: false
+      source: '1781097522415'
+      sourceHandle: source
+      target: '1780657320543'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        sourceType: code
+        targetType: if-else
+      id: 1781265440702--1781266066551-target
+      selected: false
+      source: '1781265440702'
+      sourceHandle: source
+      target: '1781266066551'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        sourceType: http-request
+        targetType: code
+      id: 1780659397450-source-1781265440702-target
+      selected: false
+      source: '1780659397450'
+      sourceHandle: source
+      target: '1781265440702'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: iteration
+      id: 1780659086713-source-1780659274341-target
+      selected: false
+      source: '1780659086713'
+      sourceHandle: source
+      target: '1780659274341'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: iteration
+        targetType: end
+      id: 1780659274341-source-1781709259468-target
+      selected: false
+      source: '1780659274341'
+      sourceHandle: source
+      target: '1781709259468'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        sourceType: if-else
+        targetType: http-request
+      id: 1781266066551-true-1783506704155-target
+      selected: false
+      source: '1781266066551'
+      sourceHandle: 'true'
+      target: '1783506704155'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        sourceType: http-request
+        targetType: code
+      id: 1783506704155-source-1784738658826-target
+      source: '1783506704155'
+      sourceHandle: source
+      target: '1784738658826'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    nodes:
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP Request
+        type: http-request
+        url: http://host.docker.internal:5000/pipeline/routing-sequence/{{#1781097522415.rfq_id#}}/RFQ_Flow
+        variables: []
+      height: 173
+      id: '1780657320543'
+      position:
+        x: 1647.6907332814087
+        y: 298.3701101710641
+      positionAbsolute:
+        x: 1647.6907332814087
+        y: 298.3701101710641
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(raw_response: str) -> dict:\n    # 1. Parse\
+          \ the stringified JSON payload\n    payload = json.loads(raw_response)\n\
+          \    \n    # 2. Extract the routing list and the target index\n    routing_sequence\
+          \ = payload.get(\"routing_sequence\", [])\n    skill_index = payload.get(\"\
+          skill_index\", 0)\n    \n    # 3. Chop elements off the FRONT of the array\n\
+          \    # Slicing from `skill_index` onwards drops the first `skill_index`\
+          \ items.\n    truncated_array = routing_sequence[skill_index:]\n\n    #\
+          \ 4. Return structured for Dify variable mapping\n    return {\n       \
+          \ \"routing_array\": truncated_array\n    }"
+        code_language: python3
+        outputs:
+          routing_array:
+            children: null
+            type: array[string]
+        selected: false
+        title: Code
+        type: code
+        variables:
+        - value_selector:
+          - '1780657320543'
+          - body
+          value_type: string
+          variable: raw_response
+      height: 52
+      id: '1780659086713'
+      position:
+        x: 1982.7533004831241
+        y: 298.3701101710641
+      positionAbsolute:
+        x: 1982.7533004831241
+        y: 298.3701101710641
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_handle_mode: terminated
+        flatten_output: true
+        height: 608
+        is_parallel: false
+        iterator_input_type: array[string]
+        iterator_selector:
+        - '1780659086713'
+        - routing_array
+        output_selector:
+        - '1780659397450'
+        - files
+        output_type: array[file]
+        parallel_nums: 10
+        selected: false
+        start_node_id: 1780659274341start
+        title: DMR
+        type: iteration
+        width: 1666
+      height: 608
+      id: '1780659274341'
+      position:
+        x: 2346.5740173287
+        y: 298.3701101710641
+      positionAbsolute:
+        x: 2346.5740173287
+        y: 298.3701101710641
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 1666
+      zIndex: 1
+    - data:
+        desc: ''
+        isInIteration: true
+        selected: false
+        title: ''
+        type: iteration-start
+      draggable: false
+      height: 48
+      id: 1780659274341start
+      parentId: '1780659274341'
+      position:
+        x: 24
+        y: 68
+      positionAbsolute:
+        x: 2370.5740173287
+        y: 366.3701101710641
+      selectable: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-iteration-start
+      width: 44
+      zIndex: 1002
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-213
+            key: ''
+            type: text
+            value: " {\n  \"tool_name\": {{#1780659274341.item#}}\n  \"arguments\"\
+              : {\n     \"rfq_id\": {{#1781097522415.rfq_id#}}\n  }\n}"
+          type: json
+        headers: ''
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 5
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 600
+          write: 600
+        title: HTTP Request 2
+        type: http-request
+        url: http://host.docker.internal:5000/tool/execute
+        variables: []
+      height: 108
+      id: '1780659397450'
+      parentId: '1780659274341'
+      position:
+        x: 123.25827451301075
+        y: 65.00000007344852
+      positionAbsolute:
+        x: 2469.8322918417107
+        y: 363.3701102445126
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        selected: false
+        title: User Input
+        type: start
+        variables:
+        - default: ''
+          hide: false
+          hint: ''
+          label: rfq_id
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: rfq_id
+      height: 109
+      id: '1781097522415'
+      position:
+        x: 1339.5040736152632
+        y: 282.5102812432576
+      positionAbsolute:
+        x: 1339.5040736152632
+        y: 282.5102812432576
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(http_response: dict) -> dict:\n    # Extract\
+          \ the 'hitl' value (default to 0 if missing)\n    http_response = json.loads(http_response)\n\
+          \n    hitl_val = http_response.get(\"hitl\", 0)\n    \n    # Evaluate to\
+          \ a strict Boolean True if the value is 1, otherwise False\n    return {\n\
+          \        \"hitl\": True if hitl_val in [1, \"1\", True] else False\n   \
+          \ }"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        outputs:
+          hitl:
+            children: null
+            type: boolean
+        selected: false
+        title: Code 4
+        type: code
+        variables:
+        - value_selector:
+          - '1780659397450'
+          - body
+          value_type: string
+          variable: http_response
+      height: 52
+      id: '1781265440702'
+      parentId: '1780659274341'
+      position:
+        x: 413.8710943259912
+        y: 65
+      positionAbsolute:
+        x: 2760.445111654691
+        y: 363.3701101710641
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 8be23e67-c139-467f-bdcc-acac08e19332
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1781265440702'
+            - hitl
+          id: 'true'
+          logical_operator: and
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        selected: false
+        title: IF/ELSE
+        type: if-else
+      height: 124
+      id: '1781266066551'
+      parentId: '1780659274341'
+      position:
+        x: 714.9232159951084
+        y: 65
+      positionAbsolute:
+        x: 3061.4972333238084
+        y: 363.3701101710641
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        outputs:
+        - value_selector:
+          - '1780657320543'
+          - files
+          value_type: array[file]
+          variable: TEST
+        selected: false
+        title: Output
+        type: end
+      height: 89
+      id: '1781709259468'
+      position:
+        x: 4064.4116609376824
+        y: 298.3701101710641
+      positionAbsolute:
+        x: 4064.4116609376824
+        y: 298.3701101710641
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-867
+            key: ''
+            type: text
+            value: "{\n    \"rfqId\": \"{{#1781097522415.rfq_id#}}\",\n    \"stage\"\
+              : \"{{#1780659274341.item#}}\",\n    \"hitlType\": \"approval\"\n  }"
+          type: json
+        headers: Content-Type:application/json
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP Request 3
+        type: http-request
+        url: http://host.docker.internal:9234/api/internal/trigger-hitl
+        variables: []
+      height: 139
+      id: '1783506704155'
+      parentId: '1780659274341'
+      position:
+        x: 1020.6264203750111
+        y: 96.10935635910045
+      positionAbsolute:
+        x: 3367.200437703711
+        y: 394.47946653016453
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        code: "\ndef main() -> dict:\n    # Deliberately errors every time this node\
+          \ runs -- the iteration's error_handle_mode is 'terminated', so this stops\
+          \ the whole DMR loop right here instead of letting it keep calling /tool/execute\
+          \ for skills after the one that just raised hitl=1. Without this, skill_index\
+          \ is never advanced past the HITL'd skill (fastapi_router.py's /tool/execute\
+          \ only advances when hitl is falsy), so any later skill in this same run\
+          \ would execute against un-resolved state. Once a human resolves the conflict\
+          \ via the UI, GET /api/dify/start/{rfq_id} starts a fresh run that re-fetches\
+          \ the routing sequence from the now-current skill_index.\n    raise Exception(\"\
+          HITL pending: pipeline halted awaiting human review\")\n"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1780659274341'
+        outputs: {}
+        selected: false
+        title: HALT ON HITL
+        type: code
+        variables: []
+      height: 52
+      id: '1784738658826'
+      parentId: '1780659274341'
+      position:
+        x: 1322.626420375011
+        y: 96.10935635910045
+      positionAbsolute:
+        x: 3669.200437703711
+        y: 394.47946653016453
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    viewport:
+      x: -2645.3563408609416
+      y: 119.43524110274905
+      zoom: 0.7937005065520562
+  rag_pipeline_variables: []

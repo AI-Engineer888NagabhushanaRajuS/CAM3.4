@@ -1,0 +1,26 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_intake",
+  "name": "Centum Intake Module",
+  "version": "3.4.0",
+  "description": "BOM intake: scans local files and imports BOM data into the RFQ pipeline",
+  "mcp_server": "mcp-tools/intake/mcp_server.py",
+  "port": 8002,
+  "routing": "jungle",
+  "tools": [
+    {
+      "name": "centum_intake__scan_local_file",
+      "description": "Scan a local file path and identify BOM-like content for import",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"files_found": "array", "status": "string"}
+    },
+    {
+      "name": "centum_intake__import_bom",
+      "description": "Import the scanned BOM file into the RFQ pipeline input tables",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"rows_imported": "integer", "status": "string"}
+    }
+  ],
+  "routing_profile": "Standard_BOM_Flow",
+  "dependencies": ["duckdb:input_db.duckdb", "postgresql:file_metadata_db"]
+}

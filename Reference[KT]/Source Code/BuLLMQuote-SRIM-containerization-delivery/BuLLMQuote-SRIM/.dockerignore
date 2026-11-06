@@ -1,0 +1,16 @@
+**/node_modules
+**/.venv
+**/.cognee_version_test_venv
+**/__pycache__
+**/*.pyc
+.git
+**/dist
+**/exports
+**/logs
+database/*.duckdb
+database/pg_dump_seed
+database/cognee_data
+**/.env
+!**/.env.example
+*.xlsx
+*.zip

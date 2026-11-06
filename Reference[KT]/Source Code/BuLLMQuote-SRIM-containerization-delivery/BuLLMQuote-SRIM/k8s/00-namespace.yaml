@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: centum
+  labels:
+    app.kubernetes.io/part-of: centum-bullmquote-srim
+    # Deliberately NOT "cam" or "bullmquote" alone in any label here -- the
+    # project's own docs flag CAM/Centum/BuLLMQuote naming confusion as a
+    # real, recurring gotcha. Everything in this namespace is Centum only.

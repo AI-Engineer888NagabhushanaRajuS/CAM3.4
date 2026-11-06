@@ -1,0 +1,20 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_gerber_integration",
+  "name": "Centum Gerber Integration Module",
+  "version": "3.4.0",
+  "description": "Extracts PCB features from Gerber files for NRE cost calculation",
+  "mcp_server": "mcp-tools/gerber-integration/mcp_server.py",
+  "port": 8007,
+  "routing": "jungle",
+  "tools": [
+    {
+      "name": "centum_gerber_integration__extract_features",
+      "description": "Extract PCB layer count, dimensions, drill count and other features from Gerber zip archive",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"features": "object", "status": "string"}
+    }
+  ],
+  "routing_profile": "Standard_BOM_Flow",
+  "dependencies": ["postgresql:file_metadata_db"]
+}

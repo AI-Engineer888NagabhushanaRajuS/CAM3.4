@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: superset, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: superset } }
+  template:
+    metadata: { labels: { app: superset } }
+    spec:
+      # Without this, k8s auto-injects legacy Docker-links-style env vars for
+      # every Service in the namespace (e.g. SUPERSET_PORT=tcp://10.x.x.x:8088
+      # for this pod's OWN "superset" Service) -- confirmed this session as
+      # the actual cause of a real CrashLoopBackOff: Superset's own entrypoint
+      # tried to parse that as a plain port number and failed with
+      # "'tcp' is not a valid port number." This single flag avoids that whole
+      # class of bug, here and in every other Deployment in this folder.
+      enableServiceLinks: false
+      containers:
+        - name: superset
+          image: apache/superset:latest
+          ports: [{ containerPort: 8088 }]
+          env:
+            - name: SUPERSET_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: centum-secrets, key: SUPERSET_SECRET_KEY } }
+          volumeMounts: [{ name: database, mountPath: /app/database, readOnly: true }]
+          readinessProbe: { httpGet: { path: /health, port: 8088 }, initialDelaySeconds: 15 }
+          livenessProbe: { httpGet: { path: /health, port: 8088 }, initialDelaySeconds: 30, periodSeconds: 15 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: superset, namespace: centum }
+spec: { selector: { app: superset }, ports: [{ port: 8088, targetPort: 8088 }] }

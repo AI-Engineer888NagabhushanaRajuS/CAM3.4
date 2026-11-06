@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: web, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: web
+          image: centum/web:dev
+          ports: [{ containerPort: 80 }]
+          readinessProbe: { httpGet: { path: /, port: 80 }, initialDelaySeconds: 3 }
+          livenessProbe: { httpGet: { path: /, port: 80 }, initialDelaySeconds: 10, periodSeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: web, namespace: centum }
+spec:
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: 80 }]
+  type: LoadBalancer  # k3d maps this to a host port automatically
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: daemon, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: daemon } }
+  template:
+    metadata: { labels: { app: daemon } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: daemon
+          image: centum/daemon:dev
+          ports: [{ containerPort: 9334 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          env: [{ name: ACCOMPLISH_DAEMON_DEV, value: "0" }]
+          volumeMounts: [{ name: data, mountPath: /data }]
+          readinessProbe: { httpGet: { path: /health, port: 9334 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: 9334 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: daemon-data } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: daemon, namespace: centum }
+spec: { selector: { app: daemon }, ports: [{ port: 9334, targetPort: 9334 }] }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: daemon-data, namespace: centum }
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 1Gi } }

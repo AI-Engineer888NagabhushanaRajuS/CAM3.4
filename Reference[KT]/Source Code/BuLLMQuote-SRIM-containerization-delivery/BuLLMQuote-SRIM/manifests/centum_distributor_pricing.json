@@ -1,0 +1,44 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_distributor_pricing",
+  "name": "Centum Distributor Pricing Module",
+  "version": "3.4.0",
+  "description": "Fetches live distributor pricing (Mouser, Arrow, Avnet) and detects alternate parts for a BOM",
+  "mcp_server": "mcp-tools/distributor-pricing/mcp_server.py",
+  "port": 8003,
+  "routing": "jungle",
+  "tools": [
+    {
+      "name": "centum_distributor_pricing__enrich_bom",
+      "description": "Fetch live pricing for all parts in the BOM from configured distributors",
+      "inputs": {"rfq_id": "string", "distributor": "string"},
+      "outputs": {"parts_priced": "integer", "status": "string"}
+    },
+    {
+      "name": "centum_distributor_pricing__export_enriched_bom",
+      "description": "Export the enriched BOM with distributor pricing to Excel",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"file_path": "string", "status": "string"}
+    },
+    {
+      "name": "centum_distributor_pricing__export_quote_summary",
+      "description": "Export a quote summary with best-price selection per part",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"file_path": "string", "status": "string"}
+    },
+    {
+      "name": "centum_distributor_pricing__detect_alternates",
+      "description": "Detect alternate/substitute parts for components in the BOM",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"alternates_found": "integer", "status": "string"}
+    },
+    {
+      "name": "centum_distributor_pricing__apply_alternatives",
+      "description": "Apply approved alternate parts to the BOM",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"alternates_applied": "integer", "status": "string"}
+    }
+  ],
+  "routing_profile": "Standard_BOM_Flow",
+  "dependencies": ["duckdb:input_db.duckdb", "postgresql:logic_db"]
+}

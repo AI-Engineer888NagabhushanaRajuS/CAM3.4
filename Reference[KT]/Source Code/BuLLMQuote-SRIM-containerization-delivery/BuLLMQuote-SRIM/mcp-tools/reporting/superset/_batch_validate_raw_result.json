@@ -1,0 +1,282 @@
+{
+  "started_at": "2026-07-30T10:47:35.703525Z",
+  "folders": [
+    {
+      "folder": "test_1",
+      "scenarios": [
+        {
+          "rfq_id": "test_1_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_1_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_2",
+      "scenarios": [
+        {
+          "rfq_id": "test_2_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_2_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_3",
+      "scenarios": [
+        {
+          "rfq_id": "test_3_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_3_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_4",
+      "scenarios": [
+        {
+          "rfq_id": "test_4_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_4_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_5",
+      "scenarios": [
+        {
+          "rfq_id": "test_5_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_5_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_6",
+      "scenarios": [
+        {
+          "rfq_id": "test_6_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_6_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_7",
+      "scenarios": [
+        {
+          "rfq_id": "test_7_with_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_With_Costing.xlsx"
+        },
+        {
+          "rfq_id": "test_7_without_costing",
+          "status": "PASS",
+          "output_name": "CBOM_Report_Without_Costing.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_8",
+      "scenarios": [
+        {
+          "rfq_id": "test_8",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_9",
+      "scenarios": [
+        {
+          "rfq_id": "test_9",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_10",
+      "scenarios": [
+        {
+          "rfq_id": "test_10",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_11",
+      "scenarios": [
+        {
+          "rfq_id": "test_11",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_12",
+      "scenarios": [
+        {
+          "rfq_id": "test_12",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_13",
+      "scenarios": [
+        {
+          "rfq_id": "test_13",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_14",
+      "scenarios": [
+        {
+          "rfq_id": "test_14",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_15",
+      "scenarios": [
+        {
+          "rfq_id": "test_15",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_16",
+      "scenarios": [
+        {
+          "rfq_id": "test_16",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_17",
+      "scenarios": [
+        {
+          "rfq_id": "test_17",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_18",
+      "scenarios": [
+        {
+          "rfq_id": "test_18",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_19",
+      "scenarios": [
+        {
+          "rfq_id": "test_19",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_20",
+      "scenarios": [
+        {
+          "rfq_id": "test_20",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    },
+    {
+      "folder": "test_21",
+      "scenarios": [
+        {
+          "rfq_id": "test_21",
+          "status": "PASS",
+          "output_name": "CBOM_Report.xlsx"
+        }
+      ],
+      "had_issues": false
+    }
+  ],
+  "total_folders": 21,
+  "with_costing": 7,
+  "without_costing_only": 14,
+  "total_scenarios": 28,
+  "scenario_pass": 28,
+  "scenario_fail": 0,
+  "scenario_error": 0,
+  "failed_folders": [],
+  "all_issues": [],
+  "ended_at": "2026-07-30T11:15:38.496200Z",
+  "total_duration_seconds": 1682.79
+}

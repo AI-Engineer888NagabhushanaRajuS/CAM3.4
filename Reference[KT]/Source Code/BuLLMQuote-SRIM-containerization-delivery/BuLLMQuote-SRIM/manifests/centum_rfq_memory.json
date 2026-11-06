@@ -1,0 +1,26 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_rfq_memory",
+  "name": "Centum RFQ Memory Module",
+  "version": "3.4.0",
+  "description": "Cognee-backed semantic memory for RFQ chat context; REST API (not FastMCP). Feature-gated by ACCOMPLISH_ENABLE_RFQ_CHAT.",
+  "mcp_server": "mcp-tools/rfq-memory/memory_service.py",
+  "port": 8108,
+  "routing": "rest",
+  "tools": [
+    {
+      "name": "centum_rfq_memory__chat_retrieve",
+      "description": "Retrieve semantically relevant RFQ context for a chat query (JWT-gated, LAN :8108)",
+      "inputs": {"rfq_id": "string", "query": "string"},
+      "outputs": {"results": "array", "citations": "array"}
+    },
+    {
+      "name": "centum_rfq_memory__chat_remember",
+      "description": "Ingest new RFQ context into the semantic memory store (loopback-only :8109)",
+      "inputs": {"rfq_id": "string", "text": "string"},
+      "outputs": {"status": "string"}
+    }
+  ],
+  "routing_profile": "RFQ_Assistant",
+  "dependencies": ["postgresql:logic_db", "cognee:graph_store"]
+}

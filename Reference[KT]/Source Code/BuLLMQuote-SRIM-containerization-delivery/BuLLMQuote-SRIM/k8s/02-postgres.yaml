@@ -1,0 +1,70 @@
+# Brand-new, separate Postgres for Centum only -- never the shared bare-metal
+# instance CAM also depends on. Seeded once from database/pg_dump_seed/ via
+# the same infra/postgres/init-restore.sh used by docker-compose.yml (bundled
+# into the image here via a ConfigMap mount instead of a bind mount, since
+# plain hostPath volumes don't survive a move to another node/device).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: centum
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: centum
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          image: postgres:18
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "centum" }
+            - { name: POSTGRES_DB, value: "postgres" }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: centum-secrets, key: POSTGRES_PASSWORD } }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: init-script, mountPath: /docker-entrypoint-initdb.d/00-restore.sh, subPath: init-restore.sh }
+            # database/pg_dump_seed/*.dump is NOT baked into the image or a
+            # ConfigMap (real data, too large, never committed to git) -- for
+            # a k8s deployment, copy the dump files into this PVC manually
+            # once before first start (kubectl cp), or seed via a one-shot
+            # Job instead of initdb.d. See README in this folder.
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "centum"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "centum"] }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: postgres-data }
+        - name: init-script
+          configMap: { name: postgres-init-script, defaultMode: 0755 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: centum
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://digibull.ai/cam/manifest/v1",
+  "id": "centum_scrub_intake",
+  "name": "Centum Scrub Intake Module",
+  "version": "3.4.0",
+  "description": "Standardizes and scrubs all 4 RFQ input files (BOM, QuoteWin, ERP, CostingSheet) into input_db.duckdb",
+  "mcp_server": "mcp-tools/scrub-intake/scrub_mcp_server.py",
+  "port": 8004,
+  "routing": "jungle",
+  "tools": [
+    {
+      "name": "centum_intake__standardize_scrub_bom",
+      "description": "Standardize and scrub the raw BOM Excel file into input_db.scrub_bom_items",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"rows_written": "integer", "status": "string"}
+    },
+    {
+      "name": "centum_intake__standardize_quote_win",
+      "description": "Standardize and scrub the QuoteWin awards Excel file into input_db.quote_win",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"rows_written": "integer", "status": "string"}
+    },
+    {
+      "name": "centum_intake__standardize_erp",
+      "description": "Standardize and scrub the ERP extract file into input_db tables",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"rows_written": "integer", "status": "string"}
+    },
+    {
+      "name": "centum_intake__standardize_costing_sheet",
+      "description": "Standardize and scrub the CostingSheet Excel file into input_db tables",
+      "inputs": {"rfq_id": "string", "version": "integer"},
+      "outputs": {"rows_written": "integer", "status": "string"}
+    }
+  ],
+  "routing_profile": "Standard_BOM_Flow",
+  "dependencies": ["duckdb:input_db.duckdb", "postgresql:file_metadata_db"]
+}

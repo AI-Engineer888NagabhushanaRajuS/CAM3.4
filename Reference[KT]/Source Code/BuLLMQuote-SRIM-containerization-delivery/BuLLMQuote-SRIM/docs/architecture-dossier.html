@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centum / SRIM 3.2 — System Architecture Dossier</title>
+<style>
+  :root{
+    --paper:#F3F4F0; --paper-deep:#EAEDE8; --paper-grid:rgba(20,31,40,0.09);
+    --ink:#141F28; --ink-soft:#49565F; --ink-faint:#8A9493;
+    --line:#CBD1C9; --line-strong:#A7AFA6;
+    --accent:#1D5C6B; --accent-soft:#E1EDEC; --accent-strong:#12414C;
+    --ok:#2F7D4F; --ok-bg:#E6F2EA;
+    --warn:#9C6B14; --warn-bg:#F7EFDB;
+    --crit:#AE3B2E; --crit-bg:#F8E8E3;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,"SFMono-Regular",Menlo,monospace;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.6; }
+  ::selection{ background:var(--accent-soft); }
+  a{ color:var(--accent); }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ scroll-behavior:auto !important; } }
+
+  code{ font-family:var(--mono); font-size:0.88em; background:var(--paper-deep); padding:0.08em 0.4em; border-radius:2px; }
+  h1,h2,h3,h4{ font-weight:800; text-wrap:balance; line-height:1.2; letter-spacing:-0.01em; }
+  .lede{ color:var(--ink-soft); max-width:62ch; }
+  p{ margin:0 0 1em; }
+  .prose{ max-width:68ch; }
+  .prose p:last-child{ margin-bottom:0; }
+  .num{ font-variant-numeric:tabular-nums; font-family:var(--mono); }
+  .eyebrow{ font-family:var(--mono); font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); }
+
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 24px; }
+  .scroller{ overflow-x:auto; }
+
+  .topbar{ position:sticky; top:0; z-index:10; background:rgba(243,244,240,0.94); backdrop-filter:blur(6px); border-bottom:1px solid var(--line-strong); }
+  .topbar-inner{ max-width:1000px; margin:0 auto; padding:10px 24px; display:flex; gap:18px; overflow-x:auto; align-items:center; white-space:nowrap; }
+  .topbar a{ color:var(--ink-soft); text-decoration:none; font-size:12.5px; font-weight:700; font-family:var(--mono); text-transform:uppercase; letter-spacing:0.03em; }
+  .topbar a:hover{ color:var(--accent); }
+
+  header.hero{ padding:52px 0 32px; border-bottom:1px solid var(--line-strong); }
+  header.hero h1{ font-size:clamp(26px,3.6vw,36px); margin:8px 0 14px; }
+  header.hero .lede{ font-size:17.5px; }
+  .meta{ margin-top:24px; display:flex; flex-wrap:wrap; gap:10px 28px; font-size:13px; font-family:var(--mono); color:var(--ink-soft); }
+  .meta b{ color:var(--ink); font-weight:700; }
+
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1px; background:var(--line-strong); border:1px solid var(--line-strong); margin-top:26px; }
+  .stats .cell{ background:var(--paper); padding:14px 16px; }
+  .stats .n{ display:block; font-size:22px; font-weight:800; color:var(--accent-strong); font-family:var(--mono); }
+  .stats .l{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; text-transform:uppercase; letter-spacing:0.02em; }
+
+  section.section{ padding:48px 0; border-bottom:1px solid var(--line-strong); }
+  section.section:last-of-type{ border-bottom:none; }
+  .section h2{ font-size:21px; margin:0 0 6px; scroll-margin-top:56px; }
+  .section .dek{ color:var(--ink-soft); font-size:15.5px; margin:0 0 24px; max-width:64ch; }
+
+  /* ---------- drawing sheets ---------- */
+  figure.sheet{ margin:0 0 26px; border:1px solid var(--line-strong); border-radius:3px; background:var(--paper-deep); }
+  .sheet .titleblock{
+    display:flex; justify-content:space-between; align-items:baseline; gap:14px; flex-wrap:wrap;
+    padding:8px 14px; border-bottom:1px solid var(--line-strong);
+    font-family:var(--mono); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  .sheet .titleblock b{ color:var(--ink); font-weight:700; }
+  .sheet .canvas{ padding:16px; }
+  .sheet svg{ display:block; width:100%; height:auto; }
+  .sheet .partslist{ border-top:1px solid var(--line-strong); padding:10px 14px 12px; }
+  .sheet .partslist table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .sheet .partslist td{ padding:3px 10px 3px 0; vertical-align:top; }
+  .sheet .partslist td.idx{ font-family:var(--mono); color:var(--accent-strong); font-weight:700; width:22px; }
+  .sheet .partslist td.spec{ font-family:var(--mono); color:var(--ink-soft); font-size:12px; }
+  figure.sheet figcaption.src{ font-family:var(--mono); font-size:11px; color:var(--ink-faint); padding:8px 14px; border-top:1px solid var(--line-strong); }
+
+  table.data{ width:100%; border-collapse:collapse; font-size:14.5px; }
+  table.data caption{ text-align:left; font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.03em; }
+  table.data th, table.data td{ text-align:left; padding:9px 16px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.data th{ font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:0.02em; color:var(--ink-soft); font-weight:700; }
+  table.data td.num{ font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:13px; }
+  table.data tbody tr:last-child td{ border-bottom:none; }
+
+  .badge{ font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; padding:2px 8px; border-radius:2px; white-space:nowrap; display:inline-block; }
+  .badge.high{ background:var(--crit-bg); color:var(--crit); }
+  .badge.medium{ background:var(--warn-bg); color:var(--warn); }
+  .badge.low{ background:var(--ok-bg); color:var(--ok); }
+  .badge.done{ background:var(--ok-bg); color:var(--ok); }
+  .badge.partial{ background:var(--warn-bg); color:var(--warn); }
+  .badge.stub{ background:var(--paper); color:var(--ink-soft); border:1px dashed var(--line-strong); }
+  .badge.verified{ background:var(--accent-soft); color:var(--accent-strong); }
+  .badge.carried{ background:var(--paper); color:var(--ink-faint); border:1px dashed var(--line-strong); }
+  .badge.council{ background:var(--accent-strong); color:#fff; }
+
+  .finding{ padding:16px 0; border-top:1px solid var(--line); }
+  .finding:first-child{ border-top:none; }
+  .finding h4{ font-size:15.5px; margin:0 0 6px; display:flex; align-items:center; gap:9px; flex-wrap:wrap; font-weight:700; }
+  .finding p{ margin:0; color:var(--ink-soft); font-size:14.5px; }
+  .finding .src{ display:block; margin-top:7px; font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); }
+
+  .callout{ background:var(--accent-soft); border:1px solid #B9D1CF; border-radius:3px; padding:14px 16px; font-size:14px; color:var(--ink); margin:18px 0; }
+  .callout strong{ display:block; margin-bottom:4px; color:var(--accent-strong); font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em; font-family:var(--mono); }
+
+  footer.colophon{ padding:30px 0 70px; font-size:12.5px; font-family:var(--mono); color:var(--ink-faint); max-width:68ch; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a href="#summary">Summary</a>
+    <a href="#topology">Deployment</a>
+    <a href="#flow">Request flow</a>
+    <a href="#gateways">Gateways</a>
+    <a href="#databases">Databases</a>
+    <a href="#reporting">Reporting</a>
+    <a href="#frontend">Frontend / FDE</a>
+    <a href="#dify">Dify</a>
+    <a href="#gaps">Gaps</a>
+    <a href="#stack">Tech stack</a>
+    <a href="#changelog">Changelog</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Architecture dossier — Rev C, read-only</div>
+    <h1>Centum / SRIM 3.2 — RFQ &amp; BOM Costing Platform</h1>
+    <p class="lede">What's wired to what, drawn the way the system is actually built, not described in paragraphs. Rev C adds an independent 8-method council pass that ran real checks against live source — one finding upgraded from "dead code" to "provably dead on both ends," one downgraded from "active failure" to "latent, zero impact today."</p>
+
+    <div class="meta">
+      <span><b>REPO</b> C:\Users\ADMIN\Documents\BuLLMQuote-SRIM</span>
+      <span><b>HOST</b> DESKTOP-M17LKNB · bare Windows 11</span>
+      <span><b>REV</b> C — 2026-10-27</span>
+    </div>
+
+    <div class="stats">
+      <div class="cell"><span class="n num">13</span><span class="l">bare-process services</span></div>
+      <div class="cell"><span class="n num">14</span><span class="l">Docker containers</span></div>
+      <div class="cell"><span class="n num">6</span><span class="l">Postgres databases</span></div>
+      <div class="cell"><span class="n num">~65–70%</span><span class="l">platform built</span></div>
+      <div class="cell"><span class="n num">1</span><span class="l">git commit, ever</span></div>
+    </div>
+
+    <div class="callout" style="margin-top:24px;">
+      <strong>How to read the badges</strong>
+      <span class="badge verified">verified</span> re-checked against live source/process this session &nbsp;
+      <span class="badge carried">carried</span> not re-queried this pass — treat as likely-true, not confirmed &nbsp;
+      <span class="badge council">council</span> checked a second, independent time by an 8-method review council, Rev C.
+    </div>
+  </header>
+
+  <!-- ============ SUMMARY ============ -->
+  <section class="section" id="summary">
+    <h2>Summary</h2>
+    <div class="prose">
+      <p>This is a working BOM/RFQ costing pipeline, not a prototype. Thirteen application services plus a Node daemon run continuously on one Windows desktop, health-checked by one script (<code>manage_backend.py</code>), beside a 14-container Docker Desktop stack running Dify, MCP Jungle, and Bifrost. There is no cloud deployment — a remote client reaches this machine by joining the NetBird WireGuard mesh it's already a peer of. Stop the servers here, and the client's access stops with them.</p>
+      <p>Two pipelines run end to end today: <code>Standard_BOM_Flow</code> through MCP Jungle, <code>RFQ_Flow</code> through Bifrost. A third, the FDE Staging Pipeline, has one of its six planned stages built.</p>
+      <p>The documentation and the code have drifted apart in both directions. Two security issues the docs still list as open — no auth, SQL injection — are largely fixed in code. Two subsystems that exist and run — a Cognee-backed RFQ memory service, and the FDE pipeline itself — don't appear in the docs at all. Full list under <a href="#gaps">Gaps &amp; drift</a>.</p>
+    </div>
+  </section>
+
+  <!-- ============ DEPLOYMENT TOPOLOGY ============ -->
+  <section class="section" id="topology">
+    <h2>Deployment topology</h2>
+    <p class="dek">One desktop, two process models, one shared database underneath both.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-01</b> · SITE PLAN — PHYSICAL DEPLOYMENT</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Deployment topology diagram">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#49565F"/></marker>
+          <pattern id="dg1" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="rgba(20,31,40,0.10)"/></pattern>
+        </defs>
+        <rect x="0" y="0" width="900" height="540" fill="url(#dg1)"/>
+        <!-- corner ticks -->
+        <g stroke="#A7AFA6" stroke-width="1.5">
+          <path d="M8,8 L24,8 M8,8 L8,24" fill="none"/><path d="M892,8 L876,8 M892,8 L892,24" fill="none"/>
+          <path d="M8,532 L24,532 M8,532 L8,516" fill="none"/><path d="M892,532 L876,532 M892,532 L892,516" fill="none"/>
+        </g>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="12.5" fill="#141F28">
+          <rect x="350" y="26" width="200" height="40" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="450" y="50" text-anchor="middle" font-weight="700">① REMOTE CLIENT BROWSER</text>
+
+          <line x1="450" y1="66" x2="450" y2="100" stroke="#49565F" stroke-width="1.5" marker-end="url(#a1)"/>
+          <text x="465" y="88" font-size="10.5" fill="#49565F">WIREGUARD, VIA NETBIRD MESH</text>
+
+          <rect x="270" y="102" width="360" height="40" rx="2" fill="#F3F4F0" stroke="#A7AFA6" stroke-width="1.5"/>
+          <text x="450" y="126" text-anchor="middle">② THIS HOST'S NETBIRD MESH IP — 100.121.36.255</text>
+
+          <line x1="450" y1="142" x2="450" y2="176" stroke="#49565F" stroke-width="1.5" marker-end="url(#a1)"/>
+
+          <rect x="30" y="178" width="400" height="236" rx="3" fill="#F3F4F0" stroke="#A7AFA6" stroke-width="1" stroke-dasharray="5 3"/>
+          <text x="46" y="200" font-size="11.5" font-weight="700" fill="#49565F">③ 13 BARE WINDOWS PROCESSES</text>
+          <rect x="46" y="212" width="170" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="131" y="233" text-anchor="middle">web_frontend :5281</text>
+          <rect x="226" y="212" width="188" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="320" y="233" text-anchor="middle">daemon :9334 (node, no electron)</text>
+          <rect x="46" y="256" width="368" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="230" y="277" text-anchor="middle">upload_server :3100 · fastapi_router :5100 · hitl_router :5102</text>
+          <rect x="46" y="300" width="368" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="230" y="321" text-anchor="middle">intake :8002 · distributor :8003 · gerber :8007</text>
+          <rect x="46" y="344" width="368" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="230" y="365" text-anchor="middle">reporting :8105 · bom_qa :8106 · rfq_memory :8108/9</text>
+          <rect x="46" y="388" width="368" height="20" rx="2" fill="none" stroke="none"/>
+
+          <rect x="470" y="178" width="400" height="236" rx="3" fill="#F3F4F0" stroke="#A7AFA6" stroke-width="1" stroke-dasharray="5 3"/>
+          <text x="486" y="200" font-size="11.5" font-weight="700" fill="#49565F">④ 14-CONTAINER DOCKER DESKTOP STACK</text>
+          <rect x="486" y="212" width="368" height="42" rx="2" fill="#fff" stroke="#1D5C6B"/>
+          <text x="670" y="229" text-anchor="middle" font-weight="700">⑤ DIFY — 10 CONTAINERS</text>
+          <text x="670" y="245" text-anchor="middle" font-size="10.5" fill="#49565F">api · worker · web · nginx :80/:443 · redis · weaviate · sandbox</text>
+          <rect x="486" y="262" width="368" height="34" rx="2" fill="#fff" stroke="#1D5C6B"/><text x="670" y="283" text-anchor="middle">⑥ mcpjungle-server :8080 + mcpjungle-db (pg17)</text>
+          <rect x="486" y="304" width="368" height="34" rx="2" fill="#fff" stroke="#1D5C6B"/><text x="670" y="325" text-anchor="middle">⑦ bifrost :8010</text>
+
+          <line x1="230" y1="414" x2="450" y2="454" stroke="#49565F" stroke-width="1.5"/>
+          <line x1="670" y1="414" x2="450" y2="454" stroke="#49565F" stroke-width="1.5" marker-end="url(#a1)"/>
+
+          <rect x="250" y="456" width="400" height="44" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="450" y="476" text-anchor="middle" font-weight="700">⑧ POSTGRESQL 18 — BARE-METAL SERVICE, :5432</text>
+          <text x="450" y="492" text-anchor="middle" font-size="10.5" fill="#49565F">the one database instance every service above ultimately reaches</text>
+        </g>
+      </svg>
+      </div>
+      <div class="partslist"><table>
+        <tr><td class="idx">1</td><td>Operator's own browser, anywhere on the mesh</td><td class="spec">—</td></tr>
+        <tr><td class="idx">2</td><td>Host network identity</td><td class="spec">NetBird WireGuard, 100.121.36.255</td></tr>
+        <tr><td class="idx">3</td><td>Native Windows processes</td><td class="spec">verified against .backend_services_state.json</td></tr>
+        <tr><td class="idx">4</td><td>Docker Desktop (WSL2 backend)</td><td class="spec">verified via <code>docker ps -a</code> this session</td></tr>
+        <tr><td class="idx">5</td><td>Dify workflow engine, 10 containers</td><td class="spec">carried</td></tr>
+        <tr><td class="idx">6</td><td>MCP Jungle gateway + its own Postgres</td><td class="spec">verified this session, v0.4.5</td></tr>
+        <tr><td class="idx">7</td><td>Bifrost MCP/LLM gateway</td><td class="spec">verified this session, bifrost-custom:v2.2.3</td></tr>
+        <tr><td class="idx">8</td><td>Shared Postgres instance</td><td class="spec">carried — port/version from prior audit</td></tr>
+      </table></div>
+      <figcaption class="src">Source: ipconfig · docker ps -a · Get-Service · .backend_services_state.json · this session's own `docker exec mcpjungle-server`.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>The 100.121.36.255-style address is this host's own NetBird interface, not a cloud load balancer — the same address this session independently queried MCP Jungle through. No port-forwarding, no cloud VM in between.</p>
+    </div>
+  </section>
+
+  <!-- ============ REQUEST FLOW ============ -->
+  <section class="section" id="flow">
+    <h2>Core request flow — upload to export</h2>
+    <p class="dek">Sequence diagram: one upload, one Dify-driven loop over tools, one HITL gate.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-02</b> · SEQUENCE — UPLOAD TO EXPORT</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Request flow sequence diagram">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#141F28"/></marker>
+          <marker id="a2d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#49565F"/></marker>
+        </defs>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11">
+          <!-- lifeline headers -->
+          <g font-weight="700" fill="#141F28">
+            <rect x="20" y="10" width="110" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="75" y="31" text-anchor="middle">BROWSER</text>
+            <rect x="150" y="10" width="110" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="205" y="31" text-anchor="middle">UPLOAD :3100</text>
+            <rect x="280" y="10" width="110" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="335" y="31" text-anchor="middle">DIFY DMR</text>
+            <rect x="410" y="10" width="110" height="34" rx="2" fill="#F3F4F0" stroke="#1D5C6B"/><text x="465" y="31" text-anchor="middle">ROUTER :5100</text>
+            <rect x="540" y="10" width="140" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="610" y="31" text-anchor="middle">GATEWAY→TOOL</text>
+            <rect x="700" y="10" width="110" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="755" y="31" text-anchor="middle">PG / DUCKDB</text>
+            <rect x="830" y="10" width="60" height="34" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/><text x="860" y="31" text-anchor="middle">DAEMON</text>
+          </g>
+          <!-- lifelines -->
+          <g stroke="#CBD1C9" stroke-width="1" stroke-dasharray="3 3">
+            <line x1="75" y1="44" x2="75" y2="580"/><line x1="205" y1="44" x2="205" y2="580"/><line x1="335" y1="44" x2="335" y2="580"/>
+            <line x1="465" y1="44" x2="465" y2="580"/><line x1="610" y1="44" x2="610" y2="580"/><line x1="755" y1="44" x2="755" y2="580"/><line x1="860" y1="44" x2="860" y2="580"/>
+          </g>
+          <!-- messages -->
+          <g fill="#141F28">
+            <line x1="75" y1="66" x2="205" y2="66" stroke="#141F28" marker-end="url(#a2)"/><text x="80" y="60" font-size="10.5">POST /api/rfq/upload</text>
+            <line x1="205" y1="92" x2="335" y2="92" stroke="#141F28" marker-end="url(#a2)"/><text x="210" y="86" font-size="10.5">trigger_dify_workflow_internal()</text>
+            <line x1="335" y1="118" x2="465" y2="118" stroke="#141F28" marker-end="url(#a2)"/><text x="340" y="112" font-size="10.5">GET routing-sequence/&#123;rfq_id&#125;/&#123;profile&#125;</text>
+            <line x1="465" y1="144" x2="335" y2="144" stroke="#49565F" stroke-dasharray="2 2" marker-end="url(#a2d)"/><text x="340" y="138" font-size="10.5" fill="#49565F">steps[], skill_index</text>
+          </g>
+
+          <!-- LOOP frame -->
+          <rect x="300" y="166" width="610" height="286" rx="2" fill="none" stroke="#141F28" stroke-width="1.2"/>
+          <path d="M300,166 L345,166 L345,180 L336,166" fill="#EAEDE8" stroke="#141F28" stroke-width="1"/>
+          <text x="306" y="177" font-size="10.5" font-weight="700">LOOP</text>
+          <text x="352" y="177" font-size="10" fill="#49565F">per remaining tool in routing_sequence, until exhausted or hitl halts</text>
+
+          <line x1="335" y1="200" x2="465" y2="200" stroke="#141F28" marker-end="url(#a2)"/><text x="340" y="194" font-size="10.5">POST /tool/execute &#123;tool_name, rfq_id&#125;</text>
+          <line x1="465" y1="226" x2="610" y2="226" stroke="#141F28" marker-end="url(#a2)"/><text x="470" y="220" font-size="10.5">dispatch to Jungle or Bifrost</text>
+          <line x1="610" y1="252" x2="755" y2="252" stroke="#141F28" marker-end="url(#a2)"/><text x="615" y="246" font-size="10.5">read/write</text>
+          <line x1="755" y1="278" x2="610" y2="278" stroke="#49565F" stroke-dasharray="2 2" marker-end="url(#a2d)"/><text x="615" y="272" font-size="10.5" fill="#49565F">result</text>
+          <line x1="610" y1="304" x2="465" y2="304" stroke="#49565F" stroke-dasharray="2 2" marker-end="url(#a2d)"/><text x="470" y="298" font-size="10.5" fill="#49565F">result</text>
+          <line x1="465" y1="330" x2="335" y2="330" stroke="#49565F" stroke-dasharray="2 2" marker-end="url(#a2d)"/><text x="340" y="324" font-size="10.5" fill="#49565F">&#123; hitl, status &#125;</text>
+
+          <!-- ALT frame nested -->
+          <rect x="320" y="350" width="400" height="90" rx="2" fill="none" stroke="#9C6B14" stroke-width="1.2" stroke-dasharray="1 0"/>
+          <path d="M320,350 L380,350 L380,364 L371,350" fill="#F7EFDB" stroke="#9C6B14" stroke-width="1"/>
+          <text x="326" y="361" font-size="10.5" font-weight="700" fill="#9C6B14">ALT [hitl]</text>
+          <line x1="465" y1="384" x2="860" y2="384" stroke="#141F28" marker-end="url(#a2)"/><text x="470" y="378" font-size="10.5">notify daemon — progress push</text>
+          <text x="340" y="420" font-size="10.5" fill="#9C6B14" font-weight="700">raise Exception() — the exception IS the halt. pipeline freezes here.</text>
+        </g>
+        <text x="340" y="470" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#49565F">loop exits normally once routing_sequence is exhausted with no hitl halt (export_reports is itself one of the looped tools)</text>
+        <!-- resume -->
+        <line x1="860" y1="500" x2="465" y2="530" stroke="#49565F" stroke-width="1.2" marker-end="url(#a2)" font-family="ui-monospace,Consolas,monospace"/>
+        <text x="620" y="512" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#49565F">human resolves · GET /api/dify/start resumes (4 hitl types only — see Dify §)</text>
+      </svg>
+      </div>
+      <figcaption class="src">Source: upload_server.py · fastapi_router.py · db.py · dify-orchestration/Dify_DMR_RFQ_Flow.yml (574 lines, read in full).</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p><code>fastapi_router.py</code>'s <code>/tool/execute</code> is deliberately synchronous — one blocking call can't freeze the whole process. <code>resolve_final_selection</code> always returns <code>hitl:1</code>, even with zero pending conflicts, by the code's own design comment: skipping it would remove the only review opportunity in the loop.</p>
+    </div>
+  </section>
+
+  <!-- ============ GATEWAYS ============ -->
+  <section class="section" id="gateways">
+    <h2>MCP gateways — Jungle vs. Bifrost</h2>
+    <p class="dek">Same job, two incompatible protocols — and this repo's own router only speaks one of them.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-03</b> · GATEWAY SCHEMATIC — TWO PATHS, ONE BROKEN WIRE</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gateway comparison schematic">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#141F28"/></marker>
+        </defs>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11.5">
+          <rect x="330" y="14" width="240" height="36" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="450" y="37" text-anchor="middle" font-weight="700">fastapi_router.py /tool/execute</text>
+
+          <line x1="420" y1="50" x2="230" y2="94" stroke="#141F28" stroke-width="1.5"/>
+          <line x1="480" y1="50" x2="680" y2="94" stroke="#141F28" stroke-width="1.5" marker-end="url(#a3)"/>
+
+          <!-- Jungle branch -->
+          <rect x="60" y="96" width="340" height="30" rx="2" fill="#fff" stroke="#AE3B2E" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="230" y="116" text-anchor="middle" fill="#AE3B2E" font-weight="700">tool_calling.py HAS NO JUNGLE CLIENT ✕</text>
+          <!-- fault symbol -->
+          <path d="M225,126 L232,138 L222,142 L233,154" fill="none" stroke="#AE3B2E" stroke-width="2"/>
+          <rect x="60" y="160" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="230" y="180" text-anchor="middle">MCP Jungle :8080/mcp · handshake req'd</text>
+          <rect x="60" y="198" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="230" y="218" text-anchor="middle">centum_intake__standardize_* (scrub)</text>
+          <rect x="60" y="236" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="230" y="256" text-anchor="middle">centum_reporting__cbom / enrich / resolve / export</text>
+          <text x="230" y="284" text-anchor="middle" font-size="10" fill="#AE3B2E">tool_name has no "-" → ValueError: no endpoint_slug — reproduced live, but LATENT: see note below</text>
+
+          <!-- Bifrost branch -->
+          <rect x="500" y="96" width="340" height="30" rx="2" fill="#fff" stroke="#2F7D4F" stroke-width="1.5"/>
+          <text x="670" y="116" text-anchor="middle" fill="#2F7D4F" font-weight="700">tool_calling.py → Bifrost client ✓</text>
+          <rect x="500" y="160" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="670" y="180" text-anchor="middle">Bifrost :8010/mcp/&#123;slug&#125; · no handshake</text>
+          <rect x="500" y="198" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="670" y="218" text-anchor="middle">intake-scan_local_file / import_bom</text>
+          <rect x="500" y="236" width="340" height="30" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="670" y="256" text-anchor="middle">distributor-enrich / detect_alternates / export_*</text>
+          <text x="670" y="284" text-anchor="middle" font-size="10" fill="#2F7D4F">partition on first "-" resolves a registered endpoint_slug — works today</text>
+        </g>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11">
+          <rect x="60" y="320" width="780" height="60" rx="2" fill="#F7EFDB" stroke="#9C6B14"/>
+          <text x="76" y="340" font-weight="700" fill="#9C6B14">LATENT, council-verified — zero active impact today:</text>
+          <text x="76" y="358" fill="#141F28">The ValueError is real but unreachable: Standard_BOM_Flow has no entry in dify-orchestration/ and routes through MCP Jungle directly — it never reaches this router. Fires the instant it's migrated without a fix.</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption class="src">Source: fastmcp-router/fastapi_router.py:14, 557 · fastmcp-router/tool_calling.py:1–33 · config.py:1–3 · manage_backend.py:37–38, 444–447 · dify-orchestration/ (only Dify_DMR_RFQ_Flow.yml exists, no Standard_BOM_Flow equivalent) — read directly, two independent sessions.</figcaption>
+    </figure>
+
+    <div class="scroller">
+    <table class="data">
+      <caption>Gateway comparison</caption>
+      <thead><tr><th></th><th>MCP Jungle</th><th>Bifrost</th></tr></thead>
+      <tbody>
+        <tr><td>Serves</td><td><code>Standard_BOM_Flow</code> (scrub, CBOM, reporting)</td><td><code>RFQ_Flow</code> (intake, distributor pricing, Gerber)</td></tr>
+        <tr><td>Container / port</td><td><code>mcpjungle-server</code> · :8080 <span class="badge verified">verified</span></td><td><code>bifrost</code> · :8010 <span class="badge verified">verified</span></td></tr>
+        <tr><td>Protocol</td><td>JSON-RPC 2.0 — session handshake required</td><td>JSON-RPC 2.0 — no handshake <span class="badge verified">verified</span></td></tr>
+        <tr><td>Tool naming</td><td><code>server__tool</code> (double underscore)</td><td><code>client-tool</code> (single hyphen) <span class="badge verified">verified</span></td></tr>
+        <tr><td>Own Postgres</td><td><code>mcpjungle-db</code>, separate container <span class="badge verified">verified</span></td><td>reaches the app's real <code>logic_db_2</code>/<code>file_metadata_db_2</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> Two confusingly similar names are two different servers</h4>
+      <p><code>scrub_mcp_server.py</code> (:8004, Jungle-registered) is the real first stage of <code>Standard_BOM_Flow</code>. <code>mcp-tools/intake/</code> (:8002, Bifrost-registered) serves <code>RFQ_Flow</code> instead. Different gateway, different flow, same word "intake" in both names.</p>
+    </div>
+  </section>
+
+  <!-- ============ DATABASES ============ -->
+  <section class="section" id="databases">
+    <h2>Database landscape</h2>
+    <p class="dek">One Postgres instance, six databases, three separate DuckDB file groups, and one cross-connect gap.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-04</b> · DATA SCHEMATIC — POSTGRES + DUCKDB</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Database relationship schematic">
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#141F28"/></marker>
+          <marker id="a4w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9C6B14"/></marker>
+        </defs>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11">
+          <rect x="30" y="190" width="150" height="40" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="105" y="214" text-anchor="middle" font-weight="700">postgres superuser</text>
+
+          <rect x="220" y="80" width="150" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="295" y="101" text-anchor="middle">logic_db_2</text>
+          <rect x="220" y="120" width="150" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="295" y="141" text-anchor="middle">file_metadata_db_2</text>
+          <rect x="220" y="160" width="150" height="34" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="295" y="181" text-anchor="middle">logic_db (legacy)</text>
+          <rect x="220" y="200" width="150" height="34" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="295" y="221" text-anchor="middle">file_metadata_db (legacy)</text>
+          <rect x="220" y="240" width="150" height="34" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="295" y="261" text-anchor="middle">cognee_memory_db</text>
+          <rect x="220" y="280" width="150" height="34" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="295" y="301" text-anchor="middle">srim (ui login)</text>
+
+          <g stroke="#141F28" stroke-width="1.2">
+            <line x1="180" y1="200" x2="220" y2="97"/><line x1="180" y1="205" x2="220" y2="137"/>
+            <line x1="180" y1="212" x2="220" y2="177"/><line x1="180" y1="218" x2="220" y2="217"/>
+            <line x1="180" y1="222" x2="220" y2="257"/><line x1="180" y1="228" x2="220" y2="297"/>
+          </g>
+
+          <rect x="470" y="190" width="170" height="40" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="555" y="214" text-anchor="middle" font-weight="700">project2_owner</text>
+          <line x1="470" y1="205" x2="370" y2="97" stroke="#141F28" stroke-width="1.2"/>
+          <line x1="470" y1="210" x2="370" y2="137" stroke="#141F28" stroke-width="1.2"/>
+          <g stroke="#9C6B14" stroke-width="1.2" stroke-dasharray="4 3">
+            <line x1="470" y1="215" x2="370" y2="177" marker-end="url(#a4w)"/>
+            <line x1="470" y1="220" x2="370" y2="217" marker-end="url(#a4w)"/>
+            <line x1="470" y1="224" x2="370" y2="257" marker-end="url(#a4w)"/>
+            <line x1="470" y1="228" x2="370" y2="297" marker-end="url(#a4w)"/>
+          </g>
+          <text x="480" y="250" font-size="10" fill="#9C6B14">△ CONNECT on all 9 DBs incl. legacy + staging — carried, not re-queried this pass</text>
+
+          <rect x="690" y="190" width="180" height="40" rx="2" fill="#F3F4F0" stroke="#A7AFA6" stroke-width="1.5"/>
+          <text x="780" y="214" text-anchor="middle" font-weight="700">fde_staging_app</text>
+          <rect x="690" y="80" width="180" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="780" y="101" text-anchor="middle">staging_logic_db_2</text>
+          <rect x="690" y="120" width="180" height="34" rx="2" fill="#fff" stroke="#2F7D4F"/><text x="780" y="141" text-anchor="middle">staging_file_metadata_db_2</text>
+          <line x1="780" y1="190" x2="780" y2="114" stroke="#2F7D4F" stroke-width="1.5" marker-end="url(#a4)"/>
+          <text x="690" y="250" font-size="10" fill="#2F7D4F">isolated both directions — verified via a live permission-denied test</text>
+
+          <!-- cognee inset -->
+          <rect x="30" y="340" width="400" height="100" rx="3" fill="#F3F4F0" stroke="#A7AFA6" stroke-dasharray="4 3"/>
+          <text x="46" y="358" font-size="10.5" font-weight="700" fill="#49565F">COGNEE_MEMORY_DB IS 3 TECHNOLOGIES, NOT 1</text>
+          <rect x="46" y="368" width="110" height="26" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="101" y="385" text-anchor="middle" font-size="9.5">LanceDB (vectors)</text>
+          <rect x="166" y="368" width="110" height="26" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="221" y="385" text-anchor="middle" font-size="9.5">Ollama (embed)</text>
+          <rect x="286" y="368" width="130" height="26" rx="2" fill="#fff" stroke="#1D5C6B"/><text x="351" y="385" text-anchor="middle" font-size="9.5">Postgres (graph only)</text>
+          <text x="46" y="412" font-size="9.5" fill="#49565F">no pgvector anywhere — Kuzu's native lib fails to load on this Windows/Py3.10 host, Postgres graph provider is the documented workaround</text>
+
+          <!-- duckdb inset -->
+          <rect x="460" y="340" width="410" height="100" rx="3" fill="#F3F4F0" stroke="#A7AFA6" stroke-dasharray="4 3"/>
+          <text x="476" y="358" font-size="10.5" font-weight="700" fill="#49565F">DUCKDB — 3 FILE GROUPS, NOT MIGRATED</text>
+          <rect x="476" y="368" width="220" height="26" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="586" y="385" text-anchor="middle" font-size="9.5">cbom / reports / input_db.duckdb</text>
+          <rect x="706" y="368" width="150" height="26" rx="2" fill="#fff" stroke="#A7AFA6"/><text x="781" y="385" text-anchor="middle" font-size="9.5">bom_storage.duckdb</text>
+          <text x="476" y="412" font-size="9.5" fill="#49565F">first group only resolves because manage_backend.py injects REPORTING_DATABASE_DIR; bom_storage path is hardcoded in 2 files, no env override</text>
+        </g>
+      </svg>
+      </div>
+      <div class="partslist"><table>
+        <tr><td class="idx">1</td><td><code>logic_db_2</code> / <code>file_metadata_db_2</code></td><td class="spec">live app DBs — shared by Python backend <em>and</em> accomplish-ui daemon, uncoordinated</td></tr>
+        <tr><td class="idx">2</td><td><code>logic_db</code> / <code>file_metadata_db</code></td><td class="spec">legacy, carried — still hold more rows than the <code>_2</code> replacements per prior audit</td></tr>
+        <tr><td class="idx">3</td><td><code>staging_logic_db_2</code> / <code>staging_file_metadata_db_2</code></td><td class="spec">FDE pipeline only, verified isolated</td></tr>
+        <tr><td class="idx">4</td><td><code>cognee_memory_db</code></td><td class="spec">graph store only — see inset</td></tr>
+        <tr><td class="idx">5</td><td><code>srim</code></td><td class="spec">accomplish-ui's own login — a third, undocumented auth store</td></tr>
+      </table></div>
+      <figcaption class="src">Topology carried from the prior 9-agent audit; gateway/container facts re-verified this session. Permission grants and row counts not re-queried this pass — direct Postgres connection was declined by the tool's own safety gate (hardcoded superuser credential), consistent with not expanding scope beyond documenting what's already known.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ REPORTING ============ -->
+  <section class="section" id="reporting">
+    <h2>CBOM / reporting pipeline</h2>
+    <p class="dek">Six FastMCP tools, delete-then-regenerate semantics, Superset embedded via a short-lived guest token.</p>
+
+    <div class="scroller">
+    <table class="data">
+      <caption>mcp-tools/reporting/superset/mcp_server.py — 6 tools, port 8105 <span class="badge verified">verified</span></caption>
+      <thead><tr><th>Tool</th><th>What it does</th><th>Precondition</th></tr></thead>
+      <tbody>
+        <tr><td><code>cbom</code></td><td>Delete + regenerate CBOM rows from scrubbed BOM items</td><td>raises if 0 rows exist</td></tr>
+        <tr><td><code>enrich_erp</code> / <code>enrich_costing_sheet</code></td><td>fill pricing columns, independently</td><td>raises if CBOM hasn't run yet</td></tr>
+        <tr><td><code>resolve_final_selection</code></td><td>auto-resolve + surface conflicts to Postgres</td><td>always returns <code>hitl:1</code> — the one mandatory gate</td></tr>
+        <tr><td><code>generate_reports</code></td><td>builds all 16 report tables in one transaction</td><td>rolls back entirely on any issue</td></tr>
+        <tr><td><code>export_reports</code></td><td>read-only Excel export</td><td>—</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="finding">
+      <h4><span class="badge high">high</span> Documented port 8005 ≠ real port 8105</h4>
+      <p>Confirmed this session directly in source: <code>mcp_server.py:153</code> binds <code>port=8105</code>. MCP Jungle's own external registration still points at the stale 8005 — a live operational risk, not a documentation nit.</p>
+      <span class="src">mcp-tools/reporting/superset/mcp_server.py:153 — read directly this session</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> DB path resolution works today, fragile by construction</h4>
+      <p>The default DB path still points at the pre-relocation location; correctness depends on every launcher remembering <code>REPORTING_DATABASE_DIR</code>, with no startup-time assertion if it's missing.</p>
+    </div>
+  </section>
+
+  <!-- ============ FRONTEND + FDE ============ -->
+  <section class="section" id="frontend">
+    <h2>Frontend, daemon &amp; the FDE Staging Pipeline</h2>
+    <p class="dek">A browser SPA talking to a plain Node daemon — no Electron binary in this deployment's live process list.</p>
+
+    <div class="prose">
+      <p><strong>accomplish-ui</strong> runs as a Vite-served browser app plus a Node daemon, both spawned directly as bare Windows processes. The browser additionally talks straight to three Python FastAPI services using a JWT it mints itself, bypassing the daemon for those calls.</p>
+    </div>
+
+    <div class="finding">
+      <h4><span class="badge high">high</span> The frontend's own docs describe an architecture this deployment doesn't use</h4>
+      <p>Those docs specify Electron's preload→IPC→handlers.ts as the required path for any new feature. A change meant to reach this live deployment needs to go into the daemon's HTTP dispatch switch instead — that isn't documented as the real required step anywhere.</p>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> "The Downloads copy" is a separate, currently-running sibling deployment, called CAM</h4>
+      <p><code>C:\Users\ADMIN\Downloads\accomplish-ui\</code> is its own git checkout (<code>github.com/solutionsDigibull/SRIM-UI.git</code>) with "CAM" hardcoded into its own <code>index.html</code> and login screen — a differently-branded deployment of the same open-source UI, for a separate tenant. <code>logic_db_2</code>/<code>file_metadata_db_2</code> were split <em>from</em> CAM's own database — CAM is the earlier, parent deployment this one forked from.</p>
+      <span class="src">C:\Users\ADMIN\Downloads\accomplish-ui\ — git remote, index.html, LoginPage.tsx</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> Hardcoded test credentials ship in frontend source</h4>
+      <p>Confirmed this session: <code>LoginPage.tsx</code> hardcodes <code>password: 'srim-test-2026'</code> at module scope, used by a one-click test-login button. No runtime guard prevents it shipping to production.</p>
+      <span class="src">accomplish-ui/apps/web/src/client/pages/LoginPage.tsx:13 — read directly this session</span>
+    </div>
+
+    <h3 style="margin-top:36px;">FDE Staging Pipeline</h3>
+    <p class="prose">A parallel, role-gated 6-stage pipeline meant to turn a client's raw documents into a reusable automation "skill." Drawn with phantom lines for the stages that are spec'd but not built — the same convention real engineering drawings use for a future or alternate part.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-05</b> · FDE PIPELINE — BUILT VS. PHANTOM</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FDE pipeline stage diagram">
+        <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#A7AFA6"/></marker></defs>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11.5">
+          <rect x="20" y="40" width="130" height="60" rx="2" fill="#E1EDEC" stroke="#1D5C6B" stroke-width="2"/>
+          <text x="85" y="64" text-anchor="middle" font-weight="700">1 · UPLOAD DOCS</text>
+          <text x="85" y="80" text-anchor="middle" font-size="9.5" fill="#49565F">role-gated, live 401 verified</text>
+
+          <g stroke="#A7AFA6" stroke-width="1.5" stroke-dasharray="5 3" fill="#fff">
+            <rect x="170" y="40" width="130" height="60" rx="2"/><rect x="320" y="40" width="130" height="60" rx="2"/>
+            <rect x="470" y="40" width="130" height="60" rx="2"/><rect x="620" y="40" width="130" height="60" rx="2"/>
+            <rect x="770" y="40" width="110" height="60" rx="2"/>
+          </g>
+          <g fill="#8A9493" font-weight="700" text-anchor="middle">
+            <text x="235" y="64">2 · COGNIFY</text><text x="385" y="64">3 · OKF BUNDLE</text>
+            <text x="535" y="64">4 · SOW GEN</text><text x="685" y="64">5 · VALIDATE</text><text x="825" y="64">6 · SKILL</text>
+          </g>
+          <g fill="#8A9493" font-size="9" text-anchor="middle"><text x="235" y="80">no route, no table</text><text x="385" y="80">no route, no table</text><text x="535" y="80">no route, no table</text><text x="685" y="80">no route, no table</text><text x="825" y="80">no route, no table</text></g>
+          <g stroke="#A7AFA6" stroke-width="1.2" marker-end="url(#a5)">
+            <line x1="150" y1="70" x2="168" y2="70"/><line x1="300" y1="70" x2="318" y2="70"/><line x1="450" y1="70" x2="468" y2="70"/><line x1="600" y1="70" x2="618" y2="70"/><line x1="750" y1="70" x2="768" y2="70"/>
+          </g>
+        </g>
+        <text x="20" y="130" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#49565F">solid fill = built and verified live &nbsp;&nbsp;·&nbsp;&nbsp; dashed phantom = specified, no backend route or table exists yet</text>
+        <text x="20" y="150" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#49565F">as "stage 1 of 6": ~15–17% of the stated vision. as "is stage 1 itself done": 100%. both numbers are true at once.</text>
+      </svg>
+      </div>
+      <figcaption class="src">The SBAM engine stages 2–6 are meant to wrap does not exist anywhere on this machine, reconfirmed prior audit.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ DIFY ============ -->
+  <section class="section" id="dify">
+    <h2>Dify Dynamic Master Router</h2>
+    <p class="dek">Two cloned apps, one node graph, one resolved mystery about a dead webhook.</p>
+
+    <figure class="sheet">
+      <div class="titleblock"><span>DWG <b>A-06</b> · DIFY DMR — TWO CLONES, ONE LINE CHANGED</span><span>REV B</span></div>
+      <div class="canvas">
+      <svg viewBox="0 0 900 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dify DMR clone diagram">
+        <defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#141F28"/></marker></defs>
+        <g font-family="ui-monospace,Consolas,monospace" font-size="11">
+          <rect x="30" y="20" width="360" height="54" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="210" y="42" text-anchor="middle" font-weight="700">Dify_DMR</text>
+          <text x="210" y="58" text-anchor="middle" font-size="9.5" fill="#49565F">profile hardcoded: Standard_BOM_Flow</text>
+
+          <rect x="510" y="20" width="360" height="54" rx="2" fill="#F3F4F0" stroke="#1D5C6B" stroke-width="1.5"/>
+          <text x="690" y="42" text-anchor="middle" font-weight="700">Dify_DMR_RFQ_Flow</text>
+          <text x="690" y="58" text-anchor="middle" font-size="9.5" fill="#49565F">identical graph, node IDs included</text>
+
+          <line x1="390" y1="47" x2="508" y2="47" stroke="#141F28" stroke-width="1.5" marker-end="url(#a6)"/>
+          <text x="450" y="38" text-anchor="middle" font-size="9.5">clone, 1 line changed</text>
+
+          <rect x="150" y="100" width="600" height="48" rx="2" fill="#F3F4F0" stroke="#A7AFA6"/>
+          <text x="450" y="122" text-anchor="middle">GET /pipeline/routing-sequence/&#123;rfq_id&#125;/&#123;PROFILE&#125; → Code: truncate by skill_index</text>
+          <text x="450" y="138" text-anchor="middle" font-size="9.5" fill="#49565F">only the &#123;PROFILE&#125; literal differs between the two apps</text>
+          <line x1="210" y1="74" x2="300" y2="100" stroke="#141F28" stroke-width="1.2"/>
+          <line x1="690" y1="74" x2="600" y2="100" stroke="#141F28" stroke-width="1.2"/>
+
+          <rect x="180" y="170" width="540" height="40" rx="2" fill="#F8E8E3" stroke="#AE3B2E"/>
+          <text x="450" y="194" text-anchor="middle" fill="#AE3B2E">RESOLVED: "/api/orchestrator/resume" is dead code — 0 matches in the Python backend</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption class="src">Source: dify-orchestration/Dify_DMR_RFQ_Flow.yml, read in full (574 lines). quote_routing_profiles row count carried from prior audit, not re-queried this pass.</figcaption>
+    </figure>
+
+    <div class="callout">
+      <strong>Resolved, then sharpened by an independent council pass</strong>
+      The undocumented HITL-resume webhook exists only in the daemon's own handler. Rev C traced it further: it POSTs to a URL nothing in the backend has ever listened on, and the Postgres column backing it is write-only — never read by any function in the codebase. It isn't a best-effort call that sometimes fails; it cannot ever succeed. A real, separately-built resume path works via 2 polling-based gates, not 4 as first counted.
+    </div>
+
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge council">council</span> Generic HITL approvals outside the 2 wired gates never resume Dify</h4>
+      <p>Corrected count: exactly <strong>2</strong> HITL types have a working resume path — <code>resolve_final_selection</code> and <code>detect_alternates</code> (both in <code>fastmcp-router/hitl_router.py</code>), not 4. Any HITL decision outside those two clears the UI/DB flag but never resumes the paused Dify run — its only resume attempt targets a route that has never existed. The failure is silent: logged, never surfaced as a stuck pipeline.</p>
+      <span class="src">fastmcp-router/hitl_router.py ~199–328, ~494–561 · browser-api-server.ts ~1019–1034 — re-verified with literal grep output this council pass</span>
+    </div>
+  </section>
+
+  <!-- ============ GAPS ============ -->
+  <section class="section" id="gaps">
+    <h2>Gaps &amp; drift register</h2>
+    <p class="dek">High to low. Each tagged by how it was checked.</p>
+
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge verified">verified</span> Two documented security gaps are largely already fixed</h4>
+      <p>Docs still list "no authentication" and "SQL injection via f-string" as current. Confirmed this session: a real JWT layer exists (<code>fastmcp-router/auth.py</code>), and <code>duck_db_api.py</code>'s <code>POST /auth/token</code> mints a token for any <code>rfq_id</code> with no credential check — unauthenticated by design, not by oversight. Raw SQL interpolation remains in two Bifrost-routed endpoints, mitigated by an allowlist, not parameter binding.</p>
+      <span class="src">fastmcp-router/auth.py, duck_db_api.py:148 — read directly this session</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> <span class="badge council">council</span> This repo's router can't call <code>Standard_BOM_Flow</code> tools — but never has to, today</h4>
+      <p>Downgraded from Rev B's "high": a second independent pass found <code>Standard_BOM_Flow</code> has no entry in <code>dify-orchestration/</code> at all and still routes through MCP Jungle directly — it structurally cannot reach this router under current operation. Zero active impact. The risk is real but deferred: the bug activates the moment someone migrates <code>Standard_BOM_Flow</code> onto Bifrost without first fixing the tool-name mapping. Treat as a migration blocker to fix in that PR, not an incident to fix now.</p>
+      <span class="src">config.py:1–3 · manage_backend.py:37–38, 444–447 · dify-orchestration/ (no Standard_BOM_Flow file exists) — re-verified independently this council pass</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge council">council</span> The HITL resume webhook is dead on both ends, not just logged-and-ignored</h4>
+      <p>Rev B had this half right: the webhook at <code>browser-api-server.ts</code> does fire. A second pass found the full mechanism: it POSTs to <code>http://127.0.0.1:8000/api/orchestrator/resume</code>, un-awaited, no timeout, no status check — and zero route anywhere in the Python backend receives that path. Worse: the Postgres column it exists to manage, <code>hitl_required</code>, is written but never read — <code>get_hitl_state()</code>, the only function that would read it, has zero call sites anywhere in the codebase. The real resume path works fine independently, through two correctly-wired polling gates (<code>resolve_final_selection</code>, <code>detect_alternates</code>). This webhook adds nothing but a false "success" shown to the user for an action that has zero effect — and a future engineer debugging a stuck RFQ could burn real time chasing it.</p>
+      <span class="src">accomplish-ui/apps/daemon/src/browser-api-server.ts ~991–1034 · fastmcp-router/db.py (get_hitl_state, zero call sites, confirmed via repo-wide grep) — reproduced with literal command output this council pass</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge carried">carried</span> Generic HITL approvals silently never resume Dify, for most stage types</h4>
+      <p>Covered under Dify.</p>
+    </div>
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge council">council</span> Two entire subsystems are undocumented anywhere</h4>
+      <p>A Cognee-backed RFQ chat memory service and the FDE Staging Pipeline have zero mentions in the architecture diagram, component list, or folder map. Both independently re-confirmed real this pass — <code>mcp-tools/rfq-memory/</code> is substantial working code (<code>memory_service.py</code>, <code>ingest.py</code>, <code>query.py</code>, <code>citation_store.py</code>, <code>versioning.py</code>), wired into the main backend via <code>fastmcp-router/rfq_memory_client.py</code>, with ports 8108/8109 confirmed listening; FDE's <code>upload_docs</code> stage is a real implemented panel, the other 5 stages render a named stub component.</p>
+      <span class="src">mcp-tools/rfq-memory/ · fastmcp-router/rfq_memory_client.py · accomplish-ui/apps/web/src/client/components/fde/FDEStageStub.tsx — re-confirmed this council pass after an earlier stage first searched the wrong sibling project and wrongly reported both as absent</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge carried">carried</span> Database isolation is weaker than documented</h4>
+      <p><code>project2_owner</code> reportedly reaches every database on the instance, including the two meant to be isolated. Not re-queried this pass — a live privilege check was declined by this session's own safety gate rather than connecting with a hardcoded credential found in source.</p>
+    </div>
+    <div class="finding">
+      <h4><span class="badge high">high</span> <span class="badge verified">verified</span> One git commit, ever</h4>
+      <p>Confirmed this session: <code>git log --all --oneline</code> returns exactly one line — <code>5409180 Initial commit: BuLLMQuote-SRIM consolidated monorepo</code>. Every change since exists only as uncommitted working-tree state.</p>
+      <span class="src">git log --all --oneline — run directly this session</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> <span class="badge carried">carried</span> Folder map calls several populated directories "empty placeholders"</h4>
+      <p><code>mcp-tools/intake</code>, <code>distributor-pricing</code>, and <code>gerber-integration</code> were already fully built at the first commit; their own README files still say otherwise.</p>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> <span class="badge carried">carried</span> Two hardcoded, duplicated DuckDB paths with no env override</h4>
+      <p><code>bom_storage.duckdb</code>'s path is hardcoded identically in two files — breaks outright on any non-Windows deployment.</p>
+      <span class="src">hitl_router.py:373 · duck_db_api.py:582</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> <span class="badge verified">verified</span> Dev-only test credentials committed in frontend source</h4>
+      <p>Covered under Frontend — <code>srim-test-2026</code> confirmed directly in <code>LoginPage.tsx</code> this session.</p>
+    </div>
+    <div class="finding">
+      <h4><span class="badge medium">medium</span> <span class="badge verified">verified</span> The JWT layer stops mistakes, not a determined attacker — by explicit design</h4>
+      <p><code>POST /auth/token</code> is itself unauthenticated — anyone who can reach <code>python_bridge</code> can mint a valid token for any <code>rfq_id</code>. All 3 protected services trust one shared HMAC secret, and <code>allow_origins=["*"]</code> is set in <code>duck_db_api.py</code>, <code>hitl_router.py</code>, and <code>upload_server.py</code> — all three confirmed directly this session. Documented as a deliberate, scoped choice: stop accidental cross-RFQ requests, not a determined attacker.</p>
+      <span class="src">duck_db_api.py:132 · hitl_router.py:104 · upload_server.py:34 — read directly this session</span>
+    </div>
+    <div class="finding">
+      <h4><span class="badge low">low</span> <span class="badge carried">carried</span> One hardcoded cross-service URL with no env override</h4>
+      <p>The progress-notification push to the daemon has a literal IP:port baked into source — silently fails if the mesh IP ever changes.</p>
+      <span class="src">fastapi_router.py:90</span>
+    </div>
+  </section>
+
+  <!-- ============ TECH STACK ============ -->
+  <section class="section" id="stack">
+    <h2>Tech stack inventory</h2>
+    <p class="dek">Grouped by where it sits, not by how it sounds.</p>
+
+    <div class="scroller">
+    <table class="data">
+      <caption>Backend — Python 3.10.11</caption>
+      <thead><tr><th>Package</th><th>Version</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><strong>FastAPI</strong> / <strong>uvicorn</strong></td><td class="num">0.137.0 / 0.49.0</td><td>single-worker, <code>/tool/execute</code> deliberately sync</td></tr>
+        <tr><td><strong>psycopg2-binary</strong></td><td class="num">2.9.12</td><td>Postgres driver, no connection pooling</td></tr>
+        <tr><td><strong>PyJWT</strong></td><td class="num">2.13.0</td><td>HS256, hardcoded 60s TTL</td></tr>
+        <tr><td><strong>DuckDB</strong></td><td class="num">1.5.3</td><td>embedded analytical store, cross-process access serialized via a Postgres advisory lock</td></tr>
+        <tr><td><strong>fastmcp</strong></td><td class="num">3.4.2</td><td>the MCP server framework behind every <code>mcp-tools/</code> service</td></tr>
+        <tr><td><strong>Cognee</strong></td><td class="num">1.4.2, pinned</td><td>graph+relational memory behind RFQ chat and the future FDE stages — pinned to avoid a Windows-incompatible Alembic migration in 1.5.0+, see <a href="SYSTEM-AND-TECH-STACK.md">SYSTEM-AND-TECH-STACK.md</a></td></tr>
+        <tr><td><strong>openpyxl</strong> / <strong>pandas</strong></td><td class="num">3.1.5 / 2.3.3</td><td>Excel export generation, dataframe shaping</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="scroller" style="margin-top:20px;">
+    <table class="data">
+      <caption>Frontend &amp; daemon — Node v26.4.0, npm 11.17.0, pnpm 10.33.0</caption>
+      <tbody>
+        <tr><td><strong>React 18 + hash router + Zustand</strong></td><td>browser SPA — hash routing needs no server-side config</td></tr>
+        <tr><td><strong>Vite</strong></td><td>dev server, launched directly by manage_backend.py</td></tr>
+        <tr><td><strong>Node.js, no Electron</strong></td><td>the daemon's actual runtime, despite the docs describing Electron</td></tr>
+        <tr><td><strong>node-postgres (pg)</strong></td><td>daemon's own direct SQL into the same Postgres the Python backend uses</td></tr>
+        <tr><td><strong>@superset-ui/embedded-sdk</strong></td><td>dashboard embedding via a daemon-minted guest token</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="scroller" style="margin-top:20px;">
+    <table class="data">
+      <caption>Infrastructure &amp; external services</caption>
+      <thead><tr><th>Service</th><th>Version</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><strong>NetBird</strong></td><td class="num">0.75.0.0</td><td>self-hosted WireGuard mesh — the real remote-access mechanism</td></tr>
+        <tr><td><strong>Docker Desktop</strong></td><td class="num">4.74.0.227015</td><td>Engine 29.4.3, Compose v5.1.3, WSL2 backend — hosts Dify (10 containers), MCP Jungle v0.4.5 + its own Postgres, and Bifrost v2.2.3 <span class="badge verified">verified</span></td></tr>
+        <tr><td><strong>PostgreSQL</strong></td><td class="num">18</td><td>bare-metal Windows service, <code>C:\Program Files\PostgreSQL\18</code> — the database every app service connects to</td></tr>
+        <tr><td><strong>Apache Superset</strong></td><td>—</td><td>external BI tool reading the reporting pipeline's DuckDB files</td></tr>
+        <tr><td><strong>Dify</strong></td><td>api/web 1.14.2</td><td>external workflow engine hosting the Dynamic Master Router</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="prose" style="margin-top:14px; font-size:13.5px;">Full host specs (CPU/RAM/BIOS), every MCP Jungle server/tool, and all 14 Docker containers by image tag: <a href="SYSTEM-AND-TECH-STACK.md">SYSTEM-AND-TECH-STACK.md</a>.</p>
+  </section>
+
+  <!-- ============ CHANGELOG ============ -->
+  <section class="section" id="changelog">
+    <h2>What was actually requested</h2>
+    <p class="dek">From this project's own saved working memory — standing instructions and completed asks.</p>
+
+    <table class="data">
+      <caption>Completed, this project's lifetime</caption>
+      <thead><tr><th>Request</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Migrate <code>RFQ_Flow</code> off MCP Jungle onto Bifrost</td><td><span class="badge done">done</span> — end-to-end run confirmed</td></tr>
+        <tr><td>Port the FDE Staging Pipeline, adapted to this machine's credentials/topology</td><td><span class="badge partial">stage 1 done</span> — scoped down once the SBAM engine stages 2–6 need was confirmed absent</td></tr>
+        <tr><td>New dedicated Postgres role for FDE, not the shared superuser</td><td><span class="badge done">done</span> — verified isolated via a live permission-denied test</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:32px;">Standing rules this project operates under</h3>
+    <div class="prose">
+      <p><strong>Never stop a running service as routine cleanup.</strong> Services stay up continuously; a change needing a restart gets flagged and confirmed first.</p>
+      <p><strong>Theme/styling requests stay scoped to visual tokens only</strong> — never workflow, layout structure, or business logic.</p>
+      <p><strong>Every <code>mcp-tools/</code> file is assumed stale relative to its pre-migration counterpart until diffed</strong> — this exact bug has recurred at least four times.</p>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    REV A: 9-pass parallel read-only audit, 2026-10-27 morning. REV B: rebuilt same day after the user flagged
+    REV A as presentation-heavy and content-thin in diagrams — prose cut, 6 drawing sheets added, 7 load-bearing
+    claims independently re-verified. REV C (this document): an independent 8-method review council (Orientation
+    / Direct Force / Full Sweep / Night Vision / Provenance / Simplification / Falsifiable Isolation / Plain
+    Verdict — methodology from the portfolio of Nagabhushana Raju S, mr-nagabhushanaraju-s.engineer, run via
+    cheap models in strict sequence, each stage handed only the previous stage's actual output) re-tested Rev B's
+    claims against live source. Net result: 1 finding downgraded (Jungle/Bifrost routing bug is real but latent,
+    not active), 1 finding sharpened (the HITL resume webhook is dead on both ends — no receiving route AND its
+    backing DB column is never read by anything), 1 miscount corrected (2 wired HITL gates, not 4), 2 subsystems
+    (Cognee memory, FDE pipeline) re-confirmed real after a mid-council stage briefly searched the wrong sibling
+    project and wrongly reported both absent — caught and corrected before reaching the final verdict. No file in
+    the live repo was edited, no service stopped or restarted, and no project data left this machine to produce
+    either pass — the review council's own tool returns only a reasoning method, never a transmission of content.
+  </footer>
+</div>
+
+</body>
+</html>

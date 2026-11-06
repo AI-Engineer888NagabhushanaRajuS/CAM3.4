@@ -1,0 +1,23 @@
+# Client data - NEVER commit these
+fastmcp-router/staged/inbox/*.xlsx
+fastmcp-router/staged/inbox/*.zip
+fastmcp-router/staged/inbox/*.xls
+fastmcp-router/staged/staging_inbox/**
+mcp-tools/distributor-pricing/quote_exports/*.xlsx
+mcp-tools/distributor-pricing/Distributor_Verification_Output*.xlsx
+mcp-tools/distributor-pricing/quote_exports/
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+# Node
+node_modules/
+dist/
+dist-electron/
+# Logs
+*.log
+.backend_services_state.json
+# Local config with secrets
+.env

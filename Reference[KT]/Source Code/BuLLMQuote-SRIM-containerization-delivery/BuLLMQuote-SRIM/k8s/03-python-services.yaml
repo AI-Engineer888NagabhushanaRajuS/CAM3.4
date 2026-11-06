@@ -1,0 +1,302 @@
+# One Deployment + Service pair per Python service, all using images built by
+# k8s/build-images.sh (centum/<name>:dev by default -- override via
+# CENTUM_IMAGE_TAG before running that script, and update `image:` below to
+# match for anything other than local dev).
+#
+# Probe strategy: FastAPI services (health_kind http_2xx in
+# fastmcp-router/manage_backend.py) get an httpGet probe on their real
+# health_path. FastMCP services (health_kind http_any -- they have no root
+# route and legitimately 404 there) get a tcpSocket probe instead, since k8s's
+# httpGet probe has no "any status code counts" mode and a 404 would be
+# wrongly treated as unhealthy.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: upload-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: upload-server } }
+  template:
+    metadata: { labels: { app: upload-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: upload-server
+          image: centum/upload-server:dev
+          ports: [{ containerPort: 3100 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { httpGet: { path: /docs, port: 3100 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /docs, port: 3100 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: upload-server, namespace: centum }
+spec: { selector: { app: upload-server }, ports: [{ port: 3100, targetPort: 3100 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: fastapi-router, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: fastapi-router } }
+  template:
+    metadata: { labels: { app: fastapi-router } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: fastapi-router
+          image: centum/fastapi-router:dev
+          ports: [{ containerPort: 5100 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { httpGet: { path: /docs, port: 5100 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /docs, port: 5100 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: fastapi-router, namespace: centum }
+spec: { selector: { app: fastapi-router }, ports: [{ port: 5100, targetPort: 5100 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: hitl-router, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: hitl-router } }
+  template:
+    metadata: { labels: { app: hitl-router } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: hitl-router
+          image: centum/hitl-router:dev
+          ports: [{ containerPort: 5102 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { httpGet: { path: /docs, port: 5102 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /docs, port: 5102 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: hitl-router, namespace: centum }
+spec: { selector: { app: hitl-router }, ports: [{ port: 5102, targetPort: 5102 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: python-bridge, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: python-bridge } }
+  template:
+    metadata: { labels: { app: python-bridge } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: python-bridge
+          image: centum/python-bridge:dev
+          ports: [{ containerPort: 3110 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { httpGet: { path: /docs, port: 3110 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /docs, port: 3110 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: python-bridge, namespace: centum }
+spec: { selector: { app: python-bridge }, ports: [{ port: 3110, targetPort: 3110 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bom-qa-lookup, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bom-qa-lookup } }
+  template:
+    metadata: { labels: { app: bom-qa-lookup } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: bom-qa-lookup
+          image: centum/bom-qa-lookup:dev
+          ports: [{ containerPort: 8106 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { httpGet: { path: /, port: 8106 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /, port: 8106 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bom-qa-lookup, namespace: centum }
+spec: { selector: { app: bom-qa-lookup }, ports: [{ port: 8106, targetPort: 8106 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: reporting-mcp-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: reporting-mcp-server } }
+  template:
+    metadata: { labels: { app: reporting-mcp-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: reporting-mcp-server
+          image: centum/reporting-mcp-server:dev
+          ports: [{ containerPort: 8105 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { tcpSocket: { port: 8105 }, initialDelaySeconds: 5 }
+          livenessProbe: { tcpSocket: { port: 8105 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: reporting-mcp-server, namespace: centum }
+spec: { selector: { app: reporting-mcp-server }, ports: [{ port: 8105, targetPort: 8105 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: intake-mcp-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: intake-mcp-server } }
+  template:
+    metadata: { labels: { app: intake-mcp-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: intake-mcp-server
+          image: centum/intake-mcp-server:dev
+          ports: [{ containerPort: 8002 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          readinessProbe: { tcpSocket: { port: 8002 }, initialDelaySeconds: 5 }
+          livenessProbe: { tcpSocket: { port: 8002 }, initialDelaySeconds: 15, periodSeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: intake-mcp-server, namespace: centum }
+spec: { selector: { app: intake-mcp-server }, ports: [{ port: 8002, targetPort: 8002 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: distributor-pricing-mcp-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: distributor-pricing-mcp-server } }
+  template:
+    metadata: { labels: { app: distributor-pricing-mcp-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: distributor-pricing-mcp-server
+          image: centum/distributor-pricing-mcp-server:dev
+          ports: [{ containerPort: 8003 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          # DIGIKEY_*/MOUSER_*/ELEMENT14_* -- add a dedicated distributor-pricing-secrets
+          # Secret (from mcp-tools/distributor-pricing/.env.example's variable names) and
+          # reference it here via another secretRef once real values exist.
+          readinessProbe: { tcpSocket: { port: 8003 }, initialDelaySeconds: 5 }
+          livenessProbe: { tcpSocket: { port: 8003 }, initialDelaySeconds: 15, periodSeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: distributor-pricing-mcp-server, namespace: centum }
+spec: { selector: { app: distributor-pricing-mcp-server }, ports: [{ port: 8003, targetPort: 8003 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: gerber-integration-mcp-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: gerber-integration-mcp-server } }
+  template:
+    metadata: { labels: { app: gerber-integration-mcp-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: gerber-integration-mcp-server
+          image: centum/gerber-integration-mcp-server:dev
+          ports: [{ containerPort: 8007 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          readinessProbe: { tcpSocket: { port: 8007 }, initialDelaySeconds: 5 }
+          livenessProbe: { tcpSocket: { port: 8007 }, initialDelaySeconds: 15, periodSeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: gerber-integration-mcp-server, namespace: centum }
+spec: { selector: { app: gerber-integration-mcp-server }, ports: [{ port: 8007, targetPort: 8007 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: rfq-memory-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: rfq-memory-server } }
+  template:
+    metadata: { labels: { app: rfq-memory-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: rfq-memory-server
+          image: centum/rfq-memory-server:dev
+          ports: [{ containerPort: 8108 }, { containerPort: 8109 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          volumeMounts: [{ name: cognee-data, mountPath: /app/database/cognee_data }]
+          readinessProbe: { tcpSocket: { port: 8108 }, initialDelaySeconds: 10 }
+          livenessProbe: { tcpSocket: { port: 8108 }, initialDelaySeconds: 20, periodSeconds: 10 }
+      volumes: [{ name: cognee-data, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: rfq-memory-server, namespace: centum }
+spec: { selector: { app: rfq-memory-server }, ports: [{ name: http, port: 8108, targetPort: 8108 }, { name: http-alt, port: 8109, targetPort: 8109 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: scrub-intake-mcp-server, namespace: centum }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: scrub-intake-mcp-server } }
+  template:
+    metadata: { labels: { app: scrub-intake-mcp-server } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: scrub-intake-mcp-server
+          image: centum/scrub-intake-mcp-server:dev
+          ports: [{ containerPort: 8004 }]
+          envFrom: [{ configMapRef: { name: centum-config } }, { secretRef: { name: centum-secrets } }]
+          env:
+            # host.k3d.internal, NOT host.docker.internal -- confirmed this
+            # session via the actual `k3d cluster create` output ("Injecting
+            # records for hostAliases (incl. host.k3d.internal)..."), k3d
+            # wires this up automatically in CoreDNS for every cluster it
+            # creates. This is k3d's own convention, distinct from Docker
+            # Desktop's host.docker.internal.
+            - { name: OLLAMA_HOST, value: "host.k3d.internal:11434" }
+          volumeMounts: [{ name: database, mountPath: /app/database }]
+          readinessProbe: { tcpSocket: { port: 8004 }, initialDelaySeconds: 5 }
+          livenessProbe: { tcpSocket: { port: 8004 }, initialDelaySeconds: 15, periodSeconds: 10 }
+      volumes: [{ name: database, persistentVolumeClaim: { claimName: centum-database } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: scrub-intake-mcp-server, namespace: centum }
+spec: { selector: { app: scrub-intake-mcp-server }, ports: [{ port: 8004, targetPort: 8004 }] }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: centum-database, namespace: centum }
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 2Gi } }
+  # Seed this PVC from this repo's own database/ folder once before first
+  # use (kubectl cp database/ <any-pod-mounting-this-pvc>:/app/database/) --
+  # the k8s manifests don't bake data into images, matching the same
+  # never-mount-CAM's-live-files-into-a-container rule Phase 0 established.

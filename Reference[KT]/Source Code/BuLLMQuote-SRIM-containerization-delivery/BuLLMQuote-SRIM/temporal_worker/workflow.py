@@ -1,0 +1,78 @@
+"""RFQ pipeline Temporal workflow — replaces Dify DMR.
+
+Same logic as Dify_DMR_RFQ_Flow.yml but durable, testable, and signal-aware.
+The workflow reads routing_sequence from Postgres (via fastapi_router), executes
+each tool via POST /tool/execute (UNCHANGED contract), and waits on a
+human_decision signal at HITL gates.
+"""
+
+from datetime import timedelta
+from typing import Optional
+
+from temporalio import workflow
+from temporalio.common import RetryPolicy
+
+with workflow.unsafe.imports_passed_through():
+    import activities
+
+
+@workflow.defn
+class RFQWorkflow:
+    def __init__(self):
+        self._hitl_decision: Optional[dict] = None
+
+    @workflow.signal
+    def human_decision(self, decision: dict) -> None:
+        """Signal sent by hitl_router when user approves or rejects a HITL gate."""
+        self._hitl_decision = decision
+
+    @workflow.run
+    async def run(self, rfq_id: str, profile_name: str) -> dict:
+        """Execute the full RFQ pipeline for one rfq_id.
+
+        Returns {"status": "completed"|"rejected", "rfq_id": str, "results": list}
+        """
+        # 1. Fetch routing sequence (same source Dify reads)
+        routing = await workflow.execute_activity(
+            activities.get_routing_sequence,
+            args=[rfq_id, profile_name],
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=RetryPolicy(maximum_attempts=3),
+        )
+
+        sequence = routing.get("routing_sequence", [])
+        start_index = routing.get("skill_index", 0)
+
+        results = []
+        for i, step in enumerate(sequence[start_index:], start=start_index):
+            tool_name = step["tool_name"]
+
+            # 2. Execute each tool via fastapi_router (UNCHANGED contract)
+            result = await workflow.execute_activity(
+                activities.execute_tool,
+                args=[rfq_id, tool_name, step.get("arguments", {})],
+                start_to_close_timeout=timedelta(minutes=10),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=3,
+                    backoff_coefficient=2.0,
+                    maximum_interval=timedelta(seconds=30),
+                ),
+            )
+
+            # 3. HITL gate: wait for human_decision signal
+            if result.get("hitl_required") or result.get("hitl") == 1:
+                await workflow.wait_condition(lambda: self._hitl_decision is not None)
+                decision = self._hitl_decision
+                self._hitl_decision = None  # reset for next gate
+
+                if decision.get("action") == "reject":
+                    return {
+                        "status": "rejected",
+                        "rfq_id": rfq_id,
+                        "step": tool_name,
+                        "results": results,
+                    }
+
+            results.append({"tool": tool_name, "result": result, "step_index": i})
+
+        return {"status": "completed", "rfq_id": rfq_id, "results": results}

@@ -1,0 +1,38 @@
+# Non-secret configuration, shared across every Python service. Mirrors
+# docker-compose.yml's x-python-env anchor -- same variables, same intent,
+# different mechanism (k8s ConfigMap instead of a YAML anchor).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: centum-config
+  namespace: centum
+data:
+  ENABLE_FDE_ROUTES: "1"
+  REPORTING_DATABASE_DIR: /app/database
+  CENTUM_INPUT_DB: /app/database/input_db.duckdb
+  # Reach-back to THIS HOST's existing shared Dify/Bifrost/MCP Jungle over the
+  # NetBird mesh -- Phase 4 (an independent Dify+Bifrost) is deliberately out
+  # of scope here; see docs/ for why. Replace the mesh IP if it ever changes.
+  DIFY_BASE_URL: "http://100.121.36.255/v1"
+  CENTUM_MCP_JUNGLE_URL: "http://100.121.36.255:8080/mcp"
+---
+# Real values go in secrets.local.yaml (gitignored, never committed -- see
+# secrets.example.yaml for the template). This file intentionally holds no
+# real credentials -- `kubectl create secret` or `secrets.local.yaml` supply
+# them at apply time.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: centum-secrets
+  namespace: centum
+type: Opaque
+stringData:
+  JWT_SECRET: "REPLACE_ME_never_the_shipped_dev_default"
+  DIFY_API_KEY: "REPLACE_ME"
+  OPENROUTER_API_KEY: "REPLACE_ME"
+  SUPERSET_SECRET_KEY: "REPLACE_ME"
+  POSTGRES_PASSWORD: "REPLACE_ME"
+  LOGIC_DB_URL: "postgresql://centum:REPLACE_ME@postgres:5432/logic_db_2"
+  FILE_METADATA_DB_URL: "postgresql://centum:REPLACE_ME@postgres:5432/file_metadata_db_2"
+  STAGING_LOGIC_DB_URL: "postgresql://centum:REPLACE_ME@postgres:5432/staging_logic_db_2"
+  STAGING_FILE_METADATA_DB_URL: "postgresql://centum:REPLACE_ME@postgres:5432/staging_file_metadata_db_2"

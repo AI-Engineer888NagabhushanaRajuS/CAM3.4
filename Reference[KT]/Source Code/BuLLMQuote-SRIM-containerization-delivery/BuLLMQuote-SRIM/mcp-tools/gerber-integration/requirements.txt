@@ -1,0 +1,11 @@
+# Was gerbonara>=1.6,<2 -- confirmed this session (containerization Phase 2,
+# 2026-10-29) that no gerbonara release >=1.6 exists on PyPI; `pip install`
+# fails outright with "No matching distribution found." Loosened to what
+# actually installs (1.5.0 is the real latest). If gerber-integration's own
+# behavior was written assuming something only a true 1.6 would provide,
+# that assumption was never actually testable -- this constraint could never
+# have been satisfied by a plain `pip install -r requirements.txt`.
+gerbonara>=1.5,<2
+pydantic>=2.7
+pyyaml>=6.0
+pymupdf
