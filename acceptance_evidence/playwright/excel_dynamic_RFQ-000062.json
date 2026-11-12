@@ -1,0 +1,25 @@
+{
+    "input":  "7.0 CBOM VL-1!L26",
+    "input_before":  0.0046,
+    "input_after":  0.046,
+    "summary_E4":  {
+                       "before":  66.40403000000002,
+                       "after":  70.378430000000023,
+                       "changed":  true
+                   },
+    "summary_E5":  {
+                       "before":  60.43282,
+                       "after":  60.43282,
+                       "changed":  false
+                   },
+    "summary_G4":  {
+                       "before":  65.845430000000007,
+                       "after":  65.845430000000007,
+                       "changed":  false
+                   },
+    "summary_G5":  {
+                       "before":  61.4974,
+                       "after":  61.4974,
+                       "changed":  false
+                   }
+}

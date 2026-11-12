@@ -1,0 +1,8 @@
+PASS RFQ created from the Create RFQ card :: RFQ-000062
+PASS left pane says "Needs your upload" on Upload file (no click) :: Needs your upload
+PASS after QuoteWin the pane moves on by itself (Upload file Completed, next stage open) :: open: ERP & Quoting tools
+DOWNLOAD C:\CAM[3.4]-RFQ_centum\acceptance_evidence\playwright\downloads\CBOM_Report_RFQ_000062_20261112_131625_7037ddca.xlsx
+FAIL run reaches Reports & Analytics completed :: not finished in 15 min
+ERROR check failed: run reaches Reports & Analytics completed
+videos: page@0c5082e6f2928e036e573e382ea9d6aa.webm, page@152ce821a63aaf436c1234871ab4d9ed.webm, page@2b4f1a3461ca8387eee322458e413cb3.webm, page@ac3027e35249043040af39c6d33468a5.webm, page@c916a4430afc6fde82deb611eeb245a4.webm
+summary: 3 of 4 checks passed
