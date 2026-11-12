@@ -11,6 +11,7 @@ import { RoutingProfilePanel } from '@/components/settings/routingProfile';
 import { ProjectTrackingPanel } from '@/components/settings/projectTracking';
 import { UsersPanel } from '@/components/settings/users';
 import { CurrenciesPanel } from '@/components/settings/currencies';
+import { FeasibilityPanel } from '@/components/settings/feasibility';
 import { AboutTab } from '@/components/settings/AboutTab';
 import { SecurityTab } from '@/components/settings/SecurityTab';
 import { GeneralTab } from '@/components/settings/GeneralTab';
@@ -81,7 +82,7 @@ export function SettingsDialog({
             <div className="hidden sm:flex px-3 py-2 mb-1 items-center gap-2">
               <BrandMark className="text-sm" />
             </div>
-            {SETTINGS_TABS.filter((tab) => (tab.id !== 'users' && tab.id !== 'currencies') || isAdmin()).map((tab) => (
+            {SETTINGS_TABS.filter((tab) => (tab.id !== 'users' && tab.id !== 'currencies' && tab.id !== 'feasibility') || isAdmin()).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => s.setActiveTab(tab.id)}
@@ -185,6 +186,11 @@ export function SettingsDialog({
               {s.activeTab === 'currencies' && (
                 <div className="space-y-4">
                   <CurrenciesPanel />
+                </div>
+              )}
+              {s.activeTab === 'feasibility' && (
+                <div className="space-y-4">
+                  <FeasibilityPanel />
                 </div>
               )}
               {s.activeTab === 'users' && (

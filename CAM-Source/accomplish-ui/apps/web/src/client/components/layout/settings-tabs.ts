@@ -7,6 +7,7 @@ import {
   UsersThree,
   CurrencyDollar,
   ShieldCheck,
+  ShieldWarning,
 } from '@phosphor-icons/react';
 
 export type SettingsTabId =
@@ -14,6 +15,7 @@ export type SettingsTabId =
   | 'skills'
   | 'projectTracking'
   | 'currencies'
+  | 'feasibility'
   | 'users'
   | 'security'
   | 'general'
@@ -25,6 +27,8 @@ export const SETTINGS_TABS = [
   { id: 'projectTracking' as const, labelKey: 'tabs.projectTracking', icon: Buildings },
   // Admin-only -- filtered out for non-admin sessions in SettingsDialog.tsx.
   { id: 'currencies' as const, labelKey: 'tabs.currencies', icon: CurrencyDollar },
+  // Admin-only -- the Feasibility & Risk rules the pipeline applies to every RFQ.
+  { id: 'feasibility' as const, labelKey: 'tabs.feasibility', icon: ShieldWarning },
   { id: 'users' as const, labelKey: 'tabs.users', icon: UsersThree },
   { id: 'security' as const, labelKey: 'tabs.security', icon: ShieldCheck },
   { id: 'general' as const, labelKey: 'tabs.general', icon: GearSix },

@@ -203,6 +203,8 @@ interface AccomplishAPI {
   // getDefaultQuoteCurrency is readable by any authenticated session since it
   // affects what currency they see throughout the app.
   listCurrencies(): Promise<{ currencies: Currency[] }>;
+  feasibilityGetSettings(): Promise<FeasibilityReadResult>;
+  feasibilitySaveSettings(params: { settings: FeasibilitySettingsInput }): Promise<{ settings: FeasibilitySettingsInput; saved: boolean }>;
   createCurrency(params: { currencyCode: string; currencyName: string; conversionRate: number }): Promise<{ currency: Currency }>;
   updateCurrency(params: { currencyCode: string; currencyName?: string; conversionRate?: number; isActive?: boolean }): Promise<{ currency: Currency }>;
   deleteCurrency(params: { currencyCode: string }): Promise<{ success: boolean }>;
@@ -1141,4 +1143,25 @@ export function getShellPlatform(): string | null {
  */
 export function useAccomplish(): AccomplishAPI {
   return getAccomplish();
+}
+
+/** Settings > Feasibility: the rules the Feasibility & Risk step applies (the pipeline reads them on every run). */
+export interface FeasibilityMachineRule { name: string; column: string; operator: string; value: string; effect: string }
+export interface FeasibilitySettingsInput {
+  lead_time_limit_weeks: number;
+  cannot_build_statuses: string[];
+  medium_statuses: string[];
+  no_price_cannot_build: boolean;
+  no_lead_time_high: boolean;
+  ltb_high: boolean;
+  ncnr_medium: boolean;
+  expired_validity_medium: boolean;
+  constraints: FeasibilityMachineRule[];
+}
+export interface FeasibilityReadResult {
+  settings: FeasibilitySettingsInput;
+  saved: boolean;
+  defaults: FeasibilitySettingsInput;
+  updatedAt: string | null;
+  updatedBy: string | null;
 }

@@ -277,7 +277,8 @@
     "projectTracking": "Отслеживание проектов",
     "currencies": "Валюты",
     "users": "Пользователи",
-    "security": "Безопасность"
+    "security": "Безопасность",
+    "feasibility": "Feasibility"
   },
   "notifications": {
     "toggle": {

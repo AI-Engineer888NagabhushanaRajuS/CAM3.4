@@ -22,4 +22,4 @@ def load():
                 return None, "defaults"
             cur.execute("SELECT settings FROM feasibility_settings WHERE id = 1")
             row = cur.fetchone()
-            return (row[0], "settings") if row else (None, "defaults")
+            return (row[0], "settings") if row and row[0] else (None, "defaults")   # an empty row = nothing saved yet

@@ -24,6 +24,7 @@ import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 import { describeChatProviders, parseProviderMode, type ChatProviderMode } from './rfq-chat/rfq-chat-models.js';
 import { handleManifestRoute } from './manifests/manifest-routes.js';
 import { applySkillEnabled, realignInFlight, syncManifestFromTool, type Db } from './manifests/manifest-runtime.js';
+import { FEASIBILITY_DEFAULTS, feasibilityFromRow, validateFeasibilitySettings } from './feasibility-settings.js';
 import { handleRunsRoute } from './runs/runs-routes.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
@@ -277,6 +278,18 @@ export class BrowserApiServer {
   // not fileMetadataPool (file_metadata_db) -- this is global system config
   // (same category as quote_routing_profiles/system_skills_registry, already
   // in logic_db), not RFQ/customer/project tracking data.
+  private async ensureFeasibilitySchema(): Promise<void> {
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS feasibility_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMP DEFAULT now(),
+        updated_by VARCHAR
+      )
+    `);
+    await pgPool.query(`INSERT INTO feasibility_settings (id, settings) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO NOTHING`);
+  }
+
   private async ensureCurrencySchema(): Promise<void> {
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS currency_conversion_rates (
@@ -1860,6 +1873,24 @@ export class BrowserApiServer {
       // workbook generation (reporting_module/currency.py reads the same
       // logic_db.currency_conversion_rates/currency_settings tables). See
       // ensureCurrencySchema() above for the schema.
+      // Settings > Feasibility: every signed-in user may read the rules; only an admin saves them (the pipeline reads them on each run).
+      case 'feasibility.getSettings': {
+        const row = await pgPool.query<{ settings: unknown; updated_at: Date | null; updated_by: string | null }>(
+          `SELECT settings, updated_at, updated_by FROM feasibility_settings WHERE id = 1`,
+        );
+        const { settings, saved } = feasibilityFromRow(row.rows[0]?.settings);
+        return { settings, saved, defaults: FEASIBILITY_DEFAULTS, updatedAt: row.rows[0]?.updated_at ?? null, updatedBy: row.rows[0]?.updated_by ?? null };
+      }
+      case 'feasibility.saveSettings': {
+        this.requireAdminSession(req);
+        const who = this.getSession(req);
+        const settings = validateFeasibilitySettings((args[0] as { settings?: unknown } | undefined)?.settings);
+        await pgPool.query(
+          `UPDATE feasibility_settings SET settings = $1::jsonb, updated_at = now(), updated_by = $2 WHERE id = 1`,
+          [JSON.stringify(settings), who?.email ?? null],
+        );
+        return { settings, saved: true };
+      }
       case 'currency.listCurrencies': {
         this.requireAdminSession(req);
         const result = await pgPool.query<{
@@ -2067,6 +2098,7 @@ export class BrowserApiServer {
   async start(): Promise<void> {
     await this.ensureProjectTrackingSchema();
     await this.ensureCurrencySchema();
+    await this.ensureFeasibilitySchema();
     return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
         const { method, url } = req;

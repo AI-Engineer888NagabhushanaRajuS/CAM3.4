@@ -277,7 +277,8 @@
     "projectTracking": "Project Tracking",
     "currencies": "Currencies",
     "users": "Users",
-    "security": "Security"
+    "security": "Security",
+    "feasibility": "Feasibility"
   },
   "notifications": {
     "toggle": {
