@@ -1,0 +1,25 @@
+{
+  "oracle": "LibreOffice recalculates synthetic pivot GETPIVOTDATA, not Microsoft Excel",
+  "results": [
+    {
+      "kind": "caption",
+      "value": 35
+    },
+    {
+      "kind": "root",
+      "value": 35
+    },
+    {
+      "kind": "invalidfield",
+      "value": "#REF!"
+    },
+    {
+      "kind": "invalidanchor",
+      "value": "#REF!"
+    },
+    {
+      "kind": "pair",
+      "value": 15
+    }
+  ]
+}

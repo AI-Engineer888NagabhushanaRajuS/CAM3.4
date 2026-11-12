@@ -1,0 +1,77 @@
+{
+  "oracle": "LibreOffice secondary oracle, not Excel runtime certification",
+  "results": {
+    "A1": 2,
+    "A2": 440,
+    "A3": 0,
+    "A4": 1,
+    "A5": 0,
+    "A6": 1,
+    "A7": 0,
+    "A8": 2,
+    "A9": "#VALUE!",
+    "A10": "#VALUE!",
+    "A11": 39846,
+    "A12": 39327,
+    "A13": 39482,
+    "A14": 39432,
+    "A15": "#VALUE!",
+    "A16": "#VALUE!",
+    "A17": 2958466,
+    "A18": 39481,
+    "A19": 2024,
+    "A20": 2,
+    "A21": 29,
+    "A22": 10000,
+    "A23": "#VALUE!",
+    "A24": 1,
+    "A25": 1,
+    "A26": 2,
+    "A27": 1900,
+    "A28": 1
+  },
+  "official_sources": [
+    "https://support.microsoft.com/en-us/excel/functions/datedif-function",
+    "https://support.microsoft.com/en-us/excel/functions/date-function",
+    "https://support.microsoft.com/en-us/excel/date-systems-in-excel"
+  ],
+  "conflicts": [
+    {
+      "cell": "A9",
+      "formula": "DATEDIF(45002,45000,\"D\")",
+      "libreoffice": "#VALUE!",
+      "microsoft_documented": "#NUM!",
+      "decision": "Follow explicit Microsoft start>end error rule."
+    },
+    {
+      "cell": "A15",
+      "formula": "DATE(108,1,2)",
+      "libreoffice": "#VALUE!",
+      "microsoft_documented": "January 2, 2008; serial 39449 in 1900 system",
+      "decision": "Follow explicit Microsoft 0..1899 year-offset rule; serial computed from calendar date."
+    },
+    {
+      "cell": "A16",
+      "formula": "DATE(-1,1,1)",
+      "libreoffice": "#VALUE!",
+      "microsoft_documented": "#NUM!",
+      "decision": "Follow explicit year bounds."
+    },
+    {
+      "cell": "A17",
+      "formula": "DATE(10000,1,1)",
+      "libreoffice": 2958466,
+      "microsoft_documented": "#NUM!",
+      "decision": "Follow explicit year bounds."
+    }
+  ],
+  "outside_scope": {
+    "A7": "YM: documentation wording and complete-month algorithm require independent Excel check. Unsupported.",
+    "A24": "MD: known limitations, unsupported.",
+    "A25": "YD: leap-anniversary semantics not certified. Unsupported.",
+    "A26": "Early 1900 dates not certified.",
+    "A27": "Serial60/fictitious leap date not certified.",
+    "A28": "Early1900 DATEDIF not certified."
+  },
+  "interpretation": "Only explicitly enumerated modern numeric cases are used as secondary-oracle matches. Contradictory cases follow the Microsoft rules named above. No full Excel-date compatibility claim; date-text parsing and 1904 behavior rejected."
+}

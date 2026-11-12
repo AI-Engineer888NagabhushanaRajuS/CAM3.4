@@ -27,6 +27,9 @@ function translateSettingsKey(key: string, options?: Record<string, unknown>): s
 }
 
 const mockAccomplish = {
+  rfqGetRoutingProfileSkills: vi.fn().mockResolvedValue({ skills: [] }),
+  getEnabledSkills: vi.fn().mockResolvedValue([]),
+  onDaemonReconnected: vi.fn(() => () => {}),
   getOllamaConfig: vi.fn().mockResolvedValue(null),
   isE2EMode: vi.fn().mockResolvedValue(false),
   getProviderSettings: vi.fn().mockResolvedValue({

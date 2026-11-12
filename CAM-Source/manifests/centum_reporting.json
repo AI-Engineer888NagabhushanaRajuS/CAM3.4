@@ -9,6 +9,7 @@
   "port": 8105,
   "routing_profile": "Standard_BOM_Flow",
   "duckdb_scoped_tools": [
+    "centum_reporting__feasibility_risk",
     "centum_reporting__cbom",
     "centum_reporting__enrich_erp",
     "centum_reporting__enrich_costing_sheet",
@@ -17,6 +18,17 @@
     "centum_reporting__export_reports"
   ],
   "tools": [
+    {
+      "name": "centum_reporting__feasibility_risk",
+      "skill_code": "M03.20_FeasibilityRisk",
+      "skill_index": 20,
+      "skill_name": "Analyze Feasibility & Risk",
+      "macro_category_name": "risk",
+      "macro_category": 5,
+      "description": "Feasibility & Risk (SKILL_03): a Can-Build / Cannot-Build verdict with reasons for every SCRUB BOM line (EOL, no price, long lead time, NRFND, NCNR, expired quotes), from the SCRUB BOM and the QuoteWin quotes. Machine constraints are not evaluated (no EMS capability template).",
+      "inputs": {"rfq_id": "string"},
+      "outputs": {"lines": "integer", "can_build": "integer", "cannot_build": "integer", "high": "integer", "medium": "integer", "low": "integer"}
+    },
     {
       "name": "centum_reporting__cbom",
       "description": "Regenerate only the CBOM table for one rfq_id, from the existing (read-only) input tables. Does not touch the 16 downstream reports.",

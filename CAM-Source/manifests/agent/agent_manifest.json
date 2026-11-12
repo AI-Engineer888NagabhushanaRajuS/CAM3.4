@@ -22,14 +22,14 @@
   "skill_sequence": [
     {"sequence": 1, "skill_id": "SKILL_01", "manifest_file": "skills/skill_01_input_standardization.json", "name": "Input Standardization"},
     {"sequence": 2, "skill_id": "SKILL_02", "manifest_file": "skills/skill_02_feature_extraction.json", "name": "Feature Extraction"},
-    {"sequence": 3, "skill_id": "SKILL_03", "manifest_file": "skills/skill_03_feasibility_risk.json", "name": "Feasibility & Risk"},
-    {"sequence": 4, "skill_id": "SKILL_04", "manifest_file": "skills/skill_04_distributor_selection.json", "name": "Distributor & Source Selection"},
-    {"sequence": 5, "skill_id": "SKILL_05", "manifest_file": "skills/skill_05_supplier_rfq_tools.json", "name": "Supplier RFQ/Quoting Tools"},
-    {"sequence": 6, "skill_id": "SKILL_06", "manifest_file": "skills/skill_06_sap_cost_extraction.json", "name": "SAP/API Cost Extraction"},
-    {"sequence": 7, "skill_id": "SKILL_07", "manifest_file": "skills/skill_07_quote_validation_comparison.json", "name": "Quote Validation & Comparison"},
-    {"sequence": 8, "skill_id": "SKILL_08", "manifest_file": "skills/skill_08_costed_bom.json", "name": "Costed BOM"},
+    {"sequence": 3, "skill_id": "SKILL_04", "manifest_file": "skills/skill_04_distributor_selection.json", "name": "Distributor & Source Selection"},
+    {"sequence": 4, "skill_id": "SKILL_06", "manifest_file": "skills/skill_06_sap_cost_extraction.json", "name": "SAP/API Cost Extraction"},
+    {"sequence": 5, "skill_id": "SKILL_03", "manifest_file": "skills/skill_03_feasibility_risk.json", "name": "Feasibility & Risk"},
+    {"sequence": 6, "skill_id": "SKILL_07", "manifest_file": "skills/skill_07_quote_validation_comparison.json", "name": "Quote Validation & Comparison"},
+    {"sequence": 7, "skill_id": "SKILL_08", "manifest_file": "skills/skill_08_costed_bom.json", "name": "Costed BOM"},
+    {"sequence": 8, "skill_id": "SKILL_10", "manifest_file": "skills/skill_10_sales_quote.json", "name": "Sales Quote"},
     {"sequence": 9, "skill_id": "SKILL_09", "manifest_file": "skills/skill_09_reporting_bullmind.json", "name": "Reporting via BullMind"},
-    {"sequence": 10, "skill_id": "SKILL_10", "manifest_file": "skills/skill_10_sales_quote.json", "name": "Sales Quote"}
+    {"sequence": 10, "skill_id": "SKILL_05", "manifest_file": "skills/skill_05_supplier_rfq_tools.json", "name": "Supplier RFQ/Quoting Tools"}
   ],
   "governance": {
     "deterministic_hash": "sha256:COMPUTED_ON_SAVE",

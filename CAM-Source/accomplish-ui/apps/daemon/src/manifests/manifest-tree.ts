@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RUNTIME, hashText, manifestsDir } from './manifest-paths.js';
 import { metaOf, type Doc } from './manifest-validate.js';
+import { UI_ACTIONS } from './manifest-schemas.js';
 
 interface Loaded {
   path: string;
@@ -46,7 +47,9 @@ function skillNode(root: string, entry: Doc) {
   const m = metaOf(l.doc);
   const subSkills = objects(l.doc.sub_skills).map((s) => ({ id: String(s.sub_skill_id ?? ''), name: String(s.sub_skill_name ?? ''), type: String(s.type ?? ''), stepCount: Array.isArray(s.steps) ? s.steps.length : 0, enabled: on(s.enabled) }));
   // SPEC-023: `enabled: false` in the agent's skill_sequence entry or in the skill's own skill_metadata switches the skill off in the left pane.
-  return { path, id: m.id ?? base.id, name: m.name ?? base.name, sequence: base.sequence, version: m.version, status: m.status, hash: l.hash, subSkills, enabled: base.enabled && on(l.doc.skill_metadata?.enabled) };
+  // SPEC-025: `ui_actions` lists the pane's buttons for this stage; an absent list leaves the pane's built-in buttons, an unknown action is dropped.
+  const uiActions = Array.isArray(l.doc.ui_actions) ? objects(l.doc.ui_actions).filter((a) => typeof a.label === 'string' && UI_ACTIONS.includes(String(a.action))).map((a) => ({ label: String(a.label), action: String(a.action) })) : undefined;
+  return { path, id: m.id ?? base.id, name: m.name ?? base.name, sequence: base.sequence, version: m.version, status: m.status, hash: l.hash, subSkills, uiActions, enabled: base.enabled && on(l.doc.skill_metadata?.enabled) };
 }
 
 export function buildTree() {

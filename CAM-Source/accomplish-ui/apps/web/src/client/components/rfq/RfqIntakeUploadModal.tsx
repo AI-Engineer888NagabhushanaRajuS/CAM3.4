@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { logger } from '@/lib/logger';
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
+import { refusalMessage } from '@/lib/uploadRefusal';
 
 interface RfqIntakeUploadModalProps {
   open: boolean;
@@ -54,7 +55,7 @@ export function RfqIntakeUploadModal({
     };
 
   const handleUpload = () => {
-    if (!bomFile || !volumeFile) { return; }
+    if (!bomFile) { return; }
     if (!rfqId.trim()) {
       setError('Please enter a Target RFQ Reference ID before uploading.');
       return;
@@ -68,7 +69,7 @@ export function RfqIntakeUploadModal({
 
     const formData = new FormData();
     formData.append('bom_file', bomFile);
-    formData.append('volume_file', volumeFile);
+    if (volumeFile) { formData.append('volume_file', volumeFile); }   // optional: a SCRUB BOM workbook carries its volumes in its Settings sheet
     formData.append('rfq_id', rfqId.trim());
     if (gerberFile) { formData.append('gerber_file', gerberFile); }
 
@@ -81,12 +82,7 @@ export function RfqIntakeUploadModal({
       .then(async (response) => {
         if (!response.ok) {
           logger.error('BOM upload rejected by server', { status: response.status });
-          // SPEC-023: the pre-flight names the cells that would be NaN / error in the output; say which, and where to fix them.
-          const body = (await response.json().catch(() => null)) as { detail?: { code?: string; message?: string; issues?: Array<{ sheet: string | null; col: string | null; row: number | null; message: string }> } } | null;
-          const d = body?.detail;
-          onUploadError?.(d?.code === 'input_invalid'
-            ? `${d.message} First: ${(d.issues ?? []).slice(0, 3).map((i) => `${i.sheet ?? ''} ${i.col ?? ''}${i.row ?? ''}: ${i.message}`).join(' ')} Attach the file with the paperclip in the assistant to fix these cells there.`
-            : `Server rejected the BOM upload (status ${response.status}).`);
+          onUploadError?.(await refusalMessage(response));
         }
       })
       .catch((err) => {
@@ -172,11 +168,10 @@ export function RfqIntakeUploadModal({
             />
           </div>
 
-          {/* Volume File Zone -- mandatory; RFQ_Flow's intake__import_bom
-              requires a file_role='VOLUME' row in rfq_file_telemetry
-              alongside the BOM row, with no graceful-skip. */}
+          {/* Volume File Zone -- optional for the SCRUB BOM pipeline (its volumes are in the workbook's Settings sheet);
+              the upload service still requires it for RFQ_Flow's intake__import_bom. */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Volume File</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Volume File (optional)</p>
             <div
               onDragOver={(e) => { e.preventDefault(); setVolumeDragOver(true); }}
               onDragLeave={() => setVolumeDragOver(false)}
@@ -284,7 +279,7 @@ export function RfqIntakeUploadModal({
           </button>
           <Button
             onClick={handleUpload}
-            disabled={!bomFile || !volumeFile}
+            disabled={!bomFile}
             size="sm"
           >
             Upload & Proceed

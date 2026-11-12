@@ -26,6 +26,12 @@ from db import (
 import rfq_memory_client
 
 
+def record_step_event(*args, **kwargs):
+    """What a step really did, kept in Postgres (db.record_step_event). Imported at call time: another service's own db.py can be first on the path in tests."""
+    from db import record_step_event as _record
+    return _record(*args, **kwargs)
+
+
 def _load_tool_routing_sets():
     """Load DUCKDB_SCOPED_TOOLS and SCRUB_TOOLS from ISATVON manifests.
 
@@ -112,7 +118,38 @@ def _daemon_url(path):
     return os.environ.get("CAM_DAEMON_URL", "http://127.0.0.1:9334").rstrip("/") + path
 
 
-def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_category_name, step_status, error=None):
+def step_outcome(body):
+    """What a tool's own result says it did: ("completed" | "skipped", one plain line or None, warning).
+    A skipped tool or one that processed nothing must not read as a clean "completed" step (RFQ-000024: every cost 0, every stage ticked)."""
+    if not isinstance(body, dict):
+        return "completed", None, False
+    if body.get("status") == "skipped":
+        return "skipped", str(body.get("reason") or "skipped"), False
+    parts, warn = [], False
+    if "worksheet_count" in body and "priced_row_count" in body:
+        # The export is where "nothing was priced" becomes a fact: the cbom step legitimately has 0 priced rows before final selection.
+        parts.append(f"{body['worksheet_count']} worksheets, {body['priced_row_count']} of {body['cbom_row_count']} rows priced")
+        warn = (body["cbom_row_count"] or 0) > 0 and not body["priced_row_count"]
+        check = body.get("engine_check") or {}
+        if check.get("status") == "ok":
+            parts.append(f"engine check: {check['exact']} of {check['formulas']} formulas agree" + (f", {check['corrected']} stored values replaced by the engine's" if check.get("corrected") else ""))
+            warn = warn or not check.get("complete", True)
+    elif "cannot_build" in body:
+        parts.append(f"{body['lines']} lines: {body['can_build']} can build, {body['cannot_build']} cannot, {body['high']} high risk")
+        warn = bool(body["cannot_build"])
+    elif "cbom_row_count" in body:
+        parts.append(f"{body['cbom_row_count']} rows")
+    elif "rows_matched_costing" in body:
+        parts.append(f"{body['rows_matched_costing']} rows matched the costing sheet")
+    elif "rows_standardized" in body:
+        parts.append(f"{body['rows_standardized']} rows standardized")
+        warn = not body["rows_standardized"]
+    if body.get("pending_conflicts"):
+        parts.append(f"{body['pending_conflicts']} conflicts to review")
+    return "completed", "; ".join(parts) or None, warn
+
+
+def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_category_name, step_status, error=None, detail=None, warning=False):
     payload = {
         "rfqId": rfq_id,
         "skillCode": skill_code,
@@ -124,6 +161,13 @@ def notify_skill_progress(rfq_id, skill_code, skill_name, macro_category, macro_
     }
     if error is not None:
         payload["error"] = error
+    if detail:
+        payload["detail"] = detail
+        payload["warning"] = bool(warning)
+    try:
+        record_step_event(rfq_id, skill_code, skill_name, macro_category, step_status, detail or error, warning)
+    except Exception as e:
+        print(f"[STEP EVENT ERROR] could not record {skill_code} {step_status}: {e}")
     httpx.post(_daemon_url("/api/internal/emit-skill-progress"), json=payload, timeout=5)
 
 
@@ -263,7 +307,8 @@ def execute_tool(request: ToolExecuteRequest):
                     skill_name=skill_name,
                     macro_category=macro_category,
                     macro_category_name=macro_category_name,
-                    step_status="completed",
+                    step_status="skipped",
+                    detail="turned off for this pipeline (not in the routing sequence)",
                 )
         except Exception as e:
             print(f"[SSE ERROR] (skip notification) {e}")
@@ -424,7 +469,8 @@ def execute_tool(request: ToolExecuteRequest):
 
                         # )
 
-                        notify_skill_progress(rfq_id=effective_rfq_id,skill_code=skill["skillCode"], skill_name=skill["skillName"], macro_category=skill["macroCategory"],  macro_category_name=skill["macroCategoryName"], step_status="completed")
+                        outcome, detail, warning = step_outcome(clean_json_body)
+                        notify_skill_progress(rfq_id=effective_rfq_id,skill_code=skill["skillCode"], skill_name=skill["skillName"], macro_category=skill["macroCategory"],  macro_category_name=skill["macroCategoryName"], step_status=outcome, detail=detail, warning=warning)
 
                         print(
                             f"[SSE] Published progress "

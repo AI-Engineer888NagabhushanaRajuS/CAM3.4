@@ -62,6 +62,8 @@ function createMockMessage(
 
 // Mock accomplish API
 const mockAccomplish = {
+  rfqGetRoutingProfileSkills: vi.fn().mockResolvedValue({ skills: [] }),
+  onDaemonReconnected: vi.fn(() => () => {}),
   onTaskUpdate: mockOnTaskUpdate.mockReturnValue(() => {}),
   onTaskUpdateBatch: mockOnTaskUpdateBatch.mockReturnValue(() => {}),
   onPermissionRequest: mockOnPermissionRequest.mockReturnValue(() => {}),

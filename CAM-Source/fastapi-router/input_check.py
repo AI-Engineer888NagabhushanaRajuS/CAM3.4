@@ -339,6 +339,45 @@ def check(path: str) -> dict:
     return out
 
 
+def _part_ids(path: str, sheet_wanted, header_ok, columns) -> set:
+    """Upper-cased, trimmed values of the wanted columns of the first sheet (or the named one) whose header row passes `header_ok`."""
+    wb, wf = _open_pair(path)
+    try:
+        names = [n for n in wb.sheetnames if sheet_wanted is None or n.strip().upper() == sheet_wanted.upper()]
+        for name in names:
+            vals = wb[name].iter_rows(values_only=True)
+            try:
+                for i, row in enumerate(vals):
+                    if i > 2000:
+                        break
+                    header = [_norm(c) for c in row]
+                    if header_ok(header):
+                        idx = [j for j, h in enumerate(header) if h in columns]
+                        return {str(r[j]).strip().upper() for r in vals for j in idx if j < len(r) and r[j] not in (None, "")}
+            finally:
+                vals.close()
+        return set()
+    finally:
+        for w in (wb, wf):
+            w.close()
+
+
+def quotewin_match(bom_path: str, quotewin_path: str) -> dict:
+    """How many of the BOM's part numbers (CPN) the QuoteWin file knows (by its Part Number or Mfg Part Number). Prices and awards come from
+    QuoteWin by part number, so a file with none of the BOM's parts prices nothing and every cost in the report is 0 (RFQ-000024).
+    Never raises: when either file cannot be read the answer is `known: False` and the caller lets the upload through."""
+    try:
+        bom = _part_ids(bom_path, SHEET_SCRUB_BOM, lambda h: any(x in _ALIASES["cpn"] for x in h), _ALIASES["cpn"])
+        signature = lambda h: {"partnumber", "mfgpartnumber", "commodity"} <= set(h)  # noqa: E731
+        qw = _part_ids(quotewin_path, None, signature, {"partnumber", "mfgpartnumber"})
+        listed = _part_ids(quotewin_path, None, signature, {"partnumber"})   # what the message counts: the file's part numbers, not its MPNs too
+    except Exception:
+        return {"known": False}
+    if not bom or not qw:
+        return {"known": False}
+    return {"known": True, "bom_parts": len(bom), "quotewin_parts": len(listed), "shared": len(bom & qw)}
+
+
 def summary(report: dict) -> dict:
     """The few fields a file list needs."""
     return {k: report.get(k) for k in ("checked", "ok", "errors", "warnings")}

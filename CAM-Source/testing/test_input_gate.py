@@ -55,6 +55,61 @@ def test_another_routing_profile_reads_other_files_so_it_is_not_gated(tmp_path):
     asyncio.run(us._refuse_invalid_bom(_file(book(tmp_path / "bad.xlsx", scrub=[GOOD[0], BAD_ROW])), "RFQ_Flow"))
 
 
+def test_the_volume_file_is_optional_for_the_scrub_bom_pipeline_but_not_for_rfq_flow(tmp_path):
+    us = _upload_server()
+    f = _file(book(tmp_path / "ok.xlsx", scrub=[GOOD[0], GOOD[1]]))
+    with pytest.raises(HTTPException) as e:          # refused before anything is created
+        asyncio.run(us.upload_rfq_file(bom_file=f, volume_file=None, gerber_file=None, rfq_id="R1", profile="RFQ_Flow", token={}, x_cam_user=None, x_cam_user_email=None))
+    assert e.value.status_code == 400 and "volume file is required" in e.value.detail
+
+
+def _quotewin(path, parts):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Awards Part Number Listing"])
+    ws.append(["Part Number", "Mfg Part Number", "Commodity"])
+    for p in parts:
+        ws.append([p, "MPN-" + p, "RES"])
+    wb.save(path)
+    return path
+
+
+def _db_with_bom(monkeypatch, us, bom_path):
+    class Cur:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, *a): pass
+        def fetchone(self): return (str(bom_path),)
+
+    class Conn:
+        def cursor(self): return Cur()
+        def close(self): pass
+
+    monkeypatch.setattr(us, "get_db_connection", lambda: Conn())
+
+
+def test_a_quotewin_file_with_none_of_the_boms_parts_is_refused_with_the_numbers(tmp_path, monkeypatch):
+    us = _upload_server()
+    bom = book(tmp_path / "bom.xlsx", scrub=[GOOD[0], GOOD[1]])
+    _db_with_bom(monkeypatch, us, bom)
+    qw = _file(_quotewin(tmp_path / "other.xlsx", ["X-1", "X-2", "X-3"]), "other.xlsx")
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(us._quotewin_match("R1", 1, qw))
+    d = e.value.detail
+    assert e.value.status_code == 422 and d["code"] == "quotewin_mismatch" and d["shared"] == 0 and d["quotewin_parts"] == 3, d
+    assert "every cost would be 0" in d["message"]
+
+
+def test_a_quotewin_file_that_knows_the_boms_parts_passes_and_a_partial_match_says_so(tmp_path, monkeypatch):
+    us = _upload_server()
+    bom = book(tmp_path / "bom.xlsx", scrub=[GOOD[0], GOOD[1]])
+    _db_with_bom(monkeypatch, us, bom)
+    cpns = {str(row[3]).upper() for row in (GOOD[0], GOOD[1])}
+    qw = _file(_quotewin(tmp_path / "mine.xlsx", sorted(cpns)), "mine.xlsx")
+    match = asyncio.run(us._quotewin_match("R1", 1, qw))
+    assert match["known"] and match["shared"] == match["bom_parts"] == len(cpns), match
+
+
 def test_a_released_workbook_lists_its_check_and_check_returns_every_cell(api, tmp_path):
     p = book(tmp_path / "Centum_BOM.xlsx", scrub=[GOOD[0], BAD_ROW])
     resp = upload(api, [("Centum_BOM.xlsx", open(p, "rb").read())])

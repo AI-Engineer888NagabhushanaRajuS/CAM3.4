@@ -235,8 +235,12 @@ def build_price_control_sheet(wb, data, cbom_last_row, last_volume=None, contrac
     # blanket IFERROR(...,0) around the whole SUMPRODUCT would "fix" the symptom but
     # silently zero out a real, correct total the instant any unrelated row elsewhere had
     # a blank price -- N() fixes the actual cause instead (same pattern as cbom_vl.py).
-    ext_price_n = f"N({ext_price_range})"
-    ext_vol_n = f"N({ext_vol_range})"
+    # CORRECTION (checked in native Excel 16.0, 11 Nov): N(range) is NOT array-wise in Excel (it returns the first cell only), so SUMPRODUCT got
+    # arrays of different sizes and every cell of this tab was #VALUE! (the Manifest then read NO-GO); LibreOffice and the formula engine
+    # accept it, which is why it was never seen. The plain range as its own SUMPRODUCT argument already treats text cells as 0 in Excel, which
+    # is all the comment above wanted from N().
+    ext_price_n = ext_price_range
+    ext_vol_n = ext_vol_range
 
     rows.append([
         "Centum",

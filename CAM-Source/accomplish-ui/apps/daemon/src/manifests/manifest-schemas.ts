@@ -101,6 +101,10 @@ const variableDef = obj('One named edge-case variable.', { description: str('Wha
 const reportVariables = { ...obj('V hoisted to the top level: every edge case as a named variable.', { _comment: str('Note') }), additionalProperties: variableDef };
 const report = obj('One report', { report_id: str('Id like R01', { pattern: '^R\\d{2}$' }), tab_no: { type: 'integer', minimum: 1, description: 'Tab position in the workbook' }, sheet_name: str('Sheet name', { minLength: 1 }), requestor: str('Who asked'), output_format: str('Layout'), current_script: str('Current implementation'), inputs: list('Inputs'), edge_case_variables: list('Variables that affect it'), acceptance_checks: list('Checks') }, ['report_id', 'tab_no', 'sheet_name']);
 
+/** What a left-pane button does: createRfq opens the intake dialog, scan and ingest are the intake steps, jump goes to the stage, info is a plain line. */
+export const UI_ACTIONS = ['createRfq', 'scan', 'ingest', 'jump', 'info'];
+const uiAction = obj('One button of the left pane', { label: str('Button text', { minLength: 1 }), action: str('What pressing it does', { enum: UI_ACTIONS }) }, ['label', 'action']);
+
 const skillEntry = obj('One skill entry', { sequence: { type: 'integer', minimum: 1, description: 'Position' }, skill_id: str('Skill id'), manifest_file: str('Relative file, e.g. skills/skill_01_input_standardization.json', { pattern: '^skills/[A-Za-z0-9._-]+\\.json$' }), name: str('Skill name'), enabled: bool('false switches this skill off in the left pane. Missing means on.') }, ['sequence', 'skill_id', 'manifest_file']);
 
 export function manifestSchema(kind: SchemaKind): Obj {
@@ -117,7 +121,7 @@ export function manifestSchema(kind: SchemaKind): Obj {
     required = ['agent_metadata', 'skill_sequence', 'governance'];
   }
   if (kind === 'skill') {
-    Object.assign(properties, { sub_skills: list('Sub-skills in order; each has steps.', subSkill, { minItems: 1 }), sri_runtime_definition: runtimeDef });
+    Object.assign(properties, { sub_skills: list('Sub-skills in order; each has steps.', subSkill, { minItems: 1 }), sri_runtime_definition: runtimeDef, ui_actions: list('SPEC-025: the buttons the left pane shows under this skill\'s stage, in order. Missing = the pane\'s built-in buttons; [] = no buttons.', uiAction) });
     required.push('sub_skills', 'sri_runtime_definition');
   }
   if (kind === 'reporting' || kind === 'approved') {

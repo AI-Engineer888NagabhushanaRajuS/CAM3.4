@@ -1,0 +1,25 @@
+{
+  "oracle": "LibreOffice recalculates synthetic pivot with hidden West item; original source total35butvisiblepivot15",
+  "results": [
+    {
+      "kind": "caption",
+      "value": 15
+    },
+    {
+      "kind": "root",
+      "value": 15
+    },
+    {
+      "kind": "invalidfield",
+      "value": "#REF!"
+    },
+    {
+      "kind": "invalidanchor",
+      "value": "#REF!"
+    },
+    {
+      "kind": "pair",
+      "value": 15
+    }
+  ]
+}

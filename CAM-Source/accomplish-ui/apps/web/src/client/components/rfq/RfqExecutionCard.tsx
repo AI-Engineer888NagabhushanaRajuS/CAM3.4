@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger';
 import { getAccomplish } from '@/lib/accomplish';
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
+import { refusalMessage } from '@/lib/uploadRefusal';
+import { AttachFilesDialog } from './AttachFilesDialog';
 
 interface RfqExecutionCardProps {
   /** Fired the moment `createRfq` resolves, before the file upload request is
@@ -98,6 +100,33 @@ function FileDropSlot({ label, file, onSelect, onClear, accept = '.xlsx,.xls,.cs
   );
 }
 
+/** One drop area for ALL the input files at once (BOM, volume ...). Nothing here decides which file is which: the scan dialog reads them and says. */
+function FilesDrop({ onPick, disabled }: { onPick: (files: File[]) => void; disabled: boolean }) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-foreground">Input files</label>
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled) { setDragOver(true); } }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!disabled && e.dataTransfer.files.length) { onPick(Array.from(e.dataTransfer.files)); } }}
+        onClick={() => { if (!disabled) { inputRef.current?.click(); } }}
+        onKeyDown={(e) => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); inputRef.current?.click(); } }}
+        className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'}`}
+      >
+        <span className={`flex h-9 w-9 items-center justify-center rounded-full ${dragOver ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}><CloudArrowUp className="h-[18px] w-[18px]" /></span>
+        <p className="text-sm text-foreground">Drop all your files here, or <span className="font-medium text-primary">browse</span></p>
+        <p className="max-w-sm text-[11px] text-muted-foreground/80">The BOM workbook and the volume file. Both security engines scan them first, and the files are sorted for you. .xlsx · .xls · .csv</p>
+      </div>
+      <input ref={inputRef} type="file" multiple className="hidden" accept=".xlsx,.xls,.csv" onChange={(e) => { if (e.target.files?.length) { onPick(Array.from(e.target.files)); } e.target.value = ''; }} />
+    </div>
+  );
+}
+
 /** Inline execution card for the "Create RFQ" sub-skill, rendered in place of
  * the chat outlet (Column 2) rather than as a popup dialog. Combines what used
  * to be two separate steps -- RfqCreateForm's metadata form, then
@@ -120,6 +149,8 @@ export function RfqExecutionCard({
   const [rfqIdMessage, setRfqIdMessage] = useState<string | null>(null);
   const [bomFile, setBomFile] = useState<File | null>(null);
   const [volumeFile, setVolumeFile] = useState<File | null>(null);
+  // What was just dropped: it goes through the Uppy dashboard and both security engines, which sort the files into BOM and volume.
+  const [picked, setPicked] = useState<File[]>([]);
   // Optional -- RFQ_Flow's gerber_integration__extract_features skips itself
   // gracefully (hitl=0, no preview) when no GERBER_ZIP file_role row exists
   // for the rfq_id, same as RfqIntakeUploadModal's own Gerber dropzone.
@@ -169,11 +200,12 @@ export function RfqExecutionCard({
     return () => { cancelled = true; };
   }, [rfqId]);
 
+  // The volume file is optional: a SCRUB BOM workbook carries its volumes in its own Settings sheet (the service allows no volume file for it).
   const canSubmit = !!customerId && !!projectId && !!rfqId.trim() && !rfqIdMessage
-    && !!bomFile && !!volumeFile && !submitting;
+    && !!bomFile && !submitting;
 
   const handleStartRfq = useCallback(async () => {
-    if (!customerId || !projectId || !bomFile || !volumeFile) { return; }
+    if (!customerId || !projectId || !bomFile) { return; }
     const trimmedId = rfqId.trim();
     if (!trimmedId || rfqIdMessage) { return; }
 
@@ -192,15 +224,15 @@ export function RfqExecutionCard({
 
     const formData = new FormData();
     formData.append('bom_file', bomFile);
-    formData.append('volume_file', volumeFile);
+    if (volumeFile) { formData.append('volume_file', volumeFile); }
     formData.append('rfq_id', trimmedId);
     if (gerberFile) { formData.append('gerber_file', gerberFile); }
 
     authFetch(`${RFQ_UPLOAD_URL}/api/rfq/upload`, trimmedId, { method: 'POST', body: formData })
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
           logger.error('BOM upload rejected by server', { status: response.status });
-          onUploadError(`Server rejected the BOM upload (status ${response.status}).`);
+          onUploadError(await refusalMessage(response));
         }
       })
       .catch((err: unknown) => {
@@ -268,10 +300,23 @@ export function RfqExecutionCard({
             {rfqIdMessage && <p className="text-[13px] text-destructive">{rfqIdMessage}</p>}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FileDropSlot label="BOM File" file={bomFile} onSelect={setBomFile} onClear={() => setBomFile(null)} />
-            <FileDropSlot label="Volume File" file={volumeFile} onSelect={setVolumeFile} onClear={() => setVolumeFile(null)} />
-          </div>
+          {bomFile ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FileDropSlot label="BOM workbook" file={bomFile} onSelect={setBomFile} onClear={() => { setBomFile(null); setVolumeFile(null); }} />
+              <FileDropSlot label="Volume file (optional)" file={volumeFile} onSelect={setVolumeFile} onClear={() => setVolumeFile(null)} />
+            </div>
+          ) : (
+            <FilesDrop disabled={!rfqId.trim()} onPick={setPicked} />
+          )}
+          <AttachFilesDialog
+            open={picked.length > 0}
+            rfqId={rfqId.trim() || 'NEW'}
+            files={picked}
+            alreadyAttached={[]}
+            onClose={() => setPicked([])}
+            onReleased={() => undefined}
+            onUseFiles={({ bom, volume }) => { setBomFile(bom); setVolumeFile(volume); }}
+          />
 
           <FileDropSlot
             label="Gerber ZIP (optional)"

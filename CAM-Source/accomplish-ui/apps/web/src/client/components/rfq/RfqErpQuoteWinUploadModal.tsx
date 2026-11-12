@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { logger } from '@/lib/logger';
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
+import { serverMessage } from '@/lib/uploadRefusal';
 
 interface UploadedFileNames {
   quoteWinFileName?: string;
@@ -115,9 +116,9 @@ export function RfqErpQuoteWinUploadModal({
         .map((res, i) => ({ res, label: uploads[i].label }))
         .filter(({ res }) => !res.ok);
       if (failed.length > 0) {
-        throw new Error(
-          `Upload rejected by server (${failed.map(({ res, label }) => `${label}: ${res.status}`).join(', ')})`,
-        );
+        // The server says why when it knows (a QuoteWin file that is not this BOM's); otherwise the status.
+        const why = await Promise.all(failed.map(async ({ res, label }) => (await serverMessage(res)) ?? `${label}: ${res.status}`));
+        throw new Error(why.length === 1 && !why[0].includes(': ') ? `Upload rejected by server (${why[0]})` : why.join(' '));
       }
 
       setCostingSheetFile(null);

@@ -37,6 +37,9 @@ function createMockTask(
 
 // Mock accomplish API
 const mockAccomplish = {
+  rfqGetRoutingProfileSkills: vi.fn().mockResolvedValue({ skills: [] }),
+  getEnabledSkills: vi.fn().mockResolvedValue([]),
+  onDaemonReconnected: vi.fn(() => () => {}),
   hasAnyApiKey: mockHasAnyApiKey,
   getSelectedModel: vi.fn().mockResolvedValue({ provider: 'anthropic', id: 'claude-3-opus' }),
   getOllamaConfig: vi.fn().mockResolvedValue(null),

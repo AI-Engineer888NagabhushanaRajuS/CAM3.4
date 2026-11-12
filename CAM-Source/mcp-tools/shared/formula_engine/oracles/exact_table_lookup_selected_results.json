@@ -1,0 +1,86 @@
+{
+  "method": "Separate LibreOffice recalculation of synthetic exact lookup self-exclusion/shape workbook; actual formula strings retained.",
+  "results": [
+    {
+      "sheet": "Vertical",
+      "cell": "C1",
+      "engine": "10.0",
+      "secondary": "10"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "C2",
+      "engine": "20.0",
+      "secondary": "20"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "D1",
+      "engine": "40.0",
+      "secondary": "40"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "D2",
+      "engine": "#N/A",
+      "secondary": "#N/A"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "D3",
+      "engine": "#REF!",
+      "secondary": "#VALUE!"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "D4",
+      "engine": "#VALUE!",
+      "secondary": "#VALUE!"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "D5",
+      "engine": "10.0",
+      "secondary": "10"
+    },
+    {
+      "sheet": "Vertical",
+      "cell": "E1",
+      "engine": "0.0",
+      "secondary": "0"
+    },
+    {
+      "sheet": "Horizontal",
+      "cell": "A3",
+      "engine": "20.0",
+      "secondary": "20"
+    },
+    {
+      "sheet": "Horizontal",
+      "cell": "B3",
+      "engine": "40.0",
+      "secondary": "40"
+    },
+    {
+      "sheet": "Horizontal",
+      "cell": "E1",
+      "engine": "0.0",
+      "secondary": "0"
+    },
+    {
+      "sheet": "Horizontal",
+      "cell": "E2",
+      "engine": "#VALUE!",
+      "secondary": "#VALUE!"
+    }
+  ],
+  "conflicts": [
+    "VLOOKUP col_index4 over3columnrectangle returns#VALUE!inLibreOffice, while Microsoft documents#REF!. Prototype followsMicrosoft."
+  ],
+  "initial_test_scope_failure": "Bare table name Lookups is parsed as unsupported NameRef. Replaced test with explicit supported structured reference Lookups[#All], not claimed named-range support.",
+  "scope": "Selected read exact direct/structured reference path only. Approximate/computed/unverified key coercion semantics not upgraded; genuine selected selfcycles stilldiagnosed.",
+  "sources": [
+    "https://support.microsoft.com/en-us/excel/functions/vlookup-function",
+    "https://support.microsoft.com/en-us/excel/functions/hlookup-function"
+  ]
+}

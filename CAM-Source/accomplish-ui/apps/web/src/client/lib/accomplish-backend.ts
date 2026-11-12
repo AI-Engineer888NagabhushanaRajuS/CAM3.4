@@ -98,6 +98,7 @@ const RPC: Record<string, string> = {
   rfqGetFileVersions: 'rfq.getFileVersions',
   rfqActivateVersion: 'rfq.activateVersion',
   rfqGetProcessStage: 'rfq.getProcessStage',
+  rfqGetHitlPending: 'rfq.getHitlPending',
   rfqGetSkillHistory: 'rfq.getSkillHistory',
   rfqGetRoutingProfileSkills: 'rfq.getRoutingProfileSkills',
   rfqSetRoutingProfileSkillEnabled: 'rfq.setRoutingProfileSkillEnabled',

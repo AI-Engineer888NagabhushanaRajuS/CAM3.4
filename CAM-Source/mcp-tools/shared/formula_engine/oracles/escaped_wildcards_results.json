@@ -1,0 +1,14 @@
+{
+  "oracle": "LibreOffice secondary escapedwildcardfixture",
+  "results": {
+    "C1": 1,
+    "C2": 1,
+    "C3": 1,
+    "C4": 1,
+    "C5": 2,
+    "C6": 3,
+    "C7": 2,
+    "C8": 2,
+    "C9": 2
+  }
+}

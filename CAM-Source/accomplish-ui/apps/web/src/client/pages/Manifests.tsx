@@ -52,7 +52,7 @@ export function ManifestsPage() {
 
       <p className="flex shrink-0 items-start gap-2 border-b border-border bg-amber-500/10 px-4 py-2 text-xs" role="note">
         <Info className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
-        Design input: saving versions the file; it does not yet change how a tool runs (SPEC-020).
+        Saving versions the file. A skill's enabled flag switches its pipeline steps on or off; sequence and ui_actions shape the left pane; everything else is design input (SPEC-025).
       </p>
 
       <main className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,40%)_minmax(0,1fr)] min-[900px]:grid-cols-[minmax(280px,380px)_minmax(0,1fr)] min-[900px]:grid-rows-1">

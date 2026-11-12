@@ -59,27 +59,18 @@ async function progress(db: StatusDb, rfqId: string, completed: number): Promise
   const profile = async (name: string) =>
     (await db.registry.query(`SELECT routing_sequence FROM quote_routing_profiles WHERE profile_name = $1`, [name])).rows[0]?.routing_sequence as string[] | undefined;
   const flow = volume.rows.length > 0 ? await profile('RFQ_Flow') : undefined;
-  if (flow && flow.length > 0) {
-    const upper = Math.min(completed, flow.length - 1);
-    const tools = flow.slice(0, upper + 1);
-    const { rows } = await db.registry.query(
-      `SELECT skill_index, skill_name, macro_category, mcp_tool_name FROM system_skills_registry WHERE mcp_tool_name = ANY($1) ORDER BY skill_index`, [tools]);
-    const macro = (await db.registry.query(`SELECT macro_category FROM system_skills_registry WHERE mcp_tool_name = $1`, [flow[upper]])).rows[0]?.macro_category;
-    return { steps: toSteps(rows, (r) => tools.indexOf(String(r.mcp_tool_name)) < completed), finished: completed >= flow.length, macro };
+  // By position in the routing sequence (rfq_process_stage counts the steps done): a step added in the middle, like Feasibility & Risk, shifts nothing.
+  const sequence = flow && flow.length > 0 ? flow : await profile('Standard_BOM_Flow');
+  if (!sequence || sequence.length === 0) {
+    return { steps: [], finished: false, macro: undefined };
   }
-  const std = await profile('Standard_BOM_Flow');
-  const last = std?.[std.length - 1];
-  const max = last
-    ? (await db.registry.query(`SELECT skill_index FROM system_skills_registry WHERE mcp_tool_name = $1`, [last])).rows[0]?.skill_index
-    : undefined;
-  const maxIndex = typeof max === 'number' ? max : null;
-  const finished = maxIndex !== null && completed >= maxIndex;
-  const upperBound = maxIndex === null ? completed + 1 : Math.min(completed + 1, maxIndex);
+  const upper = Math.min(completed, sequence.length - 1);
+  const tools = sequence.slice(0, upper + 1);
   const { rows } = await db.registry.query(
-    `SELECT skill_index, skill_name, macro_category, mcp_tool_name FROM system_skills_registry WHERE skill_index <= $1 ORDER BY skill_index`, [upperBound]);
-  // the skill that just halted or is next: completed + 1, or the last real one once everything ran
-  const macro = rows.find((r) => r.skill_index === (finished ? maxIndex : completed + 1))?.macro_category ?? rows[rows.length - 1]?.macro_category;
-  return { steps: toSteps(rows, (r) => typeof r.skill_index === 'number' && r.skill_index <= completed), finished, macro };
+    `SELECT skill_index, skill_name, macro_category, mcp_tool_name FROM system_skills_registry WHERE mcp_tool_name = ANY($1)`, [tools]);
+  const ordered = tools.flatMap((t) => rows.filter((r) => r.mcp_tool_name === t));
+  const macro = (await db.registry.query(`SELECT macro_category FROM system_skills_registry WHERE mcp_tool_name = $1`, [sequence[upper]])).rows[0]?.macro_category;
+  return { steps: toSteps(ordered, (r) => tools.indexOf(String(r.mcp_tool_name)) < completed), finished: completed >= sequence.length, macro };
 }
 
 /** ponytail: the DB records only completed and running skills; a failure is visible live in the right pane but is not stored, so 'failed' is never set here. */

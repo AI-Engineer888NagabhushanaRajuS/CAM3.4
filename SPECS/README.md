@@ -30,8 +30,9 @@ The machine-readable state is [`progress.json`](progress.json). This page is the
 | [020](SPEC-020-manifest-editor-and-dynamic-propagation.md) | Manifest editor (Monaco) and dynamic propagation of edits | implemented, proven live | |
 | [021](SPEC-021-run-history-and-failure-explanations.md) | Run history in the right pane, plain-words failure explanations, tracking by user | implemented, proven live | |
 | [022](SPEC-022-intake-dashboard-and-manifest-diff.md) | Intake dashboard (Uppy, auto-sorted file roles, animated scan) and the manifest change view | implemented, proven live | |
-| [023](SPEC-023-input-preflight-and-chat-files.md) | Input pre-flight, fix in place, files in the chat, manifest-driven left pane | implemented, proven live | report auto-download is unproven (no run reaches the export step) |
-| [024](SPEC-024-repository-rearrangement-and-publication.md) | Repository rearrangement, duplicate merge, document polish, publication | this work | log of every moved and merged file: [`SPEC-024-rearrangement-log.csv`](SPEC-024-rearrangement-log.csv) |
+| [023](SPEC-023-input-preflight-and-chat-files.md) | Input pre-flight, fix in place, files in the chat, manifest-driven left pane | implemented, proven live | report auto-download now proven live (SPEC-025 section 6) |
+| [024](SPEC-024-repository-rearrangement-and-publication.md) | Repository rearrangement, duplicate merge, document polish, publication | done | log of every moved and merged file: [`SPEC-024-rearrangement-log.csv`](SPEC-024-rearrangement-log.csv) |
+| [025](SPEC-025-manifests-drive-the-pipeline.md) | Manifests drive the pipeline (`enabled` switches the routing table), the pane order (`sequence`) and its buttons (`ui_actions`) | implemented, proven live | skills with no tool in the registry (02, 03, 04, 05) only change the pane; all tests green; not committed |
 
 [`TODO-3.4.md`](TODO-3.4.md) is the running list of what is still open.
 

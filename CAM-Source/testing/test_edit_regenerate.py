@@ -189,6 +189,11 @@ def _book_with_notes(path, rows):
     return str(path)
 
 
+def test_a_stored_zero_and_a_stored_false_are_different_values(er):
+    assert er._same(0, False) is False and er._same(False, 0) is False
+    assert er._same(0, 0.0) is True and er._same(False, False) is True and er._same("a", "a") is True
+
+
 def test_diff_compares_the_unordered_missing_notes_sheet_as_a_set_of_rows(tmp_path, er):
     rows = [("A1", "x"), ("B2", None), ("C3", "y")]
     b = _book_with_notes(tmp_path / "b.xlsx", rows)

@@ -197,6 +197,15 @@ def export_excel(rfq_id):
     build_missing_notes_sheet(wb, flatten_missing_notes(mn_sections))
     worksheet_names.append("Missing Notes")
 
+    # SKILL_03: only for an RFQ that ran the Feasibility & Risk step (its row in feasibility_risk_run); values, no formulas.
+    ran_feasibility = con.execute(f"SELECT settings_json FROM feasibility_risk_run WHERE rfq_id = {rfq_lit}").fetchone()
+    if ran_feasibility:
+        import json
+        from reports.feasibility_risk import feasibility_rows, build_feasibility_sheet
+        used = json.loads(ran_feasibility[0])["settings"] if ran_feasibility[0] else None   # the rules of the run (a run before they were stored used the defaults)
+        build_feasibility_sheet(wb, feasibility_rows(scrub_df, quote_df, settings=used), settings=used)
+        worksheet_names.append("Feasibility & Risk")
+
     lt_blocks = lead_time_fg_blocks(mappings.to_lead_time_fg_payload(cbom_df))
     build_lead_time_fg_sheet(wb, flatten_lead_time_fg(lt_blocks))
     worksheet_names.append("Lead Time (FG Wise)")
@@ -348,6 +357,20 @@ def export_excel(rfq_id):
     manifest.append(["Error cells (all tabs)", "=" + "+".join(error_terms)])
     error_row = manifest.max_row
     manifest.append(["Go / no-go", f'=IF(B{error_row}=0,"GO","NO-GO")'])
+    # Excel shows "########" for a number wider than its column. The tabs at the default width (8.4) hold currency and totals: give every column
+    # that carries numbers or formulas at least 15 characters (only widens; a column the tab set itself stays as it is).
+    for sheet in wb.worksheets:
+        for col in range(1, sheet.max_column + 1):
+            letter = get_column_letter(col)
+            dim = sheet.column_dimensions[letter]
+            if dim.width and dim.width >= 15:
+                continue
+            has_number = any(
+                isinstance(c.value, (int, float)) or (isinstance(c.value, str) and c.value.startswith("="))
+                for c in sheet[letter][1:]
+            )
+            if has_number:
+                dim.width = 15
     wb.save(path)
 
     duration = time.time() - start
@@ -359,5 +382,8 @@ def export_excel(rfq_id):
         "workbook_path": path,
         "worksheet_count": len(worksheet_names),
         "worksheet_names": worksheet_names,
+        # What the workbook is made of, so the UI can say "0 of 502 rows priced" instead of a green tick (RFQ-000024).
+        "cbom_row_count": int(len(cbom_df)),
+        "priced_row_count": int(cbom_df["final_price_conv"].notna().sum()) if "final_price_conv" in cbom_df.columns else 0,
         "execution_time_seconds": round(duration, 3),
     }

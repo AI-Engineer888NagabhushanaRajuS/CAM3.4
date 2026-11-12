@@ -396,10 +396,42 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str]) -> N
         })
 
 
+async def _quotewin_match(rfq_id: str, version: int, quotewin_file: UploadFile) -> dict:
+    """The QuoteWin file prices the BOM by part number. One that knows none of this RFQ's BOM parts prices nothing, and the whole report
+    comes out at 0 (RFQ-000024 got the Rafael AWARDS file with the Centum BOM). Refused here with the numbers; a partial overlap is allowed
+    and returned so the UI can say how many parts will stay unpriced. Fails open when either file cannot be read."""
+    import tempfile
+    import input_check
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT file_path FROM rfq_file_telemetry WHERE rfq_id = %s AND file_role = 'BOM' AND version = %s AND is_active LIMIT 1", (rfq_id, version))
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    ext = os.path.splitext(quotewin_file.filename or "")[1].lower()
+    if not row or not row[0] or not os.path.exists(row[0]) or ext not in (".xlsx", ".xlsm"):
+        return {"known": False}
+    data = await quotewin_file.read()
+    await quotewin_file.seek(0)
+    with tempfile.TemporaryDirectory(prefix="cam-qwcheck-") as tmp:
+        path = os.path.join(tmp, f"quotewin{ext}")
+        with open(path, "wb") as f:
+            f.write(data)
+        match = await asyncio.to_thread(input_check.quotewin_match, row[0], path)
+    if match.get("known") and match["shared"] == 0:
+        raise HTTPException(status_code=422, detail={
+            "code": "quotewin_mismatch",
+            "message": f"This QuoteWin file has none of the {match['bom_parts']} parts in this RFQ's BOM (it lists {match['quotewin_parts']} other part numbers), so nothing could be priced and every cost would be 0. It looks like the QuoteWin file of a different BOM. Upload the QuoteWin export for this BOM.",
+            **match,
+        })
+    return match
+
+
 @app.post("/api/rfq/upload")
 async def upload_rfq_file(
     bom_file: UploadFile = File(...),
-    volume_file: UploadFile = File(...),
+    volume_file: Optional[UploadFile] = File(None),
     # Optional -- gerber_integration__extract_features (RFQ_Flow's
     # routing_sequence) checks for an active GERBER_ZIP file_role row and
     # skips itself gracefully (hitl=0) when this wasn't provided, same
@@ -414,6 +446,11 @@ async def upload_rfq_file(
     x_cam_user_email: Optional[str] = Header(None),
 ):
     await _refuse_invalid_bom(bom_file, profile)
+    # The SCRUB BOM pipeline (default profile) takes its volumes from the workbook's own Settings sheet and never reads this file;
+    # RFQ_Flow's import_bom does need it. So it is optional for the default profile only.
+    has_volume = volume_file is not None and bool(volume_file.filename)
+    if not has_volume and (profile or os.environ.get("CAM_DEFAULT_PROFILE", "Standard_BOM_Flow")) != "Standard_BOM_Flow":
+        raise HTTPException(status_code=400, detail="A volume file is required for this pipeline profile.")
     conn = None
     try:
         if not rfq_id or not rfq_id.strip():
@@ -486,9 +523,9 @@ async def upload_rfq_file(
         # a file_role='VOLUME' row in rfq_file_telemetry to exist alongside
         # the BOM row before it can run; there is no graceful-skip for it.
         file_path = await process_file_upload(rfq_id, bom_file, "BOM", version=new_version)
-        volume_path = await process_file_upload(rfq_id, volume_file, "VOLUME", version=new_version)
-
-        saved_paths = {"BOM": file_path, "VOLUME": volume_path}
+        saved_paths = {"BOM": file_path}
+        if has_volume:
+            saved_paths["VOLUME"] = await process_file_upload(rfq_id, volume_file, "VOLUME", version=new_version)
         if gerber_file is not None and gerber_file.filename:
             saved_paths["GERBER_ZIP"] = await process_file_upload(rfq_id, gerber_file, "GERBER_ZIP", version=new_version)
 
@@ -536,13 +573,18 @@ async def upload_quotewin_file(
     rfq_id = rfq_id.strip()
     try:
         active_version = db.get_active_version(rfq_id)
+        match = await _quotewin_match(rfq_id, active_version, quotewin_file)
         file_path = await process_file_upload(rfq_id, quotewin_file, "QUOTEWIN", version=active_version)
-        return {
+        out = {
             "success": True,
             "rfq_id": rfq_id,
             "version": active_version,
-            "saved_paths": {"QUOTEWIN": file_path}
+            "saved_paths": {"QUOTEWIN": file_path},
+            "match": match,
         }
+        if match.get("known") and match["shared"] < match["bom_parts"]:
+            out["warning"] = f"{match['bom_parts'] - match['shared']} of {match['bom_parts']} BOM parts are not in this QuoteWin file and will stay unpriced."
+        return out
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:

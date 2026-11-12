@@ -96,11 +96,20 @@ def _uncached_formulas(path):
     values = openpyxl.load_workbook(path, data_only=True, read_only=True)
     missing = total = 0
     for ws in formulas.worksheets:
-        for row_f, row_v in zip(ws.iter_rows(), values[ws.title].iter_rows()):
-            for f, v in zip(row_f, row_v):
-                if f.data_type == "f":
-                    total += 1
-                    missing += v.value is None
+        rows_f, rows_v = ws.iter_rows(), values[ws.title].iter_rows()
+        try:
+            for row_f, row_v in zip(rows_f, rows_v):
+                for f, v in zip(row_f, row_v):
+                    if f.data_type == "f":
+                        total += 1
+                        missing += v.value is None
+        finally:
+            # zip stops at the first reader to end; a reader that was not run to its end keeps the file open, and on Windows that
+            # locks it (the cache writer's os.replace then fails with "Access is denied"). Run both to the end, then close.
+            for rest in (rows_f, rows_v):
+                for _ in rest:
+                    pass
+                rest.close()
     formulas.close()
     values.close()
     return missing, total

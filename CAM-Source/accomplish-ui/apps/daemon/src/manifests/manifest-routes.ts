@@ -10,6 +10,7 @@ import { resolveManifestPath } from './manifest-paths.js';
 import { manifestSchema, type SchemaKind } from './manifest-schemas.js';
 import { listHistory, MAX_BYTES, readHistory, readManifest, saveManifest, type Reply } from './manifest-store.js';
 import { buildTree } from './manifest-tree.js';
+import { enabledBySkill } from './manifest-runtime.js';
 
 export interface ManifestSession {
   email: string;
@@ -45,7 +46,10 @@ function readBody(req: http.IncomingMessage): Promise<{ text: string; tooBig: bo
   });
 }
 
-async function put(req: http.IncomingMessage, session: ManifestSession): Promise<Reply> {
+/** SPEC-025: switches the pipeline tools of one skill on or off; returns the tool names it touched. */
+export type SkillRuntime = (skillId: string, enabled: boolean) => Promise<string[]>;
+
+async function put(req: http.IncomingMessage, session: ManifestSession, runtime?: SkillRuntime): Promise<Reply> {
   const { text, tooBig } = await readBody(req);
   if (tooBig) {
     return { code: 413, body: { error: `Request is larger than ${MAX_BYTES / 1024} KB` } };
@@ -63,11 +67,28 @@ async function put(req: http.IncomingMessage, session: ManifestSession): Promise
   if (typeof parsed.text !== 'string' || typeof parsed.baseHash !== 'string') {
     return { code: 400, body: { error: 'text and baseHash must be strings' } };
   }
-  return saveManifest(p, parsed.text, parsed.baseHash, session.email);
+  const before = enabledBySkill();
+  const saved = saveManifest(p, parsed.text, parsed.baseHash, session.email);
+  if (saved.code !== 200 || !runtime) {
+    return saved;
+  }
+  // The file is saved; now make the pipeline follow every skill whose flag this save changed. A database error is reported, not hidden.
+  const applied: Record<string, string[]> = {};
+  const errors: string[] = [];
+  for (const [id, on] of enabledBySkill()) {
+    if (before.has(id) && before.get(id) !== on) {
+      try {
+        applied[id] = await runtime(id, on);
+      } catch (e) {
+        errors.push(`${id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+  return { code: 200, body: { ...(saved.body as object), runtime: { applied, errors } } };
 }
 
 /** True when the URL belongs to this module (the caller then stops). Never throws and never awaits in the caller. */
-export function handleManifestRoute(req: http.IncomingMessage, res: http.ServerResponse, session: ManifestSession | null): boolean {
+export function handleManifestRoute(req: http.IncomingMessage, res: http.ServerResponse, session: ManifestSession | null, runtime?: SkillRuntime): boolean {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const path = url.pathname;
   if (path !== '/api/manifests' && !path.startsWith('/api/manifests/')) {
@@ -110,7 +131,7 @@ export function handleManifestRoute(req: http.IncomingMessage, res: http.ServerR
           send(res, { code: 403, body: { error: 'Forbidden: admin role required to save manifests' } });
           return;
         }
-        send(res, await put(req, session));
+        send(res, await put(req, session, runtime));
       } else {
         send(res, { code: 404, body: { error: 'Not found' } });
       }

@@ -51,6 +51,9 @@
       "next_step": "Workflow complete. Handoff to client post-quote engagement tracking[cite: 7]."
     }
   },
+  "ui_actions": [
+    {"label": "Export Quote", "action": "jump"}
+  ],
   "sub_skills": [
     {
       "sub_skill_id": "10.1",

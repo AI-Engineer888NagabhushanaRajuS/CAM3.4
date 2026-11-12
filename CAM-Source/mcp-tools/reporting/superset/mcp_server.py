@@ -58,6 +58,20 @@ mcp = FastMCP("cbom-reporting")
 
 
 @mcp.tool
+def feasibility_risk(rfq_id: str) -> dict:
+    """Feasibility & Risk (SKILL_03): a Can-Build / Cannot-Build verdict with reasons for every SCRUB BOM line (EOL, no price, long lead time, NRFND, NCNR,
+    expired quotes), from the SCRUB BOM and the QuoteWin quotes. Machine constraints are not evaluated (no EMS capability template exists). Records that
+    this RFQ ran the step: the export then carries the 'Feasibility & Risk' tab. Returns line, verdict and risk counts.
+    """
+    try:
+        with db.duckdb_file_lock():
+            return reporting_pipeline.run_feasibility(rfq_id)
+    except Exception as e:
+        logger.exception(f"feasibility_risk tool failed for rfq_id={rfq_id!r}")
+        return {"status": "failed", "rfq_id": rfq_id, "error": str(e)}
+
+
+@mcp.tool
 def cbom(rfq_id: str) -> dict:
     """Regenerate only the CBOM table for one rfq_id, from the existing (read-only)
     input tables. Does not touch the 16 downstream reports. Returns row counts,
@@ -155,6 +169,25 @@ def validate_reports(rfq_id: str) -> dict:
         return {"status": "failed", "rfq_id": rfq_id, "error": str(e)}
 
 
+def _engine_check(path: str) -> dict:
+    """The CAM Formula Engine re-computes every formula of the finished workbook; where it disagrees with the value LibreOffice stored
+    (array-style INDEX/MATCH, which LibreOffice stores as 0) its value is stored instead. Never fails the export. CAM_ENGINE_CHECK=0 turns it off."""
+    if os.environ.get("CAM_ENGINE_CHECK", "1") == "0":
+        return {"status": "skipped", "reason": "disabled (CAM_ENGINE_CHECK=0)"}
+    try:
+        shared = os.path.join(os.path.dirname(os.path.dirname(_THIS_DIR)), "shared")
+        if shared not in sys.path:
+            sys.path.insert(0, shared)
+        import formula_verify
+        r = formula_verify.correct(path)
+        return {"status": "failed" if r["error"] else "ok", "complete": r["complete"], "formulas": r["totals"].get("formulas", 0), "exact": r["totals"].get("exact", 0),
+                "corrected": r["corrected"], "different": r["totals"].get("different", 0), "diagnostics": len(r["diagnostics"]),
+                "seconds": r["elapsed_seconds"], "error": r["error"]}
+    except Exception as e:
+        logger.warning("engine check failed for %s: %s", os.path.basename(path), e)
+        return {"status": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
+
+
 @mcp.tool
 def export_reports(rfq_id: str) -> dict:
     """Export the already-generated CBOM + 16 reports for one rfq_id into a single
@@ -169,6 +202,7 @@ def export_reports(rfq_id: str) -> dict:
             # Outside the DuckDB lock: it takes seconds and needs no database. Stores each formula's value so
             # Protected View, previews and phones show numbers; never fails the export (see cached_values.py).
             result["cached_values"] = cached_values.add_cached_values(result["workbook_path"])
+            result["engine_check"] = _engine_check(result["workbook_path"])
         return result
     except Exception as e:
         logger.exception(f"export_reports tool failed for rfq_id={rfq_id!r}")

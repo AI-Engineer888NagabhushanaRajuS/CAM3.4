@@ -1,0 +1,47 @@
+{
+  "oracle": "LibreOffice secondary numeric conversion. Initial unprefixed-XLSX formula import returnedNAMEfor17cells; regenerated with standard_xlfncompatibilityprefix before using this result. Not Excel runtime certification.",
+  "source": "https://support.microsoft.com/en-us/excel/functions/numbervalue-function",
+  "results": {
+    "A1": 2500.27,
+    "A2": 0.035,
+    "A3": 0.0009,
+    "A4": "#VALUE!",
+    "A5": 3000,
+    "A6": "#VALUE!",
+    "A7": "#VALUE!",
+    "A8": 12.3,
+    "A9": "#VALUE!",
+    "A10": 1000,
+    "A11": "#VALUE!",
+    "A12": "#VALUE!",
+    "A13": "#NUM!",
+    "A14": "#VALUE!",
+    "A15": -2.5,
+    "A16": "#VALUE!",
+    "A17": 2.5
+  },
+  "conflicts": [
+    {
+      "cell": "A4",
+      "libreoffice": "#VALUE!",
+      "documented_excel": 0,
+      "reason": "Microsoft explicitly says empty text returns0."
+    },
+    {
+      "cell": "A9",
+      "libreoffice": "#VALUE!",
+      "documented_excel": 1234.56,
+      "reason": "Microsoft explicitly says use first character of multicharacter separators."
+    },
+    {
+      "cell": "A13",
+      "libreoffice": "#NUM!",
+      "engine": "#VALUE!",
+      "reason": "NaN text is outside accepted numeric syntax; Microsoft invalidargumentVALUErule. Not a finite-number conversion."
+    }
+  ],
+  "unsupported_scope": [
+    "Explicitempty/space decimal separator; unusual alphanumeric/sign/percent separators; numeric overflow.",
+    "Omittedseparators use explicit caller configuration, default decimaldot/groupcomma. Sourceworkbooklocaleisnot inferred."
+  ]
+}

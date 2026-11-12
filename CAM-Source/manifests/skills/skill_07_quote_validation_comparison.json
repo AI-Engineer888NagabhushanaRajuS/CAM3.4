@@ -51,6 +51,9 @@
       "next_step": "On human Action button press, fire completion hook to Skill 8 (Costed BOM)[cite: 7]."
     }
   },
+  "ui_actions": [
+    {"label": "Detect alternates", "action": "jump"}
+  ],
   "sub_skills": [
     {
       "sub_skill_id": "7.1",

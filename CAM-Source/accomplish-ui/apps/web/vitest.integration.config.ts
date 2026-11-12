@@ -40,6 +40,18 @@ export default defineConfig({
     globals: true,
     root: __dirname,
     include: ['__tests__/**/*.integration.test.{ts,tsx}'],
+    // These pin the upstream Accomplish screens ("What will you accomplish today", example prompts, task status badges, the stock sidebar
+    // logo and routes) that CAM 3.4 replaced with the RFQ app, so they fail on text and structure that no longer exist (SPEC-025 notes).
+    // The files are kept, not deleted: re-point them at the CAM screens, then remove them from this list.
+    exclude: [
+      '**/node_modules/**',
+      '__tests__/integration/renderer/App.integration.test.tsx',
+      '__tests__/integration/renderer/pages/Home.integration.test.tsx',
+      '__tests__/integration/renderer/pages/Execution.integration.test.tsx',
+      '__tests__/integration/renderer/components/SettingsDialog.integration.test.tsx',
+      '__tests__/integration/renderer/components/Sidebar.integration.test.tsx',
+      '__tests__/integration/renderer/components/TaskLauncher.integration.test.tsx',
+    ],
     setupFiles: ['__tests__/setup.ts'],
     environment: 'jsdom',
     testTimeout: 10000,

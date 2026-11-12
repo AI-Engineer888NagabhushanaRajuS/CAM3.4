@@ -254,7 +254,8 @@ const rfq = (id: string): RfqSummary => ({ rfqId: id, customer: 'C', project: 'P
 const TREE: ManifestTree = {
   agent: { path: 'agent/agent_manifest.json', name: 'CAM Agent', skills: [
     { path: 'skills/skill_01.json', id: 'SKILL_01', name: 'Input Standardization', sequence: 1 },
-    { path: 'skills/skill_04.json', id: 'SKILL_04', name: 'Distributor & Source Selection', sequence: 4 },
+    // sequence is the run order (SPEC-025): SKILL_04 runs third, yet "skill 4" still means SKILL_04
+    { path: 'skills/skill_04.json', id: 'SKILL_04', name: 'Distributor & Source Selection', sequence: 3 },
     { path: 'skills/skill_09.json', id: 'SKILL_09', name: 'Reporting', sequence: 9 },
   ] },
   reporting: { path: 'reporting/cam.json', name: 'Reporting manifest' },
@@ -292,7 +293,7 @@ describe('service: open manifest', () => {
   it('"open the Input Standardization manifest" gives an open_manifest button', async () => {
     const out = await chat().ask('open the Input Standardization manifest');
     expect(out.ui).toEqual({ type: 'open_manifest', path: 'skills/skill_01.json', label: 'Input Standardization (skill 1)' });
-    expect(out.message).toContain('does not change how the pipeline runs');
+    expect(out.message).toContain('enabled flag switches its pipeline steps');
   });
   it('finds a skill by number, by part of its name, and the agent and reporting manifests', async () => {
     const t = chat();

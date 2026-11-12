@@ -1,0 +1,15 @@
+{
+  "oracle": "LibreOffice secondary modernserialWORKDAYfixture; serial0comparisonoutsidecertifiedscope",
+  "results": {
+    "C1": 46342,
+    "C2": 46344,
+    "C3": 46338,
+    "C4": 46342,
+    "C5": 46340,
+    "C6": 39933,
+    "C7": "#VALUE!",
+    "C8": 2,
+    "C9": 46338
+  },
+  "official_source": "https://support.microsoft.com/en-us/excel/functions/workday-function"
+}

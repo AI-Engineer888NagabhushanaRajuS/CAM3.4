@@ -71,10 +71,10 @@ describe('manifests tree and schema (real copied files)', () => {
     expect(t.runtime.every((r: { readOnly: boolean; port: number }) => r.readOnly && r.port > 0)).toBe(true);
   });
 
-  it('SPEC-023: every skill and sub-skill is on when no flag is set; the schema documents the flag', async () => {
+  it('SPEC-023: every skill and sub-skill is on when no flag is set (all ship on since Feasibility & Risk became a real step); the schema documents the flag', async () => {
     process.env.CAM_MANIFESTS_DIR = REAL;
     const { json } = await call('GET', '/api/manifests');
-    expect(json.tree.agent.skills.every((s: { enabled: boolean }) => s.enabled === true)).toBe(true);
+    expect(json.tree.agent.skills.filter((s: { enabled: boolean }) => !s.enabled).map((s: { id: string }) => s.id)).toEqual([]);
     expect(json.tree.agent.skills.flatMap((s: { subSkills: Array<{ enabled: boolean }> }) => s.subSkills).every((s: { enabled: boolean }) => s.enabled === true)).toBe(true);
     const schema = (await call('GET', '/api/manifests/schema/skill')).json;
     expect(schema.properties.skill_metadata.properties.enabled).toMatchObject({ type: 'boolean' });
@@ -102,7 +102,8 @@ describe('manifests tree and schema (real copied files)', () => {
     doc.skill_sequence[2].enabled = false;
     expect((await put(agentPath, JSON.stringify(doc), f.hash)).status).toBe(200);
     const { json } = await call('GET', '/api/manifests');
-    expect(json.tree.agent.skills.map((s: { enabled: boolean }) => s.enabled)).toEqual([true, true, false, true, true, true, true, true, true, true]);
+    // Sequence 3 is SKILL_04 (the pane runs in execution order); every other skill ships on.
+    expect(json.tree.agent.skills.filter((s: { enabled: boolean }) => !s.enabled).map((s: { id: string }) => s.id)).toEqual(['SKILL_04']);
   });
 
   it('reports a missing skill file as missing:true instead of crashing', async () => {

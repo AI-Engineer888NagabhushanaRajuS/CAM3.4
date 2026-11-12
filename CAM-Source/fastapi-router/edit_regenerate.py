@@ -257,7 +257,7 @@ def _volatile(sheets: dict) -> set:
 def _same(a, b) -> bool:
     if all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b)):
         return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
-    return a == b
+    return a == b and isinstance(a, bool) == isinstance(b, bool)   # 0 and False are different stored values (FE-5: a 0 -> FALSE change was invisible)
 
 
 def _jsonable(value):

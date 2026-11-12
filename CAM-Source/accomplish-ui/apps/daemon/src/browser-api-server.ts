@@ -23,9 +23,14 @@ import type { ActionConfirmRequest, ChatRequest, ChatScope } from './rfq-chat/rf
 import { makeChatDeps } from './rfq-chat/rfq-chat-deps.js';
 import { describeChatProviders, parseProviderMode, type ChatProviderMode } from './rfq-chat/rfq-chat-models.js';
 import { handleManifestRoute } from './manifests/manifest-routes.js';
+import { applySkillEnabled, realignInFlight, syncManifestFromTool, type Db } from './manifests/manifest-runtime.js';
 import { handleRunsRoute } from './runs/runs-routes.js';
 // import { getBomItemsByRfq } from './auth/bom-duckdb-logic.js';
 import { fileMetadataPool, pgPool } from './db.js';
+
+/** The logic database (routing profiles, skills registry) as the manifest runtime sees it. */
+const logicDb: Db = { query: (sql, params) => pgPool.query(sql, params as unknown[]) as Promise<{ rows: Array<Record<string, unknown>> }> };
+const metaDb: Db = { query: (sql, params) => fileMetadataPool.query(sql, params as unknown[]) as Promise<{ rows: Array<Record<string, unknown>> }> };
 
 // Address comes from the central registry (agent-core/common/constants), with
 // env overrides so a port/domain change needs no code edits.
@@ -325,18 +330,11 @@ export class BrowserApiServer {
   // sitting at the QuoteWin stage. This derives the true max skill_index from
   // the routing profile itself (not a hardcoded "8"), so it stays correct if
   // the profile's skill list ever changes.
-  private async getMaxRealSkillIndex(): Promise<number | null> {
-    const profileResult = await pgPool.query(
-      `SELECT routing_sequence FROM quote_routing_profiles WHERE profile_name = 'Standard_BOM_Flow'`,
-    );
-    const routingSequence = profileResult.rows[0]?.routing_sequence as string[] | undefined;
-    const lastRealToolName = routingSequence?.[routingSequence.length - 1];
-    if (!lastRealToolName) { return null; }
-    const lastSkillResult = await pgPool.query(
-      `SELECT skill_index FROM system_skills_registry WHERE mcp_tool_name = $1`,
-      [lastRealToolName],
-    );
-    return typeof lastSkillResult.rows[0]?.skill_index === 'number' ? lastSkillResult.rows[0].skill_index : null;
+  // SPEC-025: the Standard_BOM_Flow tools in run order. rfq_process_stage counts steps done, so a step's place is its position here, not its skill_index.
+  private async standardSequence(): Promise<string[]> {
+    const profileResult = await pgPool.query(`SELECT routing_sequence FROM quote_routing_profiles WHERE profile_name = 'Standard_BOM_Flow'`);
+    const sequence = profileResult.rows[0]?.routing_sequence as string[] | undefined;
+    return Array.isArray(sequence) ? sequence : [];
   }
 
   private cors(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -1292,6 +1290,20 @@ export class BrowserApiServer {
         return { rfqs: result.rows };
       }
 
+      // The run halts for a human (the QuoteWin upload, or a final-selection review): the left pane says so instead of "Running...".
+      case 'rfq.getHitlPending': {
+        const payload = args[0] as Record<string, unknown> | undefined;
+        const rfqId = payload?.rfqId as string | undefined;
+        if (!rfqId || rfqId.trim() === '') {
+          throw new Error('rfqId is required');
+        }
+        const result = await fileMetadataPool.query(
+          `SELECT hitl_required FROM rfq_process_tracking WHERE rfq_id = $1 AND is_active LIMIT 1`,
+          [rfqId.trim()],
+        );
+        return { hitlRequired: result.rows[0]?.hitl_required === true };
+      }
+
       case 'rfq.getProcessStage': {
         const payload = args[0] as Record<string, unknown> | undefined;
         const rfqId = payload?.rfqId as string | undefined;
@@ -1347,24 +1359,14 @@ export class BrowserApiServer {
         // Reusing the raw completedSkills count "worked" for the intake stage by
         // coincidence (skill 1's macro_category is 1) but silently resolved the
         // wrong stage for anything past skill 2.
-        const maxRealSkillIndex = await this.getMaxRealSkillIndex();
+        // By position in the routing sequence, like the RFQ_Flow branch above (a step inserted in the middle must not shift the others): the tool
+        // at index completedSkills is the one that halted or is next, and once every step ran it is the last tool.
+        const sequence = await this.standardSequence();
         let macroCategory: number | null | undefined;
 
-        if (typeof maxRealSkillIndex === 'number' && completedSkills >= maxRealSkillIndex) {
-          // Pipeline is fully done (or past the last real skill) -- use the
-          // last real skill's macro_category directly instead of looking one
-          // ahead, since completedSkills + 1 would land on an unexposed
-          // registry entry (standardize_erp/enrich_erp) that never actually runs.
-          const lastSkillResult = await pgPool.query(
-            `SELECT macro_category FROM system_skills_registry WHERE skill_index = $1`,
-            [maxRealSkillIndex],
-          );
-          macroCategory = lastSkillResult.rows[0]?.macro_category;
-        } else {
-          const skillResult = await pgPool.query(
-            `SELECT macro_category FROM system_skills_registry WHERE skill_index = $1`,
-            [completedSkills + 1],
-          );
+        if (sequence.length > 0) {
+          const toolName = sequence[Math.min(completedSkills, sequence.length - 1)];
+          const skillResult = await pgPool.query(`SELECT macro_category FROM system_skills_registry WHERE mcp_tool_name = $1`, [toolName]);
           macroCategory = skillResult.rows[0]?.macro_category;
         }
 
@@ -1393,11 +1395,35 @@ export class BrowserApiServer {
         const rfqId = payload?.rfqId as string | undefined;
         if (!rfqId || rfqId.trim() === '') { throw new Error('rfqId is required'); }
         const result = await fileMetadataPool.query(
-          `SELECT rfq_process_stage FROM rfq_process_tracking WHERE rfq_id = $1 AND is_active LIMIT 1`,
+          `SELECT rfq_process_stage, version FROM rfq_process_tracking WHERE rfq_id = $1 AND is_active LIMIT 1`,
           [rfqId.trim()],
         );
         const completedSkills = result.rows[0]?.rfq_process_stage;
         if (typeof completedSkills !== 'number') { return { history: [] }; }
+
+        // What each step really did (rfq_step_events, written by the router when the step ended): "skipped" and "0 rows priced" survive a
+        // reload. Older RFQs have no events: they fall through to the index-based history below, which can only say completed or running.
+        try {
+          const events = await fileMetadataPool.query(
+            `SELECT e.skill_code, e.skill_name, e.macro_category, e.step_status, e.detail, e.warning
+             FROM rfq_step_events e
+             JOIN (SELECT skill_code, MIN(id) AS first_id, MAX(id) AS last_id FROM rfq_step_events WHERE rfq_id = $1 AND version = $2 GROUP BY skill_code) g
+               ON g.last_id = e.id
+             ORDER BY g.first_id`,
+            [rfqId.trim(), result.rows[0].version],
+          );
+          if (events.rows.length > 0) {
+            return {
+              history: events.rows.map((r) => ({
+                skillCode: r.skill_code as string,
+                skillName: (r.skill_name as string | null) ?? (r.skill_code as string),
+                macroCategory: r.macro_category as number,
+                stepStatus: r.step_status as string,
+                ...(r.detail ? { detail: r.detail as string, warning: !!r.warning } : {}),
+              })),
+            };
+          }
+        } catch { /* the table does not exist until the first step event is recorded */ }
 
         // Same RFQ_Flow-vs-Standard_BOM_Flow detection as rfq.getProcessStage
         // above -- without it, this always queried skill_index <= a small
@@ -1434,28 +1460,26 @@ export class BrowserApiServer {
           }
         }
 
-        // Cap at the last real skill (see getMaxRealSkillIndex) so a fully
-        // completed RFQ doesn't grow a fake "running" row for
-        // standardize_erp/enrich_erp, which never actually run.
-        const maxRealSkillIndex = await this.getMaxRealSkillIndex();
-        const upperBound = typeof maxRealSkillIndex === 'number'
-          ? Math.min(completedSkills + 1, maxRealSkillIndex)
-          : completedSkills + 1;
-
-        const skills = await pgPool.query(
-          `SELECT skill_index, skill_name, macro_category, mcp_tool_name
-           FROM system_skills_registry
-           WHERE skill_index <= $1
-           ORDER BY skill_index`,
-          [upperBound],
-        );
-        const history = skills.rows.map((row) => ({
-          skillCode: row.mcp_tool_name as string,
-          skillName: row.skill_name as string,
-          macroCategory: row.macro_category as number,
-          stepStatus: (row.skill_index as number) <= completedSkills ? 'completed' : 'running',
-        }));
-        return { history };
+        // By position in the routing sequence (rfq_process_stage counts the steps done), not by skill_index: a step added in the middle (Feasibility &
+        // Risk) must not shift the others, and a tool that is not in the sequence never ran. Capped at the last step so a finished RFQ grows no fake row.
+        const sequence = await this.standardSequence();
+        if (sequence.length > 0) {
+          const tools = sequence.slice(0, Math.min(completedSkills + 1, sequence.length));
+          const skills = await pgPool.query(
+            `SELECT skill_name, macro_category, mcp_tool_name FROM system_skills_registry WHERE mcp_tool_name = ANY($1)`,
+            [tools],
+          );
+          const byTool = new Map(skills.rows.map((row) => [row.mcp_tool_name as string, row]));
+          return {
+            history: tools.filter((t) => byTool.has(t)).map((t, i) => ({
+              skillCode: t,
+              skillName: byTool.get(t)!.skill_name as string,
+              macroCategory: byTool.get(t)!.macro_category as number,
+              stepStatus: i < completedSkills ? 'completed' : 'running',
+            })),
+          };
+        }
+        return { history: [] };
       }
 
       // Real per-version query, replacing the old fragile BOM/VOLUME
@@ -1559,7 +1583,7 @@ export class BrowserApiServer {
           `SELECT skill_index, mcp_tool_name, skill_name, macro_category, macro_category_name
            FROM system_skills_registry
            WHERE is_active = true
-           ORDER BY skill_index`,
+           ORDER BY macro_category, skill_index`,
         );
         // Union of EVERY profile's routing_sequence, not just Standard_BOM_Flow --
         // hardcoding one profile name here meant every RFQ_Flow skill (never a
@@ -1602,6 +1626,8 @@ export class BrowserApiServer {
         // every time makes the array's order a pure function of "which
         // skills are enabled", so it can never drift out of canonical order.
         const setOp = enabled ? 'UNION' : 'EXCEPT';
+        const sequenceOf = async () => ((await pgPool.query(`SELECT routing_sequence FROM quote_routing_profiles WHERE profile_name = $1`, [PROFILE_NAME])).rows[0]?.routing_sequence ?? []) as string[];
+        const before = await sequenceOf();
         await pgPool.query(
           `WITH current_set AS (
              SELECT jsonb_array_elements_text(routing_sequence) AS tool_name
@@ -1617,7 +1643,7 @@ export class BrowserApiServer {
              FROM system_skills_registry ssr
              JOIN new_set ns ON ns.tool_name = ssr.mcp_tool_name
              WHERE ssr.is_active = true
-             ORDER BY ssr.skill_index
+             ORDER BY ssr.macro_category, ssr.skill_index
            )
            UPDATE quote_routing_profiles
            SET routing_sequence = (SELECT COALESCE(jsonb_agg(mcp_tool_name), '[]'::jsonb) FROM ordered),
@@ -1625,6 +1651,14 @@ export class BrowserApiServer {
            WHERE profile_name = $2`,
           [skillCode, PROFILE_NAME],
         );
+        // RFQs already part-way keep their place (rfq_process_stage is a position in this sequence).
+        await realignInFlight(logicDb, metaDb, before, await sequenceOf());
+        // SPEC-025: the manifest follows the toggle (the skill's `enabled`), so the left pane and #/manifests say the same thing.
+        // Only an admin's toggle rewrites a manifest file (saving one is admin-only everywhere else). Best effort: the toggle itself has worked.
+        const who = this.getSession(req);
+        if (who?.role === 'admin') {
+          await syncManifestFromTool(logicDb, skillCode, who.email).catch((e) => console.warn('[manifests] toggle not mirrored to the manifest:', e));
+        }
         return { success: true };
       }
 
@@ -2405,7 +2439,7 @@ export class BrowserApiServer {
           return;
         }
         // SPEC-020: manifest editor API (/api/manifests/*): tree, schema, file read, admin-only save. Own 401 check: the dev API key has no session.
-        if (handleManifestRoute(req, res, this.getSession(req))) { return; }
+        if (handleManifestRoute(req, res, this.getSession(req), (skillId, on) => applySkillEnabled(logicDb, skillId, on, metaDb))) { return; }
         // SPEC-021: who ran which RFQ (Temporal), admin sees all, others only their own runs.
         if (handleRunsRoute(req, res, this.getSession(req))) { return; }
         // GET /api/chat/providers: what the assistant's Local / OpenRouter switch can offer (is a key saved, which models). Never the key.

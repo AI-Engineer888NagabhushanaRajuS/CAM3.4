@@ -3,6 +3,8 @@ import type Uppy from '@uppy/core';
 import { RocketLaunch, ShieldCheck, WarningCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
+import { authFetch } from '@/lib/apiAuth';
 import { intakeReadiness, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
 import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
 import { IntakeDashboard } from './IntakeDashboard';
@@ -23,10 +25,12 @@ interface AttachFilesDialogProps {
   onReleased: () => void;
   /** "Create RFQ from these files": the pane sends the sentence to the assistant, whose confirmation card still comes first. */
   onCreateRfq?: () => void;
+  /** The Create RFQ window: hand over the scanned, released BOM workbook (and the volume file when there is one) as real Files. */
+  onUseFiles?: (use: { bom: File; volume: File | null }) => void;
 }
 
 /** Pick on the Uppy dashboard (tiles you can remove or add to), then run both security engines on the rest. Nothing reaches the assistant before that. */
-export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose, onReleased, onCreateRfq }: AttachFilesDialogProps) {
+export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose, onReleased, onCreateRfq, onUseFiles }: AttachFilesDialogProps) {
   // Triage only when a NEW pick arrives. A release refreshes `alreadyAttached`; recomputing then would reset the dialog
   // to "review" and show the just-released files as "already attached", hiding their verdicts.
   const attached = useRef(alreadyAttached);
@@ -81,6 +85,27 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const close = () => {
     abort.current?.abort();
     onClose();
+  };
+
+  /** The File of a released result: the one that was picked, or (after "Fix in place") the corrected copy the service now holds. */
+  const fileOf = async (r: ScanResponse['results'][number]): Promise<File> => {
+    const original = picked.find((f) => f.name === r.name);
+    if (original) return original;
+    const res = await authFetch(`${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/attachments/${encodeURIComponent(r.attachment_id ?? '')}/content`, rfqId);
+    if (!res.ok) throw new Error(`The corrected copy of ${r.name} could not be fetched (status ${res.status}).`);
+    return new File([await res.blob()], r.name);
+  };
+  const useThese = async () => {
+    const released = response?.results.filter((r) => r.decision === 'released') ?? [];
+    const bom = released.find((r) => r.role === 'scrub_bom');
+    const volume = released.find((r) => r.role === 'volume');
+    if (!bom || !onUseFiles) return;
+    try {
+      onUseFiles({ bom: await fileOf(bom), volume: volume ? await fileOf(volume) : null });
+      close();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The files could not be used');
+    }
   };
 
   return (
@@ -167,6 +192,9 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
             <>
               {onCreateRfq && readiness?.ready && (
                 <Button variant="outline" onClick={() => { close(); onCreateRfq(); }}>Create RFQ from these files</Button>
+              )}
+              {onUseFiles && readiness?.ready && (
+                <Button onClick={() => void useThese()} data-testid="use-scanned-files">Use these files</Button>
               )}
               <Button onClick={close}>Done</Button>
             </>

@@ -52,6 +52,10 @@
       "next_step": "On human Action button press, fire completion hook to Skill 9 (Reporting via BullMind)[cite: 7]."
     }
   },
+  "ui_actions": [
+    {"label": "Apply alternates", "action": "jump"},
+    {"label": "Export Consolidated CBOM", "action": "jump"}
+  ],
   "sub_skills": [
     {
       "sub_skill_id": "8.1",

@@ -23,7 +23,8 @@ import { OAuthProviderId } from '@accomplish_ai/agent-core/common';
 // import Sidebar from './components/layout/Sidebar';
 // import { SidebarFallback } from './components/layout/SidebarFallback';
 import { StageExecutionOutput } from './components/execution/StageExecutionOutput';
-import { SupersetDashboardPanel } from './components/execution/SupersetDashboardPanel';
+import { ReportsDashboard } from './components/execution/ReportsDashboard';
+import { PortfolioDashboard } from './components/execution/PortfolioDashboard';
 import { TaskLauncher } from './components/TaskLauncher';
 import { AuthErrorToast } from './components/AuthErrorToast';
 import { DaemonConnectionToast } from './components/DaemonConnectionToast';
@@ -64,7 +65,8 @@ import { ChangesPanel } from './components/rfq/ChangesPanel';
 import { FailedRunNotice, RunHistory, RightViewToggle, type RightView } from './components/rfq/RunHistory';
 import { fetchRuns, type RunEntry } from './lib/runHistory';
 import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
-import { skillForStage, unwiredSkills, usePipelineManifest } from './lib/pipelineManifest';
+import { orderStages, skillForStage, stageActions, unwiredSkills, usePipelineManifest } from './lib/pipelineManifest';
+import type { ManifestTree } from './lib/manifestsApi';
 import { autoDownloadEnabled, claimAutoDownload, saveFromUrl, setAutoDownload } from './lib/autoDownload';
 import type { SettingsTabId } from './components/layout/settings-tabs';
 import { RfqProvider } from './contexts/RfqContext';
@@ -106,7 +108,8 @@ const WORKFLOW_STAGES = [
   // No longer comingSoon -- Standard_BOM_Flow runs enrich_erp and enrich_costing_sheet
   // (macro_category 4), so this stage has real backend progress to show.
   { id: 'erpDataSync', mainHeading: 'ERP & Quoting tools', name: 'ERP & QuoteWin Data Sync', icon: Briefcase, color: 'cyan', tag: 'SYNC', subSkills: [] },
-  { id: 'risk', mainHeading: 'Analyze feasibility & Risks', name: 'Feasibility & Risk Assessment', icon: ShieldWarning, color: 'purple', tag: 'RISK', comingSoon: true, subSkills: [] },
+  // Locked or open is decided by the manifest (skill_03_feasibility_risk.json, skill_metadata.enabled), not here.
+  { id: 'risk', mainHeading: 'Analyze feasibility & Risks', name: 'Feasibility & Risk Assessment', icon: ShieldWarning, color: 'purple', tag: 'RISK', subSkills: [] },
   {
     id: 'pricingConsolidation', mainHeading: 'Consolidate Pricing Sources', name: 'Pricing Source Consolidation & Validation', icon: Stack, color: 'indigo', tag: 'VALIDATE',
     subSkills: [{ label: 'Detect alternates', action: 'jump' }],
@@ -156,16 +159,17 @@ interface ExportStatus {
   quoteSummary: ExportArtifact | null;
 }
 
-// Walks forward from `fromId` to the next non-comingSoon stage — greyed-out
+// Walks forward from `fromId` to the next stage the manifest has not switched off — greyed-out
 // wizards are never a valid landing spot, whether reached via SSE skill-progress
 // or via the resume-on-Enter flow. Falls back to `fromId` if nothing enabled is
 // found ahead (shouldn't happen in practice since the last stage is always live).
-function getNextEnabledStage(fromId: WorkflowStageId): WorkflowStageId {
-  const startIdx = WORKFLOW_STAGES.findIndex((s) => s.id === fromId);
+function getNextEnabledStage(fromId: WorkflowStageId, tree: ManifestTree | null): WorkflowStageId {
+  const stages = orderStages(WORKFLOW_STAGES, tree);
+  const startIdx = stages.findIndex((s) => s.id === fromId);
   if (startIdx === -1) { return fromId; }
-  for (let i = startIdx; i < WORKFLOW_STAGES.length; i++) {
-    const stage = WORKFLOW_STAGES[i];
-    if (!('comingSoon' in stage && stage.comingSoon)) { return stage.id; }
+  for (let i = startIdx; i < stages.length; i++) {
+    const stage = stages[i];
+    if (skillForStage(tree, stage.id)?.enabled !== false) { return stage.id; }
   }
   return fromId;
 }
@@ -302,6 +306,11 @@ export function App() {
   const [authSettingsTab, setAuthSettingsTab] = useState<SettingsTabId>('providers');
   // SPEC-023: the left pane follows the manifests (enabled flags, sub-skills); null until loaded, then the pane is as it was.
   const manifestTree = usePipelineManifest();
+  // A ref, so the resume and progress callbacks see the latest manifest without being rebuilt on every 20 s refresh.
+  const manifestTreeRef = useRef(manifestTree);
+  manifestTreeRef.current = manifestTree;
+  // SPEC-025: the pane's stage order is the manifest's `sequence`.
+  const stages = useMemo(() => orderStages(WORKFLOW_STAGES, manifestTree), [manifestTree]);
   const [authSettingsProvider, setAuthSettingsProvider] = useState<ProviderId | undefined>(
     undefined,
   );
@@ -327,13 +336,15 @@ export function App() {
   // on mount and whenever the Settings dialog transitions closed is a cheap,
   // pragmatic substitute for true live cross-tab updates.
   const [routingProfileSkills, setRoutingProfileSkills] = useState<RoutingProfileSkill[]>([]);
+  // A manifest save switches the skill's tools in the routing table too (SPEC-025), so the toggles are read again when a skill's flag changes.
+  const manifestFlags = manifestTree?.agent?.skills.map((sk) => `${sk.id}:${sk.enabled}`).join(',') ?? '';
   useEffect(() => {
     let isCurrent = true;
     getAccomplish().rfqGetRoutingProfileSkills()
       .then(({ skills }) => { if (isCurrent) { setRoutingProfileSkills(skills); } })
       .catch((err) => { logger.error('Failed to load routing profile skills', { err }); });
     return () => { isCurrent = false; };
-  }, [authSettingsOpen]);
+  }, [authSettingsOpen, manifestFlags]);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const [erpSyncModalOpen, setErpSyncModalOpen] = useState(false);
   const [versionSelectOpen, setVersionSelectOpen] = useState(false);
@@ -457,7 +468,7 @@ export function App() {
       if (typeof stage === 'number') {
         const mapped = MACRO_CATEGORY_TO_STAGE[stage];
         if (mapped) {
-          goToStage(getNextEnabledStage(mapped));
+          goToStage(getNextEnabledStage(mapped, manifestTreeRef.current));
           // >= (not ===) also covers RFQs that already locally advanced to
           // 'reportingAnalytics' in an earlier session -- goToStage has no
           // forward-only guard, so that's a real reachable state on reopen.
@@ -507,6 +518,51 @@ export function App() {
     setActiveRfqId(rfqId);
     void resumeRfq(rfqId);
   }, [resumeRfq, setCustomRfqId]);
+
+  // After an upload the run goes on in the backend and the live events can arrive before this window's scoped connection is up, so they are lost.
+  // The left pane therefore follows the same database the right pane reads (rfq.getSkillHistory + rfq.getProcessStage) until the run is done.
+  // True while the run halts for a human (QuoteWin upload / review): the open stage then says what is needed instead of "Running...".
+  const [awaitingUpload, setAwaitingUpload] = useState(false);
+  const stagePollRef = useRef<number | null>(null);
+  const stopFollowingRun = useCallback(() => {
+    if (stagePollRef.current !== null) { window.clearInterval(stagePollRef.current); stagePollRef.current = null; }
+  }, []);
+  // Returns true once the run has finished (all steps reached and none still running); false while it goes on or the RFQ was switched away.
+  const syncStageFromDb = useCallback(async (rfqId: string): Promise<boolean> => {
+    try {
+      const accomplish = getAccomplish();
+      const [{ history }, { stage }] = await Promise.all([accomplish.rfqGetSkillHistory({ rfqId }), accomplish.rfqGetProcessStage({ rfqId })]);
+      // The pause flag is optional: a daemon without it must not stop the stage from following.
+      const hitlRequired = await accomplish.rfqGetHitlPending({ rfqId }).then((r) => r.hitlRequired, () => false);
+      if (rfqId !== customRfqIdRef.current.trim()) { return false; }
+      setRfqProgressLog(history);
+      setAwaitingUpload(hitlRequired);
+      if (typeof stage !== 'number') { return false; }
+      const mapped = MACRO_CATEGORY_TO_STAGE[stage];
+      if (mapped) { goToStage(getNextEnabledStage(mapped, manifestTreeRef.current)); }
+      return stage >= 8 && !history.some((h) => h.stepStatus === 'running');
+    } catch (err) {
+      return false; // the next tick tries again
+    }
+  }, [goToStage]);
+  const followRun = useCallback((rfqId: string) => {
+    if (!rfqId) { return; }
+    stopFollowingRun();
+    const startedAt = Date.now();
+    void syncStageFromDb(rfqId);
+    stagePollRef.current = window.setInterval(() => {
+      if (Date.now() - startedAt > 20 * 60 * 1000 || rfqId !== customRfqIdRef.current.trim()) { stopFollowingRun(); return; }
+      void syncStageFromDb(rfqId).then((done) => { if (done) { stopFollowingRun(); } });
+    }, 3000);
+  }, [stopFollowingRun, syncStageFromDb]);
+  useEffect(() => stopFollowingRun, [stopFollowingRun]);
+  // Follow whichever RFQ is active until its run is done: a new upload, a reopened RFQ, or one that is waiting for a file.
+  useEffect(() => {
+    const id = activeRfqId.trim();
+    if (!id) { return undefined; }
+    followRun(id);
+    return stopFollowingRun;
+  }, [activeRfqId, followRun, stopFollowingRun]);
 
   // The assistant's "Open RFQ" button: show the RFQ (stage, progress, scope) without starting or resuming a run.
   const handleAssistantSelectRfq = useCallback((rfqId: string) => {
@@ -675,6 +731,8 @@ export function App() {
         macroCategory: event.macroCategory,
         stepStatus: event.stepStatus ?? 'running',
         error: event.error,
+        detail: event.detail,
+        warning: event.warning,
       };
       if (idx === -1) { return [...prev, entry]; }
       const next = [...prev];
@@ -704,6 +762,8 @@ export function App() {
       // Standard_BOM_Flow's export_reports is macro 9 (reportingAnalytics), so both stages must refresh.
       const exportStage = mappedStage === 'quoteReadiness' || mappedStage === 'reportingAnalytics';
       if (exportStage && event.stepStatus === 'completed') {
+        // A run whose report is exported is not waiting for a review any more: the review grid must not cover the finished results.
+        setHitlContext(null);
         void refreshExportStatus(event.rfqId).then((found) => {
           // SPEC-023: a run watched live to its end saves the report workbook to the computer by itself (one file, once per RFQ).
           if (found?.cbom && autoDownloadEnabled() && claimAutoDownload(event.rfqId)) {
@@ -711,7 +771,7 @@ export function App() {
           }
         });
       }
-      goToStage(getNextEnabledStage(mappedStage));
+      goToStage(getNextEnabledStage(mappedStage, manifestTreeRef.current));
     } else {
       logger.warn('Unknown macroCategory in rfq:skill-progress event', {
         macroCategory: event.macroCategory,
@@ -951,9 +1011,11 @@ export function App() {
   // pipeline -- see applyRfqSkillProgress -- so they stay visible in place),
   // 'running' if it's the live stage AND has real activity, 'completed' if
   // every logged skill for it finished, else 'waiting'.
-  const getStageStatus = useCallback((stageId: WorkflowStageId): 'completed' | 'running' | 'waiting' | 'failed' | 'skipped' => {
+  const getStageStatus = useCallback((stageId: WorkflowStageId): 'completed' | 'running' | 'waiting' | 'failed' | 'skipped' | 'warning' => {
     const stageEntries = rfqProgressLog.filter((entry) => MACRO_CATEGORY_TO_STAGE[entry.macroCategory] === stageId);
     if (stageEntries.some((entry) => entry.stepStatus === 'failed')) { return 'failed'; }
+    // A stage no tool of this pipeline belongs to never runs: say so from the start, not "Waiting" for ever.
+    if (stageEntries.length === 0 && routingProfileSkills.length > 0 && !routingProfileSkills.some((s) => MACRO_CATEGORY_TO_STAGE[s.macroCategory] === stageId)) { return 'skipped'; }
     // Being the "current" stage isn't enough on its own -- intake starts out
     // current before any upload is dispatched, which used to show "Running"
     // with zero real activity. Require either a real backend entry, or (for
@@ -962,11 +1024,19 @@ export function App() {
     const hasStarted = stageEntries.length > 0
       || (stageId === 'intake' && (intakeProgress.bomStatus === 'uploading' || intakeProgress.bomStatus === 'processing'));
     // A run Temporal says failed is not running, whatever the last progress event said (a wrong input file sends none).
-    if (stageId === currentWorkflowStage && hasStarted) { return latestRun?.status === 'failed' ? 'failed' : 'running'; }
-    if (stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'completed')) { return 'completed'; }
+    // A finished run's last stage is done, not "Running...": once the export completed nothing of this stage is still running.
+    const stillRunning = stageEntries.length === 0 || stageEntries.some((entry) => entry.stepStatus === 'running') || !runCompleted;
+    // Paused for the user's upload: the open stage waits, it is not running.
+    if (stageId === currentWorkflowStage && awaitingUpload && stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'completed' || entry.stepStatus === 'skipped')) { return 'waiting'; }
+    if (stageId === currentWorkflowStage && hasStarted && stillRunning) { return latestRun?.status === 'failed' ? 'failed' : 'running'; }
+    // Done is not the same as skipped, and a step that ran but processed nothing is not a clean tick.
+    if (stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'skipped')) { return 'skipped'; }
+    if (stageEntries.length > 0 && stageEntries.every((entry) => entry.stepStatus === 'completed' || entry.stepStatus === 'skipped')) {
+      return stageEntries.some((entry) => entry.warning) ? 'warning' : 'completed';
+    }
     if (stageEntries.length === 0 && runCompleted) { return 'skipped'; }
     return 'waiting';
-  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus, runCompleted, latestRun]);
+  }, [rfqProgressLog, currentWorkflowStage, intakeProgress.bomStatus, runCompleted, latestRun, routingProfileSkills, awaitingUpload]);
 
   // RFQ-level status (header pill) -- same underlying signals rolled up to
   // one badge; only meaningful once an RFQ is actually active.
@@ -1315,26 +1385,25 @@ export function App() {
                 )}
 
                 <div className="space-y-0" role="tree" aria-label="RFQ Pipeline macro-skills">
-                  {WORKFLOW_STAGES.map((stage, idx) => {
+                  {stages.map((stage, idx) => {
                     const isSelected = currentWorkflowStage === stage.id;
-                    const isComingSoon = 'comingSoon' in stage && stage.comingSoon;
                     // A stage is "skipped by toggle" iff it has at least one backing
                     // routing-profile skill (i.e. is one of the 4 real stages the 8
                     // skills map onto via macroCategory) AND every one of those
                     // skills is currently disabled in Settings. Stages with zero
-                    // backing skills (comingSoon ones, or ones with no
-                    // system_skills_registry entry at all) are never toggle-disabled.
+                    // backing skills are never toggle-disabled.
                     const backingSkills = routingProfileSkills.filter(
                       (skill) => MACRO_CATEGORY_TO_STAGE[skill.macroCategory] === stage.id,
                     );
-                    const isSkippedByToggle = !isComingSoon
-                      && backingSkills.length > 0
+                    const isSkippedByToggle = backingSkills.length > 0
                       && backingSkills.every((skill) => !skill.isEnabled);
                     const skill = skillForStage(manifestTree, stage.id);
                     const offInManifest = skill?.enabled === false;
-                    const isLocked = isComingSoon || isSkippedByToggle || offInManifest;
+                    const isLocked = isSkippedByToggle || offInManifest;
                     const manifestSubs = skill?.subSkills ?? [];
-                    const hasSubSkills = stage.subSkills.length > 0 || manifestSubs.length > 0;
+                    // SPEC-025: the buttons come from the manifest's ui_actions; the built-in ones only when it lists none.
+                    const actions = stageActions(skill, stage.subSkills);
+                    const hasSubSkills = actions.length > 0 || manifestSubs.length > 0;
                     // Expansion is derived entirely from currentWorkflowStage, never an
                     // independent toggle -- whether that variable changes because the
                     // backend advanced or because the user clicked a navigable stage
@@ -1349,12 +1418,16 @@ export function App() {
                     const stageStatus = isLocked ? 'waiting' : getStageStatus(stage.id as WorkflowStageId);
                     const stageStatusLabel = isLocked
                       ? (offInManifest ? 'Off in manifest' : 'Locked')
-                      : { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', skipped: 'Not in this profile' }[stageStatus];
+                      : isSelected && awaitingUpload && stageStatus === 'waiting'
+                        ? 'Needs your upload'
+                      : { completed: 'Completed', running: 'Running...', waiting: 'Waiting', failed: 'Failed', warning: 'Ran, check the result',
+                          skipped: rfqProgressLog.some((e) => MACRO_CATEGORY_TO_STAGE[e.macroCategory] === stage.id) ? 'Skipped' : 'Not in this pipeline' }[stageStatus];
                     const stageStatusTextClass = {
                       completed: 'text-emerald-500',
                       running: 'text-brand',
                       waiting: 'text-muted-foreground',
                       failed: 'text-destructive',
+                      warning: 'text-amber-500',
                       skipped: 'text-muted-foreground',
                     }[stageStatus];
 
@@ -1367,7 +1440,7 @@ export function App() {
                     // landed to advance it. stageStatus (above) still reflects
                     // real backend progress for the status dot/label --
                     // this only stops disabling the button itself.
-                    const isLast = idx === WORKFLOW_STAGES.length - 1;
+                    const isLast = idx === stages.length - 1;
 
                     return (
                       <div key={stage.id} className="flex gap-2.5">
@@ -1423,7 +1496,7 @@ export function App() {
                                 if (isLocked) { return; }
                                 goToStage(stage.id as WorkflowStageId);
                               }}
-                              className={`relative w-full flex items-center gap-2.5 rounded-md py-3 pl-2.5 pr-3 text-left transition-colors duration-150 ${isSelected ? 'border-l-2 border-brand bg-brand/10 pl-[calc(0.625rem-2px)]' : 'border-l-2 border-transparent'
+                              className={`relative w-full flex items-center gap-2.5 rounded-md py-3 pl-2.5 pr-3 text-left transition-colors duration-150 ${isSelected ? 'bg-brand/10' : ''
                               } ${isLocked
                                 ? 'text-muted-foreground/50 cursor-not-allowed'
                                 : isSelected
@@ -1452,7 +1525,7 @@ export function App() {
 
                             {isExpanded && (
                               <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="space-y-0.5 px-2 pb-2 pl-2" data-testid={`sub-skills-${stage.id}`}>
-                                {stage.subSkills.map((sub) => (
+                                {actions.map((sub) => (
                                   sub.action === 'info' ? (
                                     <div key={sub.label} className="flex items-center gap-2 rounded px-2 py-1 text-[13px] text-muted-foreground/70">
                                       <span className="h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -1539,6 +1612,8 @@ export function App() {
                   onCancel={() => setRfqCreatePaneOpen(false)}
                   onCreated={(rfqId) => {
                     setRfqCreatePaneOpen(false);
+                    // The upload callbacks run in the same tick, before React re-renders: the ref must already hold the new id.
+                    customRfqIdRef.current = rfqId;
                     setCustomRfqId(rfqId);
                     setShowRfqDropdown(false);
                     setRfqProgressLog([]);
@@ -1631,7 +1706,7 @@ export function App() {
                 <div className="flex h-full min-h-0 flex-col overflow-y-auto">
                   {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
                   <div className="min-h-0 flex-1">
-                    <SupersetDashboardPanel rfqId={customRfqId.trim() || undefined} />
+                    {customRfqId.trim() ? <ReportsDashboard rfqId={customRfqId.trim()} ready={runCompleted} onOpenRfq={handleAssistantSelectRfq} /> : <PortfolioDashboard onOpenRfq={handleAssistantSelectRfq} />}
                   </div>
                 </div>
               ) : (

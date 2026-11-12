@@ -52,6 +52,9 @@
       "next_step": "On human Action button press, fire completion hook to Skill 5 (Supplier RFQ/Quoting Tools)[cite: 7]."
     }
   },
+  "ui_actions": [
+    {"label": "Fetch Prices", "action": "jump"}
+  ],
   "sub_skills": [
     {
       "sub_skill_id": "4.1",

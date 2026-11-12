@@ -28,6 +28,9 @@ const mockGetTask = vi.fn();
 
 // Mock accomplish API
 const mockAccomplish = {
+  rfqGetRoutingProfileSkills: vi.fn().mockResolvedValue({ skills: [] }),
+  getEnabledSkills: vi.fn().mockResolvedValue([]),
+  onDaemonReconnected: vi.fn(() => () => {}),
   setOnboardingComplete: mockSetOnboardingComplete,
   logEvent: mockLogEvent.mockResolvedValue(undefined),
   listTasks: mockListTasks.mockResolvedValue([]),

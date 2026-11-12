@@ -1,0 +1,65 @@
+{
+  "oracle": "LibreOffice secondary recalculation of minimal formula/input extraction, not Microsoft Excel",
+  "results": [
+    {
+      "cell": "B2",
+      "lead_time": null,
+      "computed": 1
+    },
+    {
+      "cell": "B3",
+      "lead_time": "4",
+      "computed": 2
+    },
+    {
+      "cell": "B4",
+      "lead_time": "6",
+      "computed": 4
+    },
+    {
+      "cell": "B5",
+      "lead_time": "10",
+      "computed": 2
+    },
+    {
+      "cell": "B6",
+      "lead_time": "14",
+      "computed": 2
+    },
+    {
+      "cell": "B7",
+      "lead_time": "15",
+      "computed": 6
+    },
+    {
+      "cell": "B8",
+      "lead_time": "18",
+      "computed": 4
+    },
+    {
+      "cell": "B9",
+      "lead_time": "20",
+      "computed": 2
+    },
+    {
+      "cell": "B10",
+      "lead_time": "24",
+      "computed": 4
+    },
+    {
+      "cell": "B11",
+      "lead_time": "32",
+      "computed": 1
+    },
+    {
+      "cell": "B12",
+      "lead_time": "37",
+      "computed": 1
+    },
+    {
+      "cell": "B13",
+      "lead_time": "Grand Total",
+      "computed": 29
+    }
+  ]
+}

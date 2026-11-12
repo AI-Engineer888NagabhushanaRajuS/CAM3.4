@@ -171,6 +171,48 @@ def ensure_version_schema():
         conn.commit()
 
 
+def ensure_step_events_schema():
+    """What each pipeline step really did, kept so the left pane and the timeline can say it after a reload.
+    One row per status change of one skill of one RFQ version; the stage index alone cannot tell "ran" from "skipped"."""
+    with get_metadata_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS rfq_step_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    rfq_id TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    skill_code TEXT NOT NULL,
+                    skill_name TEXT,
+                    macro_category INTEGER,
+                    step_status TEXT NOT NULL,
+                    detail TEXT,
+                    warning BOOLEAN NOT NULL DEFAULT FALSE,
+                    at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rfq_step_events_rfq ON rfq_step_events (rfq_id, version, id)")
+        conn.commit()
+
+
+def record_step_event(rfq_id, skill_code, skill_name, macro_category, step_status, detail=None, warning=False):
+    """Best effort: a failure to record must never fail the tool call. Version is the RFQ's active one."""
+    ensure_step_events_schema()
+    try:
+        version = get_active_version(rfq_id)
+    except Exception:
+        version = 1
+    with get_metadata_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rfq_step_events (rfq_id, version, skill_code, skill_name, macro_category, step_status, detail, warning) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (rfq_id, version, skill_code, skill_name, macro_category, step_status, detail, bool(warning)),
+            )
+        conn.commit()
+
+
 def ensure_processing_guard_schema():
     """
     Idempotent migration (same pattern as ensure_version_schema() above):

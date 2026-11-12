@@ -1,0 +1,37 @@
+[
+  {
+    "cell": "D1",
+    "formula": "=VLOOKUP(2,A1:B2,2,)",
+    "libreoffice_cache": "#N/A"
+  },
+  {
+    "cell": "D2",
+    "formula": "=VLOOKUP(2,A1:B2,2)",
+    "libreoffice_cache": "a"
+  },
+  {
+    "cell": "D3",
+    "formula": "=IF(FALSE(),5,)",
+    "libreoffice_cache": 0
+  },
+  {
+    "cell": "D4",
+    "formula": "=IF(FALSE(),5)",
+    "libreoffice_cache": false
+  },
+  {
+    "cell": "D5",
+    "formula": "=SUM(1,,2)",
+    "libreoffice_cache": 3
+  },
+  {
+    "cell": "D6",
+    "formula": "=INDEX(A1:B3,3,1)",
+    "libreoffice_cache": 0
+  },
+  {
+    "cell": "D7",
+    "formula": "=34.7793751754386=34.7793751754386",
+    "libreoffice_cache": true
+  }
+]

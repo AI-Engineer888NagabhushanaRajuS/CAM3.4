@@ -5,9 +5,19 @@ interface RfqProgressTimelineProps {
   entries: RfqSkillHistoryEntry[];
 }
 
-type StepState = 'completed' | 'running' | 'failed';
+type StepState = 'completed' | 'running' | 'failed' | 'skipped' | 'warning';
 
 function StepNode({ state }: { state: StepState }) {
+  if (state === 'skipped') {
+    return <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"><span className="h-px w-2 bg-current" /></span>;
+  }
+  if (state === 'warning') {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
+        <Warning className="h-3 w-3" weight="bold" />
+      </span>
+    );
+  }
   if (state === 'completed') {
     return (
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
@@ -29,6 +39,8 @@ const TITLE_CLASS: Record<StepState, string> = {
   completed: 'text-foreground',
   running: 'text-primary',
   failed: 'text-destructive',
+  skipped: 'text-muted-foreground',
+  warning: 'text-foreground',
 };
 
 /**
@@ -54,7 +66,9 @@ export function RfqProgressTimeline({ entries }: RfqProgressTimelineProps) {
   return (
     <div className="px-5 py-4">
       {entries.map((entry, i) => {
-        const state: StepState = entry.stepStatus === 'failed' ? 'failed' : entry.stepStatus === 'completed' ? 'completed' : 'running';
+        const state: StepState = entry.stepStatus === 'failed' ? 'failed'
+          : entry.stepStatus === 'skipped' ? 'skipped'
+          : entry.stepStatus === 'completed' ? (entry.warning ? 'warning' : 'completed') : 'running';
         const isLast = i === entries.length - 1;
         return (
           <div key={entry.skillCode} className="flex gap-2.5">
@@ -69,6 +83,11 @@ export function RfqProgressTimeline({ entries }: RfqProgressTimelineProps) {
               <p className={`text-sm font-bold leading-tight ${TITLE_CLASS[state]}`}>{entry.skillName}</p>
               {state === 'failed' && entry.error && (
                 <p className="mt-1 text-xs leading-relaxed text-destructive/80">{entry.error}</p>
+              )}
+              {state !== 'failed' && entry.detail && (
+                <p className={`mt-1 text-xs leading-relaxed ${state === 'warning' ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                  {state === 'skipped' ? `Skipped: ${entry.detail}` : entry.detail}
+                </p>
               )}
             </div>
           </div>

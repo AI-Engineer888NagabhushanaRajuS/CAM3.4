@@ -225,6 +225,37 @@ def run_resolve_final_selection(rfq_id):
     return result
 
 
+def run_feasibility(rfq_id):
+    """SKILL_03: one Can-Build / Cannot-Build verdict with reasons per SCRUB BOM line, from the SCRUB BOM and the QuoteWin quotes (both already
+    standardized when this step runs; it needs no CBOM). The rules are the ones saved in Settings > Feasibility, read now (feasibility_settings.load);
+    a copy of them is stored with the run so the workbook tab uses exactly the rules this step used. Records that the RFQ ran it (the export then adds the
+    'Feasibility & Risk' tab) and returns the counts. Rules and limits: reports/feasibility_risk.py."""
+    import json
+    import feasibility_settings
+    from reports import feasibility_risk
+    from templates import excel_mappings as mappings
+    start = time.time()
+    saved, source = feasibility_settings.load()
+    st = feasibility_risk.normalize(saved)          # a saved rule that cannot work stops the step with its reason; it is never skipped silently
+    con = database.connect()
+    try:
+        scrub_df = mappings.load_scrub_df(con, rfq_id)
+        if scrub_df.empty:
+            raise ValueError(f"No SCRUB BOM rows found for rfq_id={rfq_id!r} -- run the intake step first")
+        rows = feasibility_risk.feasibility_rows(scrub_df, mappings.load_quote_win_df(con, rfq_id), settings=st)
+        s = feasibility_risk.summary(rows, st)
+        con.execute("DELETE FROM feasibility_risk_run WHERE rfq_id = ?", [rfq_id])
+        con.execute("INSERT INTO feasibility_risk_run (rfq_id, ran_at, lead_time_limit_weeks, lines, can_build, cannot_build, high, medium, low, settings_json) "
+                    "VALUES (?, now(), ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [rfq_id, round(st["lead_time_limit_weeks"]), s["lines"], s["can_build"], s["cannot_build"], s["high"], s["medium"], s["low"],
+                     json.dumps({"source": source, "settings": st})])
+    finally:
+        con.close()
+    duration = time.time() - start
+    logger.info(f"run_feasibility rfq_id={rfq_id!r} duration={duration:.3f}s source={source} {s}")
+    return {"status": "success", "rfq_id": rfq_id, "execution_time_seconds": round(duration, 3), "settings_source": source, **s}
+
+
 def run_pipeline(rfq_id):
     """Regenerates all 16 reports for one rfq_id, reading from the already-generated
     `cbom` table -- does NOT generate CBOM itself. Call run_cbom(rfq_id) (the `cbom`

@@ -1,0 +1,44 @@
+{
+  "oracle": "LibreOffice secondary; not Excel runtime certification",
+  "source": "https://support.microsoft.com/en-us/excel/functions/sumproduct-function",
+  "results": {
+    "A1": 53,
+    "A2": 7,
+    "A3": "#VALUE!",
+    "A4": "#VALUE!",
+    "A5": "#VALUE!",
+    "A6": 53,
+    "A7": "#VALUE!",
+    "A8": 1,
+    "A9": "#VALUE!",
+    "A10": 1
+  },
+  "conflicts": [
+    {
+      "cells": [
+        "A1",
+        "A2",
+        "A6",
+        "A10"
+      ],
+      "libreoffice_values": [
+        53,
+        7,
+        53,
+        1
+      ],
+      "documented_excel_expectations": [
+        46,
+        6,
+        46,
+        0
+      ],
+      "reason": "LibreOffice counts uncoerced TRUE as1. Microsoft says nonnumeric array entries are zero; Exceljet explicitly demonstrates uncoerced logical arrays sum to0. Follow those semantics, not this secondary behavior. No fresh Excel runtime test claimed."
+    }
+  ],
+  "additional_sources": [
+    "https://exceljet.net/articles/the-double-negative-in-excel-formulas",
+    "https://support.microsoft.com/en-us/office/use-sumproduct-to-sum-the-product-of-corresponding-values-in-one-or-more-arrays-ae55584b-ecf7-4a83-b108-1ab774d29256"
+  ],
+  "scope": "Multiargument SUMPRODUCT dimension checks use declared direct-reference geometry; direct blank tails padzero. Computed transformed blank tails not materialized are rejected, not occupied-only counted. Wider computed/array-version semantics remain uncertified."
+}

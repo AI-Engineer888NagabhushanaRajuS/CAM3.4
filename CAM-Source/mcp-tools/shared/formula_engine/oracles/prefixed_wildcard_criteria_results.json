@@ -1,0 +1,53 @@
+{
+  "oracle": "LibreOffice secondary prefix-wildcard criteria fixture; not fresh Excel proof",
+  "sources": [
+    "https://exceljet.net/formulas/count-cells-that-do-not-contain",
+    "https://support.microsoft.com/en-us/excel/get-started/use-the-countif-function-in-microsoft-excel"
+  ],
+  "results": {
+    "D1": 4,
+    "E1": 10,
+    "D2": 1,
+    "E2": 3,
+    "D3": 5,
+    "E3": 35,
+    "D4": 8,
+    "E4": 37,
+    "D5": 1,
+    "E5": 8,
+    "D6": 5,
+    "E6": 35,
+    "D7": 4,
+    "E7": 12,
+    "D8": 0,
+    "E8": 0,
+    "D9": null,
+    "E9": null,
+    "D10": 96,
+    "E10": 35
+  },
+  "conflicts": [
+    {
+      "cells": [
+        "D4",
+        "E4",
+        "D5",
+        "E5"
+      ],
+      "libreoffice": [
+        8,
+        37,
+        1,
+        8
+      ],
+      "documented_excel_expected": [
+        6,
+        24,
+        3,
+        21
+      ],
+      "reason": "LibreOffice matches numbers/booleans with wildcard*. Microsoft explicitly describes wildcard*as text matching. Engine positive wildcard matches text only; complement includes numbers/booleans/blanks that do not match text."
+    }
+  ],
+  "unsupported_scope": "Relational operators with wildcard RHS, criteria longerthan255characters, and prefixedwildcardsagainsterrorvaluedinputs explicitlyunsupported withnotes. No general criteria/locale certification."
+}

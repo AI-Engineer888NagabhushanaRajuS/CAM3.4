@@ -537,6 +537,74 @@ class EditAndRegenerateBody(BaseModel):
     note: Optional[str] = None
 
 
+def _latest_workbook(rfq_id: str) -> str:
+    path = _find_latest_export(_resolve_cbom_key(rfq_id)) or _find_latest_rfqflow_export(rfq_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail=f"No export found for rfq_id={rfq_id!r}")
+    return path
+
+
+@app.get("/api/rfq/{rfq_id}/analytics")
+def rfq_analytics_numbers(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """The figures of this RFQ's newest workbook for the Reports & Analytics screen (one source of truth: the delivered report)."""
+    import rfq_analytics
+    return rfq_analytics.analytics(_latest_workbook(rfq_id))
+
+
+@app.get("/api/analytics/portfolio")
+def rfq_portfolio(token: dict = Depends(auth.verify_token_any_project)):
+    """Every RFQ that has an exported workbook, summarised for the all-RFQs screen (3.3's Executive Sourcing Overview, with each figure defined).
+    One source of truth: each RFQ's newest workbook; results are cached per file version. See mcp-tools/shared/rfq_analytics.py."""
+    import formula_verify
+    import rfq_analytics
+    return {**rfq_analytics.portfolio(_portfolio_items()), "repair": formula_verify.repair_status()}
+
+
+def _portfolio_items():
+    with get_metadata_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT t.rfq_id, p.customer_name, p.project_name FROM rfq_process_tracking t "
+                        "LEFT JOIN rfq_project_tracking p ON p.rfq_id = t.rfq_id WHERE t.is_active ORDER BY t.rfq_id")
+            rfqs = cur.fetchall()
+    items = []
+    for rfq_id, customer, project in rfqs:
+        try:
+            path = _find_latest_export(_resolve_cbom_key(rfq_id)) or _find_latest_rfqflow_export(rfq_id)
+        except Exception:
+            path = None
+        if path:
+            items.append({"rfq_id": rfq_id, "customer": customer, "project": project, "path": path,
+                          "generated": datetime.fromtimestamp(os.path.getmtime(path)).isoformat()})
+    return items
+
+
+@app.post("/api/analytics/portfolio/store-values")
+def rfq_portfolio_store_values(token: dict = Depends(auth.verify_token_any_project)):
+    """Older exports (made before the engine step) have no stored formula values: their cash-flow and check cells read as empty. This runs the engine
+    over each of them in the background and stores its values next to the formulas (the same step a new export gets). Progress: GET /api/analytics/portfolio -> repair."""
+    import formula_verify
+    import rfq_analytics
+    items = _portfolio_items()
+    need = {r["rfq_id"] for r in rfq_analytics.portfolio(items)["rfqs"] if r.get("needs_values")}
+    return formula_verify.repair_many([i["path"] for i in items if i["rfq_id"] in need])
+
+
+@app.get("/api/rfq/{rfq_id}/verify-workbook")
+def verify_workbook_status(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """The independent recalculation check of this RFQ's newest workbook (CAM Formula Engine): the one the export already ran, or a re-run.
+    status: none | running | done (with per-tab counts). Read-only. See mcp-tools/shared/formula_verify.py."""
+    import formula_verify
+    return {"workbook": os.path.basename(_latest_workbook(rfq_id)), **formula_verify.status(_latest_workbook(rfq_id))}
+
+
+@app.post("/api/rfq/{rfq_id}/verify-workbook")
+def verify_workbook_start(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """Re-run the check in the background (never writes to the workbook; the export step is the one that stores corrected values)."""
+    import formula_verify
+    path = _latest_workbook(rfq_id)
+    return {"workbook": os.path.basename(path), **formula_verify.start(path)}
+
+
 @app.post("/api/rfq/{rfq_id}/edit-and-regenerate")
 def edit_and_regenerate(rfq_id: str, body: EditAndRegenerateBody, token: dict = Depends(auth.verify_token)):
     """SPEC-020: apply final_* edits, re-run only export_reports (a NEW workbook version), return the cell diff.

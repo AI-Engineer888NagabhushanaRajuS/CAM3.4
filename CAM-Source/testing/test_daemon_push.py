@@ -36,6 +36,8 @@ def fr(monkeypatch):
     monkeypatch.setattr(fastapi_router, "set_hitl_required", lambda *a, **k: None)
     monkeypatch.setattr(fastapi_router, "increment_skill_index", lambda *a, **k: None)
     monkeypatch.setattr(fastapi_router.rfq_memory_client, "queue_ingestion", lambda **k: None)
+    fastapi_router.recorded = []
+    monkeypatch.setattr(fastapi_router, "record_step_event", lambda *a, **k: fastapi_router.recorded.append(a))
     return fastapi_router
 
 
@@ -75,6 +77,45 @@ def test_a_normal_step_does_not_ask_for_a_review(fr, monkeypatch):
 def test_a_failed_step_is_not_a_review_request(fr, monkeypatch):
     posted = _run(fr, monkeypatch, {"status": "failed", "error": "boom"})
     assert not [u for u, _ in posted if u.endswith("/api/internal/trigger-hitl")], posted
+
+
+def _done(posted):
+    return [body for u, body in posted if u.endswith("/emit-skill-progress") and body["stepStatus"] != "running"][-1]
+
+
+def test_a_skipped_tool_is_published_as_skipped_with_its_reason_never_as_completed(fr, monkeypatch):
+    posted = _run(fr, monkeypatch, {"status": "skipped", "reason": "no Costing Sheet uploaded for rfq_id=R1"})
+    done = _done(posted)
+    assert done["stepStatus"] == "skipped" and "Costing Sheet" in done["detail"], done
+    assert fr.recorded[-1][4] == "skipped"            # kept, so the left pane still says so after a reload
+
+
+def test_an_export_that_priced_nothing_is_completed_but_flagged(fr, monkeypatch):
+    done = _done(_run(fr, monkeypatch, {"status": "success", "worksheet_count": 20, "cbom_row_count": 502, "priced_row_count": 0}))
+    assert done["stepStatus"] == "completed" and done["warning"] is True and done["detail"] == "20 worksheets, 0 of 502 rows priced", done
+
+
+def test_an_export_that_priced_rows_has_no_warning(fr, monkeypatch):
+    done = _done(_run(fr, monkeypatch, {"status": "success", "worksheet_count": 20, "cbom_row_count": 502, "priced_row_count": 388}))
+    assert done["warning"] is False and done["detail"] == "20 worksheets, 388 of 502 rows priced", done
+
+
+def test_the_cbom_step_with_no_priced_rows_yet_is_normal_not_a_warning(fr, monkeypatch):
+    # final selection fills the prices after this step; its own "502 of 502 have no resolved final price" text is expected here
+    done = _done(_run(fr, monkeypatch, {"status": "success", "cbom_row_count": 502, "priced_row_count": 0,
+                                         "warnings": ["502 of 502 cbom rows have no resolved final price"]}))
+    assert done["warning"] is False and done["detail"] == "502 rows", done
+
+
+def test_a_standardize_step_that_read_no_rows_is_flagged(fr, monkeypatch):
+    done = _done(_run(fr, monkeypatch, {"status": "success", "rows_standardized": 0}))
+    assert done["warning"] is True and done["detail"] == "0 rows standardized", done
+
+
+def test_a_tool_left_out_of_the_routing_sequence_is_skipped_not_completed(fr, monkeypatch):
+    monkeypatch.setattr(fr, "get_all_live_tool_names", lambda: ["something_else"])
+    posted = _run(fr, monkeypatch, {"status": "success"})
+    assert _done(posted)["stepStatus"] == "skipped", posted
 
 
 def test_daemon_being_down_never_breaks_the_tool_call(fr, monkeypatch):

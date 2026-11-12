@@ -92,7 +92,7 @@ describe('Manifests page: tree', () => {
     expect(items[1].textContent).toContain('DRAFT');
     expect(items[2].textContent).toContain('APPROVED');
     expect(items[1].textContent).toContain('v1.0.0');
-    expect(screen.getByText(/Design input: saving versions the file; it does not yet change how a tool runs \(SPEC-020\)\./)).toBeTruthy();
+    expect(screen.getByText(/A skill's enabled flag switches its pipeline steps on or off.*everything else is design input \(SPEC-025\)\./)).toBeTruthy();
     // sub-skills appear when the skill is expanded and cannot be selected
     fireEvent.keyDown(items[1], { key: 'ArrowRight' });
     const sub = screen.getByRole('treeitem', { name: /Parse BOM/ });

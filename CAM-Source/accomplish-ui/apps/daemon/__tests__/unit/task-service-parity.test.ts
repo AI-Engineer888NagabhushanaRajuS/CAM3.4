@@ -8,6 +8,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { TaskConfig, Task, FileAttachmentInfo } from '@accomplish_ai/agent-core';
 
+// The scripted-QA lookup is a network call; a refused connection still takes 2-4 s on Windows, so the test fails it at once instead (the service falls through to its normal flow).
+process.env.BOM_QA_LOOKUP_URL = 'http://127.0.0.1:9';
+vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('fetch failed'))));
+
 // Track what TaskManager.startTask receives
 let capturedTaskConfigs: Array<{ taskId: string; config: TaskConfig }> = [];
 let capturedSavedTasks: Array<{ task: Task; workspaceId?: string | null }> = [];
@@ -101,26 +105,8 @@ describe('TaskService parity', () => {
     capturedSavedTasks = [];
   });
 
-  it('startTask passes attachments into TaskConfig.files', async () => {
-    const storage = createMockStorage();
-    const service = new TaskService(storage as never, {
-      userDataPath: '/data',
-      mcpToolsPath: '/tools',
-    });
-
-    const attachments: FileAttachmentInfo[] = [
-      { id: 'att-1', name: 'test.txt', path: '/tmp/test.txt', type: 'text', size: 100 },
-    ];
-
-    await service.startTask({
-      prompt: 'Read this file',
-      taskId: 'tsk_att_test',
-      attachments,
-    });
-
-    expect(capturedTaskConfigs).toHaveLength(1);
-    expect(capturedTaskConfigs[0].config.files).toEqual(attachments);
-  });
+  // startTask and a follow-up resumeSession (one with existingTaskId) are answered from the RFQ's results (rfq-chat), never by an agent
+  // session, so they build no TaskConfig: attachments and the stored-workspace fallback only matter on the paths below that still run one.
 
   it('startTask saves task with workspaceId', async () => {
     const storage = createMockStorage();
@@ -155,7 +141,7 @@ describe('TaskService parity', () => {
     expect(capturedSavedTasks[0].workspaceId).toBeUndefined();
   });
 
-  it('resumeSession passes attachments into TaskConfig.files', async () => {
+  it('resumeSession (no existing task) passes attachments into TaskConfig.files', async () => {
     const storage = createMockStorage();
     const service = new TaskService(storage as never, {
       userDataPath: '/data',
@@ -169,7 +155,6 @@ describe('TaskService parity', () => {
     await service.resumeSession({
       sessionId: 'sess-123',
       prompt: 'Continue with this file',
-      existingTaskId: 'tsk_resume_test',
       attachments,
     });
 
@@ -180,7 +165,7 @@ describe('TaskService parity', () => {
   // Regression: `resumeSession` used to not accept `workspaceId` at all,
   // so every follow-up turn in a workspace conversation ran without
   // workspace-scoped knowledge notes. This test pins the explicit forward.
-  it('resumeSession forwards caller-supplied workspaceId into the resumed TaskConfig', async () => {
+  it('resumeSession (no existing task) forwards caller-supplied workspaceId into the TaskConfig', async () => {
     const storage = createMockStorage();
     const service = new TaskService(storage as never, {
       userDataPath: '/data',
@@ -190,7 +175,6 @@ describe('TaskService parity', () => {
     await service.resumeSession({
       sessionId: 'sess-ws-1',
       prompt: 'continue please',
-      existingTaskId: 'tsk_ws_resume',
       workspaceId: 'ws_explicit',
     });
 
@@ -198,40 +182,10 @@ describe('TaskService parity', () => {
     expect(capturedTaskConfigs[0].config.workspaceId).toBe('ws_explicit');
   });
 
-  // Regression: without an explicit workspaceId, `resumeSession` should
-  // fall back to the workspace the existing task was originally saved
-  // under — otherwise users who scheduled a workspace task and later
-  // resume via a daemon-only source (WhatsApp, scheduler) would still
-  // lose workspace knowledge notes on the resumed turn.
-  it('resumeSession falls back to the stored task workspaceId when none is provided', async () => {
-    const storage = createMockStorage();
-    (storage.getTask as ReturnType<typeof vi.fn>).mockReturnValue({
-      id: 'tsk_stored_ws',
-      prompt: 'original',
-      status: 'completed',
-      messages: [],
-      createdAt: new Date().toISOString(),
-      workspaceId: 'ws_from_storage',
-    });
-    const service = new TaskService(storage as never, {
-      userDataPath: '/data',
-      mcpToolsPath: '/tools',
-    });
-
-    await service.resumeSession({
-      sessionId: 'sess-fallback',
-      prompt: 'continue',
-      existingTaskId: 'tsk_stored_ws',
-    });
-
-    expect(capturedTaskConfigs).toHaveLength(1);
-    expect(capturedTaskConfigs[0].config.workspaceId).toBe('ws_from_storage');
-  });
-
   // Regression: when the resumed task has no workspaceId anywhere,
   // `resumeSession` must not invent one — it stays undefined so the
   // resolver skips the knowledge-note step cleanly.
-  it('resumeSession leaves workspaceId undefined when neither params nor stored task has one', async () => {
+  it('resumeSession (no existing task) leaves workspaceId undefined when the caller gives none', async () => {
     const storage = createMockStorage();
     (storage.getTask as ReturnType<typeof vi.fn>).mockReturnValue({
       id: 'tsk_no_ws',
@@ -249,7 +203,6 @@ describe('TaskService parity', () => {
     await service.resumeSession({
       sessionId: 'sess-plain',
       prompt: 'continue',
-      existingTaskId: 'tsk_no_ws',
     });
 
     expect(capturedTaskConfigs).toHaveLength(1);

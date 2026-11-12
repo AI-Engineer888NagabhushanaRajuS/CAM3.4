@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { skillForStage, STAGE_SKILL, unwiredSkills } from '@/lib/pipelineManifest';
+import { orderStages, skillForStage, stageActions, STAGE_SKILL, unwiredSkills } from '@/lib/pipelineManifest';
 import type { ManifestTree, SkillNode } from '@/lib/manifestsApi';
 
 const skill = (n: number, over: Partial<SkillNode> = {}): SkillNode => ({
@@ -23,6 +23,21 @@ describe('left pane follows the manifests (SPEC-023)', () => {
     const t = tree([skill(1), skill(2, { enabled: false })]);
     expect(skillForStage(t, 'extraction')?.enabled).toBe(false);
     expect(skillForStage(t, 'intake')?.enabled).toBe(true);
+  });
+
+  it('SPEC-025: the stages follow the manifest sequence, and keep the built-in order without a manifest', () => {
+    const stages = [{ id: 'intake' }, { id: 'extraction' }, { id: 'pricing' }];
+    expect(orderStages(stages, null).map((s) => s.id)).toEqual(['intake', 'extraction', 'pricing']);
+    const t = tree([skill(1, { sequence: 3 }), skill(2, { sequence: 1 }), skill(4, { sequence: 2 })]);
+    expect(orderStages(stages, t).map((s) => s.id)).toEqual(['extraction', 'pricing', 'intake']);
+  });
+
+  it('SPEC-025: the buttons come from the skill\'s ui_actions; none listed means the built-in ones, an empty list means none', () => {
+    const builtIn = [{ label: 'Old', action: 'jump' }];
+    expect(stageActions(undefined, builtIn)).toEqual(builtIn);
+    expect(stageActions(skill(1), builtIn)).toEqual(builtIn);
+    expect(stageActions(skill(1, { uiActions: [{ label: 'New', action: 'scan' }] }), builtIn)).toEqual([{ label: 'New', action: 'scan' }]);
+    expect(stageActions(skill(1, { uiActions: [] }), builtIn)).toEqual([]);
   });
 
   it('the supplier RFQ skill has no stage and is reported as not wired', () => {

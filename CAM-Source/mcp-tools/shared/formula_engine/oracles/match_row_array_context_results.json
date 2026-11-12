@@ -1,0 +1,78 @@
+{
+  "results": [
+    {
+      "row": 1,
+      "engine": "3.0",
+      "secondary": "3"
+    },
+    {
+      "row": 2,
+      "engine": "1.0",
+      "secondary": "#VALUE!"
+    },
+    {
+      "row": 3,
+      "engine": "8.0",
+      "secondary": "1"
+    },
+    {
+      "row": 4,
+      "engine": "12.0",
+      "secondary": "12"
+    },
+    {
+      "row": 5,
+      "engine": "3.0",
+      "secondary": "3"
+    },
+    {
+      "row": 6,
+      "engine": "9.0",
+      "secondary": "9"
+    },
+    {
+      "row": 7,
+      "engine": "2.0",
+      "secondary": "2"
+    }
+  ],
+  "limits": "Secondaryoracle,notfreshExcelspillruntimecertification",
+  "explicit_CSE": [
+    {
+      "row": 1,
+      "engine": "3.0",
+      "secondary": "3"
+    },
+    {
+      "row": 2,
+      "engine": "1.0",
+      "secondary": "1"
+    },
+    {
+      "row": 3,
+      "engine": "8.0",
+      "secondary": "8"
+    },
+    {
+      "row": 4,
+      "engine": "12.0",
+      "secondary": "12"
+    },
+    {
+      "row": 5,
+      "engine": "3.0",
+      "secondary": "3"
+    },
+    {
+      "row": 6,
+      "engine": "9.0",
+      "secondary": "9"
+    },
+    {
+      "row": 7,
+      "engine": "2.0",
+      "secondary": "2"
+    }
+  ],
+  "initial_secondary_mismatch": "OrdinarylegacyXLSXformulasINDEX(MATCHarray)andSUM(MATCHarray)werescalarizedbyLibreOffice. Repeatedwith explicitArrayFormulaCSEmetadata; ordinarySUMPRODUCTrequiresnoCSEandmatchedinitially."
+}

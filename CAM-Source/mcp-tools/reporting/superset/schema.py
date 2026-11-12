@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS cbom_db.cbom (
 """
 
 REPORT_DDLS = {
+    # SKILL_03 Feasibility & Risk: one row per RFQ that ran the step. The export adds its tab only for an RFQ with a row here (see exporter.py).
+    "feasibility_risk_run": """
+        CREATE TABLE IF NOT EXISTS feasibility_risk_run (
+            rfq_id VARCHAR PRIMARY KEY, ran_at TIMESTAMP, lead_time_limit_weeks INTEGER,
+            lines BIGINT, can_build BIGINT, cannot_build BIGINT, high BIGINT, medium BIGINT, low BIGINT
+        );
+        ALTER TABLE feasibility_risk_run ADD COLUMN IF NOT EXISTS settings_json VARCHAR;
+    """,
     "bom_matrix_report": """
         CREATE TABLE IF NOT EXISTS bom_matrix_report (
             rfq_id VARCHAR, cpn VARCHAR, fg VARCHAR, volume_no VARCHAR,

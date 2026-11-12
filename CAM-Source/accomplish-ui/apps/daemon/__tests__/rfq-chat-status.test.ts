@@ -26,11 +26,12 @@ function fakeDb(o: { project?: boolean; stage?: number; hitl?: boolean; volume?:
         if (sql.includes('quote_routing_profiles')) {
           return { rows: params?.[0] === 'Standard_BOM_Flow' ? [{ routing_sequence: ['std', 'price', 'cbom'] }] : [] };
         }
-        if (sql.includes('SELECT skill_index FROM')) {
-          return { rows: [{ skill_index: 3 }] };
+        // by position in the routing sequence (SPEC-025): the tools run so far, and the macro_category of one tool
+        if (sql.includes('mcp_tool_name = ANY')) {
+          return { rows: skills.filter((s) => (params?.[0] as string[]).includes(s.mcp_tool_name)) };
         }
-        if (sql.includes('skill_index <=')) {
-          return { rows: skills.filter((s) => s.skill_index <= (params?.[0] as number)) };
+        if (sql.includes('SELECT macro_category FROM')) {
+          return { rows: skills.filter((s) => s.mcp_tool_name === params?.[0]).map((s) => ({ macro_category: s.macro_category })) };
         }
         return { rows: [] };
       },

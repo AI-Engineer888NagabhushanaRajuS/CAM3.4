@@ -56,6 +56,8 @@ function createDeferred<T>() {
 
 // Mock accomplish API
 const mockAccomplish = {
+  rfqGetRoutingProfileSkills: vi.fn().mockResolvedValue({ skills: [] }),
+  getEnabledSkills: vi.fn().mockResolvedValue([]),
   startTask: vi.fn(),
   cancelTask: vi.fn(),
   interruptTask: vi.fn(),

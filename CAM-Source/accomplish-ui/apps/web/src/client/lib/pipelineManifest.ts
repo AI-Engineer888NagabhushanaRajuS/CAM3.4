@@ -25,6 +25,17 @@ export function skillForStage(tree: ManifestTree | null, stageId: string): Skill
   return id ? tree?.agent?.skills.find((s) => s.id === id) : undefined;
 }
 
+/** SPEC-025: the stages in the manifest's `sequence` order. Stable, so with no manifest (or a stage it does not name) the built-in order stays. */
+export function orderStages<T extends { id: string }>(stages: readonly T[], tree: ManifestTree | null): T[] {
+  const at = (id: string) => skillForStage(tree, id)?.sequence ?? Number.MAX_SAFE_INTEGER;
+  return [...stages].sort((a, b) => at(a.id) - at(b.id));
+}
+
+/** SPEC-025: the buttons under a stage: the skill's `ui_actions` when the manifest lists them (an empty list = none), else the built-in ones. */
+export function stageActions(skill: SkillNode | undefined, builtIn: ReadonlyArray<{ label: string; action: string }>): ReadonlyArray<{ label: string; action: string }> {
+  return skill?.uiActions ?? builtIn;
+}
+
 /** Skills of the manifest that no stage shows. */
 export function unwiredSkills(tree: ManifestTree | null): SkillNode[] {
   const wired = new Set(Object.values(STAGE_SKILL));

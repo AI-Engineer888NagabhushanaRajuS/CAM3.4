@@ -58,6 +58,9 @@ export interface RfqSkillProgressEvent {
   // Present only when stepStatus === 'failed' -- the tool's own reported
   // error message (e.g. "No QuoteWin file uploaded for rfq_id=...").
   error?: string;
+  // What the step really did, from the tool's own result ("502 rows, 0 priced"; the reason it was skipped). `warning` = it ran but did nothing useful.
+  detail?: string;
+  warning?: boolean;
   updatedAt: string;
 }
 
@@ -87,6 +90,8 @@ export interface RfqSkillHistoryEntry {
   stepStatus: string;
   // Present only when stepStatus === 'failed'. See RfqSkillProgressEvent.
   error?: string;
+  detail?: string;
+  warning?: boolean;
 }
 
 // One of the 8 real backend routing-profile skills that gate pipeline
@@ -174,6 +179,7 @@ interface AccomplishAPI {
   }>;
   rfqActivateVersion(params: { rfqId: string; version: number }): Promise<{ success: boolean }>;
   rfqGetProcessStage(params: { rfqId: string }): Promise<{ stage: number | null }>;
+  rfqGetHitlPending(params: { rfqId: string }): Promise<{ hitlRequired: boolean }>;
   // Reconstructs the progress log from DB alone -- only skills that have
   // actually run or are currently running, nothing ahead of that.
   rfqGetSkillHistory(params: { rfqId: string }): Promise<{ history: RfqSkillHistoryEntry[] }>;
