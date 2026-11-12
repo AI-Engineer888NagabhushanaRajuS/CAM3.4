@@ -1,0 +1,5 @@
+PASS RFQ RFQ-000062 shows Reports & Analytics with a cost per set :: HCV_BMS_MB VL-1 = 66.4
+PASS the assistant asks for confirmation with the exact change :: Change Unit price (converted) and regenerate the reports Change Unit price (converted) of AC0603KRX7R9BB104 (bom item 0d440305-d6e7-4271-8a26-34bb819f9e84, in a
+PASS the app confirms the edit was applied :: Change Unit price (converted) and regenerate the reports Change Unit price (converted) of AC0603KRX7R9BB104 (bom item 0d440305-d6e7-4271-8a26-34bb819f9e84, in all 2 volume rows) in RFQ-000062 from 0.0
+page crashed while reading; reloading
+ERROR page.waitForTimeout: Page crashed

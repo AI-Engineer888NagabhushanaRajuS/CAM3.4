@@ -1,0 +1,248 @@
+{
+ "rfq_id": "RFQ-000062",
+ "before": "CBOM_Report_RFQ_000062_20261112_134119_925a8b58.xlsx",
+ "after": "CBOM_Report_RFQ_000062_20261112_135857_572c83ce.xlsx",
+ "generated_at": "2026-11-12T13:59:45.842786",
+ "note": "assistant: Unit price (converted) 0.046 -> 0.0525",
+ "edits": [
+  {
+   "bomItemId": "0d440305-d6e7-4271-8a26-34bb819f9e84",
+   "volumeNo": "1",
+   "field": "final_price_conv",
+   "before": 0.046,
+   "after": 0.0525
+  },
+  {
+   "bomItemId": "0d440305-d6e7-4271-8a26-34bb819f9e84",
+   "volumeNo": "2",
+   "field": "final_price_conv",
+   "before": 0.046,
+   "after": 0.0525
+  }
+ ],
+ "total_changed_cells": 35,
+ "sheets": [
+  {
+   "sheet": "CBOM",
+   "changed": 6,
+   "examples": [
+    {
+     "cell": "Z135",
+     "before": 0.046,
+     "after": 0.0525
+    },
+    {
+     "cell": "BJ135",
+     "before": 708.4,
+     "after": 808.5
+    },
+    {
+     "cell": "BK135",
+     "before": 68006.40000000001,
+     "after": 77616
+    },
+    {
+     "cell": "Z244",
+     "before": 0.046,
+     "after": 0.0525
+    },
+    {
+     "cell": "BJ244",
+     "before": 21252,
+     "after": 24255
+    },
+    {
+     "cell": "BK244",
+     "before": 2040192,
+     "after": 2328480
+    }
+   ]
+  },
+  {
+   "sheet": "Revision History",
+   "changed": 1,
+   "examples": [
+    {
+     "cell": "M11",
+     "before": 518.91134,
+     "after": 519.53534
+    }
+   ]
+  },
+  {
+   "sheet": "Price Control",
+   "changed": 6,
+   "examples": [
+    {
+     "cell": "B2",
+     "before": 206.44263,
+     "after": 207.06663
+    },
+    {
+     "cell": "C2",
+     "before": 309663.945,
+     "after": 310599.945
+    },
+    {
+     "cell": "D2",
+     "before": 0.788814166133289,
+     "after": 0.789316497661802
+    },
+    {
+     "cell": "D4",
+     "before": 0.211185833866711,
+     "after": 0.210683502338198
+    },
+    {
+     "cell": "B5",
+     "before": 261.71263,
+     "after": 262.33663
+    },
+    {
+     "cell": "C5",
+     "before": 392568.945,
+     "after": 393504.945
+    }
+   ]
+  },
+  {
+   "sheet": "Summary",
+   "changed": 4,
+   "examples": [
+    {
+     "cell": "E9",
+     "before": 1827663.21,
+     "after": 1828599.21
+    },
+    {
+     "cell": "G9",
+     "before": 326954.7,
+     "after": 327890.7
+    },
+    {
+     "cell": "E12",
+     "before": 0.0336298320246869,
+     "after": 0.0336126180159511
+    },
+    {
+     "cell": "G12",
+     "before": 0.192972352897817,
+     "after": 0.192421492131372
+    }
+   ]
+  },
+  {
+   "sheet": "7.0 CBOM VL-1",
+   "changed": 8,
+   "examples": [
+    {
+     "cell": "M9",
+     "before": 0.0336298320246869,
+     "after": 0.0336126180159511
+    },
+    {
+     "cell": "G10",
+     "before": 903767.01,
+     "after": 904703.01
+    },
+    {
+     "cell": "G12",
+     "before": 1827663.21,
+     "after": 1828599.21
+    },
+    {
+     "cell": "K175",
+     "before": 518.91134,
+     "after": 519.53534
+    },
+    {
+     "cell": "L175",
+     "before": 518.9113400000002,
+     "after": 519.5353400000002
+    },
+    {
+     "cell": "N175",
+     "before": 518.91134,
+     "after": 519.53534
+    },
+    {
+     "cell": "O175",
+     "before": 778367.01,
+     "after": 779303.01
+    },
+    {
+     "cell": "AX175",
+     "before": 518.91134,
+     "after": 519.53534
+    }
+   ]
+  },
+  {
+   "sheet": "7.0 CBOM VL-2",
+   "changed": 8,
+   "examples": [
+    {
+     "cell": "M9",
+     "before": 0.192972352897817,
+     "after": 0.192421492131372
+    },
+    {
+     "cell": "G10",
+     "before": 229971.5700000001,
+     "after": 230907.5700000001
+    },
+    {
+     "cell": "G12",
+     "before": 326954.7,
+     "after": 327890.7
+    },
+    {
+     "cell": "K175",
+     "before": 69.71438,
+     "after": 70.33838
+    },
+    {
+     "cell": "L175",
+     "before": 69.71438,
+     "after": 70.33838
+    },
+    {
+     "cell": "N175",
+     "before": 69.71438,
+     "after": 70.33838
+    },
+    {
+     "cell": "O175",
+     "before": 104571.57,
+     "after": 105507.57
+    },
+    {
+     "cell": "AX175",
+     "before": 69.71438,
+     "after": 70.33838
+    }
+   ]
+  },
+  {
+   "sheet": "New Suppliers",
+   "changed": 2,
+   "examples": [
+    {
+     "cell": "D12",
+     "before": 201656.19,
+     "after": 211265.79
+    },
+    {
+     "cell": "E12",
+     "before": 5755968.54,
+     "after": 6044256.54
+    }
+   ]
+  }
+ ],
+ "ignored": [
+  "Manifest sheet: value cells of rows labelled Workbook, Generated (UTC)",
+  "Missing Notes sheet: compared as a set of rows (row order and serial numbers are not meaningful)"
+ ],
+ "uncached_formula_cells_skipped": 2382
+}
