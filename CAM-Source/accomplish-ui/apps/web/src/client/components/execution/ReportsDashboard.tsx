@@ -53,6 +53,7 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
   const [waiting, setWaiting] = useState(false);
   const [verify, setVerify] = useState<Verify>({ status: 'none' });
   const [showSuperset, setShowSuperset] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const base = `${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}`;
 
   // This screen opens as soon as the export step starts, before the workbook is finished (the engine check stores its values after the export):
@@ -76,7 +77,7 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
     };
     load();
     return () => { alive = false; window.clearTimeout(timer); };
-  }, [base, rfqId, ready]);
+  }, [base, rfqId, ready, reloadKey]);
 
   const poll = useCallback(async () => {
     const r = await authFetch(`${base}/verify-workbook`, rfqId);
@@ -84,6 +85,12 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
   }, [base, rfqId]);
 
   useEffect(() => { if (data) { void poll().catch(() => undefined); } }, [data, poll]);
+  // A confirmed edit in the assistant writes a new workbook version: the numbers are read again (see the listener below).
+  useEffect(() => {
+    const onChanged = (e: Event) => { if ((e as CustomEvent<{ rfqId?: string }>).detail?.rfqId === rfqId) { setReloadKey((k) => k + 1); } };
+    window.addEventListener('cam:workbook-changed', onChanged);
+    return () => window.removeEventListener('cam:workbook-changed', onChanged);
+  }, [rfqId]);
   useEffect(() => {
     if (verify.status !== 'running') return undefined;
     const t = window.setInterval(() => { void poll().catch(() => undefined); }, 4000);

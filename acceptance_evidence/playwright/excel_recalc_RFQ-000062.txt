@@ -1,1 +1,0 @@
-TOTAL 34095 of 34095 formula cells agree with native Excel

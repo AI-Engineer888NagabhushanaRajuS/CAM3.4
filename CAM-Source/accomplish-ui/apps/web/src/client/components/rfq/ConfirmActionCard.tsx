@@ -98,6 +98,8 @@ export function ConfirmActionCard({ ui, outcome, onSettle }: ConfirmActionCardPr
       const response = await confirmAction({ confirmToken: ui.confirmToken, decision });
       const state = decision === 'cancel' ? 'cancelled' : response.ok ? 'confirmed' : 'failed';
       onSettle({ state, response });
+      // A confirmed edit writes a new workbook version: the Reports & Analytics card reloads its numbers when it hears this.
+      if (state === 'confirmed') { window.dispatchEvent(new CustomEvent('cam:workbook-changed', { detail: { rfqId: response.rfqId } })); }
     } catch (err) {
       onSettle({ state: 'failed', error: err instanceof Error ? err.message : 'The request failed' });
     }

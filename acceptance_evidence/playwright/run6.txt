@@ -1,0 +1,10 @@
+PASS RFQ created from the Create RFQ card :: RFQ-000063
+PASS left pane says "Needs your upload" on Upload file (no click) :: Needs your upload
+PASS after QuoteWin the pane moves on by itself (Upload file Completed, next stage open) :: open: ERP & Quoting tools
+DOWNLOAD C:\CAM[3.4]-RFQ_centum\acceptance_evidence\playwright\downloads\CBOM_Report_RFQ_000063_20261112_133445_51a418a8.xlsx
+PASS run reaches Completed and the Reports & Analytics dashboard is on screen :: Completed + WORKBOOK CHECK
+PASS database agrees: stage 9, no pause :: 9|false
+PASS the app saved the report workbook by itself :: CBOM_Report_RFQ_000063_20261112_133445_51a418a8.xlsx
+PASS database agrees: stage 9, no pause :: 9|false
+videos: page@00b30f8e41e8c58af9f3b857ffefdba1.webm
+summary: 7 of 7 checks passed
