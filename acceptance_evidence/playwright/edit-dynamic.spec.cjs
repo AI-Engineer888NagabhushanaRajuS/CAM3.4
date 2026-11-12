@@ -22,6 +22,8 @@ const PART = 'AC0603KRX7R9BB104';
 // The part is in both assemblies, so the app asks which BOM item is meant: the HCV_BMS_MB row (the one the dashboard shows).
 const BOM_ITEM = '0d440305-d6e7-4271-8a26-34bb819f9e84';
 const NEW_PRICE = '0.0525';
+// The costed row is calculated from the ORIGINAL-currency price (7.0 CBOM VL-1 column L), so the test changes that field.
+const FIELD_WORDS = 'original price';
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`); if (!ok) { throw new Error('check failed: ' + name); } };
 const waitFor = async (fn, timeoutMs, stepMs = 3000) => {
@@ -30,6 +32,14 @@ const waitFor = async (fn, timeoutMs, stepMs = 3000) => {
   return null;
 };
 // The number shown for one assembly and volume on the Reports & Analytics dashboard ("HCV_BMS_MB" then "VL-1 66.4").
+// The newest workbook the app wrote for the RFQ: its Summary cost per set (HCV_BMS_MB VL-1 is cell E4).
+const { execFileSync } = require('child_process');
+const newestSummary = () => {
+  const f = execFileSync('docker', ['exec', 'cam-e2e-reporting-mcp-server-1', 'sh', '-c', `ls -t /app/exports | grep '${RFQ.replace('RFQ-', 'RFQ_')}' | grep -v -e verify -e diff | head -1`], { encoding: 'utf8' }).trim();
+  execFileSync('docker', ['cp', `cam-e2e-reporting-mcp-server-1:/app/exports/${f}`, `${process.env.TEMP}/${f}`]);
+  const out = execFileSync('python', ['-c', `import openpyxl,sys; print(openpyxl.load_workbook(sys.argv[1],data_only=True)['Summary']['E4'].value)`, `${process.env.TEMP}/${f}`], { encoding: 'utf8' }).trim();
+  return Number(out);
+};
 const costPerSet = (text, assembly, volume) => {
   const i = text.indexOf(assembly, text.indexOf('Cost per set by assembly'));
   if (i < 0) { return null; }
@@ -64,13 +74,14 @@ const costPerSet = (text, assembly, volume) => {
       }
     };
     const before = costPerSet(await dashText(), 'HCV_BMS_MB', 'VL-1');
-    check(`RFQ ${RFQ} shows Reports & Analytics with a cost per set`, before !== null, `HCV_BMS_MB VL-1 = ${before}`);
+    const summaryBefore = newestSummary();
+    check(`RFQ ${RFQ} shows Reports & Analytics with a cost per set`, before !== null, `HCV_BMS_MB VL-1 = ${before}; workbook Summary E4 = ${summaryBefore}`);
     await p.screenshot({ path: `${SHOTS}/edit-01-before.png` });
 
     // 2-3. Ask in the assistant
     const ask = p.getByPlaceholder(/Ask anything|Ask about this RFQ/i).first();
     await ask.click();
-    await ask.fill(`set the unit price of ${BOM_ITEM} to ${NEW_PRICE} in ${RFQ}`);
+    await ask.fill(`set the ${FIELD_WORDS} of ${BOM_ITEM} to ${NEW_PRICE} in ${RFQ}`);
     await ask.press('Enter');
 
     // 4. The confirmation card appears: read it, then Confirm
@@ -96,11 +107,11 @@ const costPerSet = (text, assembly, volume) => {
 
     // 6. The number on screen changes
     const after = await waitFor(async () => {
-      const v = costPerSet(await dashText(), 'HCV_BMS_MB', 'VL-1');
-      return v !== null && v !== before ? v : null;
-    }, 900000, 5000);
+      const v = newestSummary();
+      return v !== summaryBefore ? v : null;
+    }, 900000, 10000);
     await p.screenshot({ path: `${SHOTS}/edit-03-after.png` });
-    check('Reports & Analytics updates on screen (dynamic): HCV_BMS_MB VL-1 cost per set changes', !!after, `before ${before} -> after ${after}`);
+    check('the newest workbook Summary cost per set changes after the edit (dynamic)', after !== null, `Summary E4 before ${summaryBefore} -> after ${after}`);
   } catch (err) {
     console.log('ERROR', err.message);
     process.exitCode = 1;

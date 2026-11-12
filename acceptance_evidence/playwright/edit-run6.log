@@ -1,0 +1,6 @@
+PASS RFQ RFQ-000062 shows Reports & Analytics with a cost per set :: HCV_BMS_MB VL-1 = 66.4; workbook Summary E4 = 66.40403
+PASS the assistant asks for confirmation with the exact change :: Change Unit price (original currency) and regenerate the reports Change Unit price (original currency) of AC0603KRX7R9BB104 (bom item 0d440305-d6e7-4271-8a26-34
+PASS the app confirms the edit was applied :: Change Unit price (original currency) and regenerate the reports Change Unit price (original currency) of AC0603KRX7R9BB104 (bom item 0d440305-d6e7-4271-8a26-34bb819f9e84, in all 2 volume rows) in RFQ
+PASS the newest workbook Summary cost per set changes after the edit (dynamic) :: Summary E4 before 66.40403 -> after 71.00243
+videos: page@31d23d5f60c56764bdbd4a7b75043040.webm, page@45758ce57fa7f3fca5c3ffe97ae06dbf.webm, page@6777509829252e914c0a83d898907b99.webm, page@a2e43be67d2e9fa113de92ad0b8fef84.webm, page@b32aa53b07dcad17981600333e9acedb.webm, page@fc9edc14d52acd3e3e84d4ea785bd097.webm
+summary: 4 of 4 checks passed
