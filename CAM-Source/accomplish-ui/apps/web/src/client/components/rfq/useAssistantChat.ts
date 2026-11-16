@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MessageCitation } from '@accomplish_ai/agent-core';
 import { backendUrl } from '@/config/endpoints';
+import { getAccomplish } from '@/lib/accomplish';
 import { clearSession, getSessionToken } from '@/lib/session';
 import {
   defaultScope, isRfqId, parseScope, parseUi, scopeFromIds,
@@ -53,6 +54,17 @@ function load(convo: string): ChatMsg[] {
   }
 }
 
+// The conversation of an RFQ is also kept on the daemon (rfq_chat_history): reopening it from History or in a new session shows the same chat.
+const pendingSave = new Map<string, ReturnType<typeof setTimeout>>();
+function saveToServer(convo: string) {
+  if (convo === '__all__') return;
+  clearTimeout(pendingSave.get(convo));
+  pendingSave.set(convo, setTimeout(() => {
+    pendingSave.delete(convo);
+    void getAccomplish().chatSaveHistory({ rfqId: convo, messages: load(convo) }).catch(() => undefined);
+  }, 800));
+}
+
 function save(convo: string, messages: ChatMsg[]) {
   const kept = messages.slice(-KEEP);
   store.set(convo, kept);
@@ -60,6 +72,18 @@ function save(convo: string, messages: ChatMsg[]) {
     sessionStorage.setItem(`rfq-chat:${convo}`, JSON.stringify(kept));
   } catch {
     /* storage can be full or blocked: the conversation then lives in memory only */
+  }
+  saveToServer(convo);
+}
+
+/** The RFQ's saved conversation when this browser has none (a new session, or a History entry from before). */
+async function restoreFromServer(convo: string): Promise<ChatMsg[] | null> {
+  if (convo === '__all__' || load(convo).length > 0) return null;
+  try {
+    const { messages } = await getAccomplish().chatLoadHistory({ rfqId: convo });
+    return messages.length > 0 ? (messages as ChatMsg[]) : null;
+  } catch {
+    return null; // signed out or daemon down: the chat starts empty, as before
   }
 }
 
@@ -132,6 +156,9 @@ export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileR
     setRunning(false);
     setPickerFor(null);
     setMessages(load(convo));
+    void restoreFromServer(convo).then((msgs) => {
+      if (msgs && live.current === convo) { save(convo, msgs); setMessages(msgs); }
+    });
     const selected = lastConvo.current !== convo; // picking another RFQ in the left list resets the scope to it
     lastConvo.current = convo;
     setScope((selected ? undefined : loadScope(convo)) ?? defaultScope(rfqId), convo);

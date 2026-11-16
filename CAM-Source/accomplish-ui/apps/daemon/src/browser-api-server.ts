@@ -278,6 +278,18 @@ export class BrowserApiServer {
   // not fileMetadataPool (file_metadata_db) -- this is global system config
   // (same category as quote_routing_profiles/system_skills_registry, already
   // in logic_db), not RFQ/customer/project tracking data.
+  // The assistant's conversation per RFQ, kept on the server so reopening an RFQ (from History or after a new session) shows its chat again.
+  private async ensureChatHistorySchema(): Promise<void> {
+    await fileMetadataPool.query(`
+      CREATE TABLE IF NOT EXISTS rfq_chat_history (
+        rfq_id VARCHAR PRIMARY KEY,
+        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_at TIMESTAMP DEFAULT now(),
+        updated_by VARCHAR
+      )
+    `);
+  }
+
   private async ensureFeasibilitySchema(): Promise<void> {
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS feasibility_settings (
@@ -1874,6 +1886,27 @@ export class BrowserApiServer {
       // logic_db.currency_conversion_rates/currency_settings tables). See
       // ensureCurrencySchema() above for the schema.
       // Settings > Feasibility: every signed-in user may read the rules; only an admin saves them (the pipeline reads them on each run).
+      case 'chat.loadHistory': {
+        if (!this.getSession(req)) { throw new Error('Not signed in'); }
+        const rfqId = String((args[0] as { rfqId?: unknown } | undefined)?.rfqId ?? '').trim();
+        if (!rfqId) { throw new Error('rfqId is required'); }
+        const row = await fileMetadataPool.query<{ messages: unknown }>(`SELECT messages FROM rfq_chat_history WHERE rfq_id = $1`, [rfqId]);
+        return { messages: Array.isArray(row.rows[0]?.messages) ? row.rows[0].messages : [] };
+      }
+      case 'chat.saveHistory': {
+        const who = this.getSession(req);
+        if (!who) { throw new Error('Not signed in'); }
+        const body = (args[0] ?? {}) as { rfqId?: unknown; messages?: unknown };
+        const rfqId = String(body.rfqId ?? '').trim();
+        if (!rfqId) { throw new Error('rfqId is required'); }
+        const kept = Array.isArray(body.messages) ? body.messages.slice(-60) : [];
+        await fileMetadataPool.query(
+          `INSERT INTO rfq_chat_history (rfq_id, messages, updated_at, updated_by) VALUES ($1, $2::jsonb, now(), $3)
+           ON CONFLICT (rfq_id) DO UPDATE SET messages = EXCLUDED.messages, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+          [rfqId, JSON.stringify(kept), who.email ?? null],
+        );
+        return { saved: kept.length };
+      }
       case 'feasibility.getSettings': {
         const row = await pgPool.query<{ settings: unknown; updated_at: Date | null; updated_by: string | null }>(
           `SELECT settings, updated_at, updated_by FROM feasibility_settings WHERE id = 1`,
@@ -2099,6 +2132,7 @@ export class BrowserApiServer {
     await this.ensureProjectTrackingSchema();
     await this.ensureCurrencySchema();
     await this.ensureFeasibilitySchema();
+    await this.ensureChatHistorySchema();
     return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
         const { method, url } = req;

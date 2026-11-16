@@ -108,6 +108,8 @@ const RPC: Record<string, string> = {
   adminResetUserPassword: 'admin.resetUserPassword',
   adminDeleteUser: 'admin.deleteUser',
   listCurrencies: 'currency.listCurrencies',
+  chatLoadHistory: 'chat.loadHistory',
+  chatSaveHistory: 'chat.saveHistory',
   feasibilityGetSettings: 'feasibility.getSettings',
   feasibilitySaveSettings: 'feasibility.saveSettings',
   createCurrency: 'currency.createCurrency',

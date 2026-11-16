@@ -102,6 +102,9 @@ def export_excel(rfq_id):
     rfq_lit = helpers.sql_quote(rfq_id)
 
     cbom_df = mappings.load_cbom_df(con, rfq_id)
+    # The declared rules of every CBOM line (reports/report_model.py, Pydantic strict mode), checked before anything is written.
+    from reports.report_model import violations as cbom_violations
+    data_violations = cbom_violations(cbom_df)
     if cbom_df.empty:
         con.close()
         raise ValueError(f"No cbom rows found for rfq_id={rfq_id!r} -- call the cbom tool first")
@@ -379,6 +382,7 @@ def export_excel(rfq_id):
     logger.info(f"export_excel rfq_id={rfq_id!r} path={path} sheets={len(worksheet_names)} duration={duration:.3f}s")
     return {
         "status": "success",
+        "data_violations": data_violations,
         "rfq_id": rfq_id,
         "workbook_name": filename,
         "workbook_path": path,

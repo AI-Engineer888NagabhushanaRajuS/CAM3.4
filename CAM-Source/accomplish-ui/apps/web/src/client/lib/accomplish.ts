@@ -203,6 +203,8 @@ interface AccomplishAPI {
   // getDefaultQuoteCurrency is readable by any authenticated session since it
   // affects what currency they see throughout the app.
   listCurrencies(): Promise<{ currencies: Currency[] }>;
+  chatLoadHistory(params: { rfqId: string }): Promise<{ messages: unknown[] }>;
+  chatSaveHistory(params: { rfqId: string; messages: unknown[] }): Promise<{ saved: number }>;
   feasibilityGetSettings(): Promise<FeasibilityReadResult>;
   feasibilitySaveSettings(params: { settings: FeasibilitySettingsInput }): Promise<{ settings: FeasibilitySettingsInput; saved: boolean }>;
   createCurrency(params: { currencyCode: string; currencyName: string; conversionRate: number }): Promise<{ currency: Currency }>;

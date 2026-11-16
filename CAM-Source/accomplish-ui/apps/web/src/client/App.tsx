@@ -68,6 +68,7 @@ import { isRfqChangeEvent, pushRfqChangeEvent } from './lib/rfqChanges';
 import { orderStages, skillForStage, stageActions, unwiredSkills, usePipelineManifest } from './lib/pipelineManifest';
 import type { ManifestTree } from './lib/manifestsApi';
 import { autoDownloadEnabled, claimAutoDownload, saveFromUrl, setAutoDownload } from './lib/autoDownload';
+import './components/rfq/wireframe-rail.css';   // the left pane's look: the RFQ wireframe's rail (see that file)
 import type { SettingsTabId } from './components/layout/settings-tabs';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
@@ -1384,7 +1385,14 @@ export function App() {
                   </div>
                 )}
 
-                <div className="space-y-0" role="tree" aria-label="RFQ Pipeline macro-skills">
+                <div className="wf-rail">
+                  <div className="wf-head">
+                    <span className="wf-label">Progress</span>
+                    <span className="wf-count">{stages.filter((st) => getStageStatus(st.id as WorkflowStageId) === 'completed').length} of {stages.length} done</span>
+                  </div>
+                  <div className="wf-pbar"><span style={{ width: `${(stages.filter((st) => getStageStatus(st.id as WorkflowStageId) === 'completed').length / Math.max(stages.length, 1)) * 100}%` }} /></div>
+                </div>
+                <div className="space-y-0 wf-rail" role="tree" aria-label="RFQ Pipeline macro-skills">
                   {stages.map((stage, idx) => {
                     const isSelected = currentWorkflowStage === stage.id;
                     // A stage is "skipped by toggle" iff it has at least one backing
@@ -1461,13 +1469,13 @@ export function App() {
                               // directly (see isExpanded above).
                               goToStage(stage.id as WorkflowStageId);
                             }}
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${isLocked
-                                ? 'cursor-not-allowed border-border/50 bg-muted/30 text-muted-foreground/40'
+                            className={`wf-dot ${isLocked
+                                ? ''
                                 : stageStatus === 'completed'
-                                  ? 'border-transparent bg-emerald-500 text-white'
+                                  ? 'done'
                                   : isSelected
-                                    ? 'border-transparent bg-brand text-white'
-                                    : 'border-border bg-card text-muted-foreground hover:border-brand/40 hover:text-brand'
+                                    ? 'on'
+                                    : ''
                               }`}
                           >
                             {!isLocked && stageStatus === 'completed' ? (
@@ -1478,9 +1486,7 @@ export function App() {
                           </button>
                           {!isLast && (
                             <div
-                              className={`mt-1 min-h-[18px] w-0 flex-1 border-l-2 ${
-                                stageStatus === 'completed' ? 'border-solid border-emerald-500' : 'border-dashed border-border'
-                              }`}
+                              className={`wf-line mt-1 min-h-[18px] w-0 flex-1 ${stageStatus === 'completed' ? 'done' : ''}`}
                             />
                           )}
                         </div>
@@ -1524,7 +1530,7 @@ export function App() {
                             </button>
 
                             {isExpanded && (
-                              <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="space-y-0.5 px-2 pb-2 pl-2" data-testid={`sub-skills-${stage.id}`}>
+                              <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="wf-subs" data-testid={`sub-skills-${stage.id}`}>
                                 {actions.map((sub) => (
                                   sub.action === 'info' ? (
                                     <div key={sub.label} className="flex items-center gap-2 rounded px-2 py-1 text-[13px] text-muted-foreground/70">

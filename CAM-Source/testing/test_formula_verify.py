@@ -78,7 +78,11 @@ def test_older_exports_get_their_values_stored_in_a_background_job_with_progress
         paths.append(p)
     fv.repair_many(paths)
     deadline = time.time() + 60
-    while fv.repair_status()["running"] and time.time() < deadline:
+    # wait for the work itself (done or failed), not for the running flag: the job thread may not have set it yet
+    while time.time() < deadline:
+        st = fv.repair_status()
+        if st["done"] + len(st["failed"]) >= st["total"] and not st["running"]:
+            break
         time.sleep(0.1)
     st = fv.repair_status()
     assert not st["running"] and st["done"] == st["total"] == 2 and st["failed"] == [], st

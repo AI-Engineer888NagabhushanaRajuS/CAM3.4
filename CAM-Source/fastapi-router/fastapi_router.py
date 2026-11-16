@@ -134,6 +134,10 @@ def step_outcome(body):
         if check.get("status") == "ok":
             parts.append(f"engine check: {check['exact']} of {check['formulas']} formulas agree" + (f", {check['corrected']} stored values replaced by the engine's" if check.get("corrected") else ""))
             warn = warn or not check.get("complete", True)
+        # Not release-ready (a report check failed, or the engine did not check every formula): the step says so, it is never a clean tick.
+        if body.get("release_ready") is False:
+            warn = True
+            parts.append("not release-ready: " + "; ".join((body.get("release_blockers") or ["see the export"])[:3]))
     elif "cannot_build" in body:
         parts.append(f"{body['lines']} lines: {body['can_build']} can build, {body['cannot_build']} cannot, {body['high']} high risk")
         warn = bool(body["cannot_build"])

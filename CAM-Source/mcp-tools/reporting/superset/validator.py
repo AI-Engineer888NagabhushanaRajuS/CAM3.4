@@ -122,12 +122,11 @@ def validate_rfq(con, rfq_id):
 # ---------------------------------------------------------------------------
 
 def _safe(checks, name, fn):
-    """Run fn(); if it raises, record the check as passed=True with 'skipped' detail.
-    Missing columns or tables in test environments should not block the validator."""
+    """Run fn(); if it raises, the check FAILS with 'could not run: ...'. A check that could not run is not a passed check."""
     try:
         fn()
     except Exception as e:
-        checks.append({"name": name, "passed": True, "detail": f"skipped: {e}"})
+        checks.append({"name": name, "passed": False, "detail": f"could not run: {e}"})
 
 
 def _check_bom_matrix(con, rfq_lit, checks):
@@ -179,11 +178,11 @@ def _check_price_control(con, rfq_lit, checks):
                                 "passed": diff_pct <= 0.01,
                                 "detail": f"computed={computed:.2f} grand={grand:.2f} diff={diff_pct:.2%}"})
             else:
-                checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": True,
-                                "detail": "skipped: no data or zero grand total"})
+                checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": False,
+                                "detail": "could not check: no data or zero grand total"})
         except Exception as e:
-            checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": True,
-                            "detail": f"skipped: {e}"})
+            checks.append({"name": "cnp_plus_centum_eq_grand_total", "passed": False,
+                            "detail": f"could not run: {e}"})
 
     _safe(checks, "no_ref_errors", no_ref_errors)
     sum_matches_grand_total()
@@ -229,7 +228,7 @@ def _check_revision_history(con, rfq_lit, checks):
             checks.append({"name": "old_price_mostly_populated", "passed": pct >= 0.5,
                             "detail": f"{n_nonzero}/{total} rows have non-zero old_unit_price"})
         except Exception as e:
-            checks.append({"name": "old_price_mostly_populated", "passed": True, "detail": f"skipped: {e}"})
+            checks.append({"name": "old_price_mostly_populated", "passed": False, "detail": f"could not run: {e}"})
     delta_cols_numeric()
 
 
@@ -245,7 +244,7 @@ def _check_sum_and_count(con, rfq_lit, checks):
             checks.append({"name": "is_sum_same_is_boolean", "passed": n_text == 0,
                             "detail": f"{n_text} rows with string-encoded boolean"})
         except Exception as e:
-            checks.append({"name": "is_sum_same_is_boolean", "passed": True, "detail": f"skipped: {e}"})
+            checks.append({"name": "is_sum_same_is_boolean", "passed": False, "detail": f"could not run: {e}"})
     boolean_flags()
 
 
@@ -263,8 +262,8 @@ def validate_report_tab(con, rfq_id, table_name):
     """Per-tab business-rule validator.
 
     Returns {"table", "passed", "checks": [{"name", "passed", "detail"}, ...]}.
-    Every check that raises (missing column, table, etc.) is recorded as passed=True
-    with a 'skipped' detail so test environments with minimal schemas don't fail.
+    Every check that raises (missing column, table, etc.) is recorded as passed=False
+    with a 'could not run' detail: a check that did not run is not a pass.
     """
     rfq_lit = helpers.sql_quote(rfq_id)
     checks = []

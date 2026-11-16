@@ -1,0 +1,43 @@
+/* Left pane (workflow rail) from the RFQ wireframe (ParvithaCGowda29/RFQ_automation, src/theme.css), scoped to .wf-rail so nothing else in the app changes.
+   Only the rules the rail uses are copied. Colours are the wireframe's light tokens. */
+.wf-rail {
+  --wf-blue: #006C99;
+  --wf-bluefill: #F2F9FD;
+  --wf-blueink: #006C99;
+  --wf-bluesoft: rgba(242, 249, 253, .12);
+  --wf-bluehover: rgba(242, 249, 253, .05);
+  --wf-ink: #0F1B2D;
+  --wf-ink2: #55667F;
+  --wf-line: #DCE3EE;
+  --wf-line-strong: #C5D0E1;
+  --wf-soft: #EAF3FA;
+  --wf-soft2: #F5F8FD;
+  --wf-green: #18804F;
+  --wf-card: #FFFFFF;
+}
+
+.wf-rail .wf-head { display: flex; justify-content: space-between; align-items: center; margin: 6px 2px 4px; }
+.wf-rail .wf-label { font-size: 12px; color: var(--wf-ink2); text-transform: uppercase; letter-spacing: .08em; }
+.wf-rail .wf-count { font-size: 12px; color: var(--wf-ink2); font-weight: 700; }
+.wf-rail .wf-pbar { height: 6px; border-radius: 999px; background: var(--wf-soft2); overflow: hidden; margin: 0 2px 10px; }
+.wf-rail .wf-pbar > span { display: block; height: 100%; background: var(--wf-blue); border-radius: 999px; transition: width .3s; }
+
+.wf-rail .wf-dot {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  border: 1.5px solid var(--wf-line-strong); background: var(--wf-card); color: var(--wf-ink2); cursor: pointer; position: relative;
+}
+.wf-rail .wf-dot.done { border-color: var(--wf-bluefill); background: var(--wf-bluefill); color: var(--wf-blue); }
+.wf-rail .wf-dot.on { background: var(--wf-bluefill); border-color: var(--wf-blue); color: var(--wf-blueink); box-shadow: 0 0 0 4px var(--wf-soft); }
+.wf-rail .wf-dot:disabled { cursor: not-allowed; opacity: .55; }
+
+.wf-rail .wf-line { border-left: 1.5px dashed var(--wf-line-strong); }
+.wf-rail .wf-line.done { border-left-style: solid; border-left-color: var(--wf-blue); }
+
+.wf-rail .wf-stage-on { background: var(--wf-bluefill); }
+
+.wf-rail .wf-subs {
+  margin: 6px 0 6px 22px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--wf-blue) 18%, transparent); background: var(--wf-soft2); border-radius: 10px;
+}
+.wf-rail .wf-sub-act { background: var(--wf-bluefill); color: var(--wf-blueink); font-weight: 700; box-shadow: inset 3px 0 0 color-mix(in srgb, var(--wf-blue) 55%, transparent); }
+.wf-rail .wf-sub-done { color: var(--wf-ink2); }

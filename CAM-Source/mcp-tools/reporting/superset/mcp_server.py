@@ -188,6 +188,38 @@ def _engine_check(path: str) -> dict:
         return {"status": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
 
 
+def release_gate(result: dict) -> tuple[bool, list]:
+    """Release-ready only when every report check passed, every CBOM line met its rules, and the engine checked every formula.
+    Anything else is listed as a blocker (the workbook is still written; it is not labelled ready)."""
+    validation = result.get("validation") or {}
+    engine = result.get("engine_check") or {}
+    engine_ok = engine.get("status") == "ok" and engine.get("complete") is True
+    data_violations = result.get("data_violations") or []
+    reasons = [f"line {v['row']} {v['part']}: {v['message']}" for v in data_violations][:20]
+    reasons += [c["name"] + ": " + c["detail"] for c in validation.get("checks", []) if not c.get("passed")]
+    if not validation.get("passed") and not validation.get("checks"):
+        reasons.append("report validation did not run")
+    if not engine_ok:
+        reasons.append(f"engine check {engine.get('status')}: complete={engine.get('complete')}")
+    return (not reasons), reasons
+
+
+def _validation(rfq_id: str) -> dict:
+    """The SQL report validator (validator.py) over the stored results of this RFQ. A check that could not run is a failure."""
+    try:
+        import validator
+        import database
+        with db.duckdb_file_lock():
+            con = database.connect()
+            try:
+                return validator.validate_rfq(con, rfq_id)
+            finally:
+                con.close()
+    except Exception as e:
+        logger.exception(f"validation failed for rfq_id={rfq_id!r}")
+        return {"rfq_id": rfq_id, "passed": False, "checks": [{"name": "validator", "passed": False, "detail": f"could not run: {e}"}]}
+
+
 @mcp.tool
 def export_reports(rfq_id: str) -> dict:
     """Export the already-generated CBOM + 16 reports for one rfq_id into a single
@@ -203,6 +235,10 @@ def export_reports(rfq_id: str) -> dict:
             # Protected View, previews and phones show numbers; never fails the export (see cached_values.py).
             result["cached_values"] = cached_values.add_cached_values(result["workbook_path"])
             result["engine_check"] = _engine_check(result["workbook_path"])
+            result["validation"] = _validation(rfq_id)
+            # The export still produces the workbook (the file is what the user needs to look at), but it says plainly whether it is
+            # release-ready: only when the report validation passed for every check AND the engine checked every formula.
+            result["release_ready"], result["release_blockers"] = release_gate(result)
         return result
     except Exception as e:
         logger.exception(f"export_reports tool failed for rfq_id={rfq_id!r}")
