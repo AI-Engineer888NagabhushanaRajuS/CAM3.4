@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { FileText, X } from '@phosphor-icons/react';
+import { useState, type DragEvent } from 'react';
+import { FileText, WarningCircle, X } from '@phosphor-icons/react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,94 @@ interface RfqIntakeUploadModalProps {
   onUploadError?: (message: string) => void;
 }
 
+type BucketKey = 'bom' | 'volume' | 'quotewin' | 'costing' | 'gerber';
+
+interface Bucket {
+  key: BucketKey;
+  label: string;
+  hint: string;
+  accept: string;
+  /** Required buckets are red until filled; the run cannot start without them. Optional buckets stay grey. */
+  required: boolean;
+  why: string;
+}
+
+// The buckets follow the upload service's own rules: BOM and QuoteWin are needed to cost the RFQ; the volume file is optional for the
+// default scrub pipeline (its volumes are in the workbook's Settings sheet); the costing sheet and the Gerber ZIP are optional extras.
+const BUCKETS: Bucket[] = [
+  { key: 'bom', label: 'BOM file', hint: '.xlsx · .xls · .csv', accept: '.xlsx,.xls,.csv', required: true, why: 'The customer BOM. The run cannot start without it.' },
+  { key: 'quotewin', label: 'QuoteWin export', hint: '.xlsx · .xls · .csv', accept: '.xlsx,.xls,.csv', required: true, why: 'Prices the parts. Needed before costing; it is not asked for again during the run.' },
+  { key: 'volume', label: 'Volume file', hint: '.xlsx · .xls · .csv', accept: '.xlsx,.xls,.csv', required: false, why: 'Volumes. Optional: the default pipeline reads them from the BOM workbook.' },
+  { key: 'costing', label: 'Costing sheet', hint: '.xlsx · .xls · .csv', accept: '.xlsx,.xls,.csv', required: false, why: 'Optional extra costing input, sent with the QuoteWin export.' },
+  { key: 'gerber', label: 'Gerber ZIP', hint: '.zip', accept: '.zip', required: false, why: 'Optional. Without it the feature extraction is skipped.' },
+];
+
+function DropBucket({ bucket, file, onFile, onClear }: { bucket: Bucket; file: File | null; onFile: (f: File) => void; onClear: () => void }) {
+  const [over, setOver] = useState(false);
+  const [inputKey, setInputKey] = useState(0);
+  const missing = bucket.required && !file;
+  const drop = (e: DragEvent) => {
+    e.preventDefault();
+    setOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) onFile(f);
+  };
+  const border = over
+    ? 'border-primary bg-primary/5'
+    : file
+      ? 'border-emerald-500/60 bg-emerald-500/5'
+      : missing
+        ? 'border-destructive/70 bg-destructive/5'
+        : 'border-dashed border-border bg-muted/30';
+  return (
+    <div className="space-y-1.5" data-testid={`bucket-${bucket.key}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{bucket.label}</p>
+        {bucket.required ? (
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${file ? 'bg-emerald-500/15 text-emerald-700' : 'bg-destructive/15 text-destructive'}`}>
+            {file ? 'Ready' : 'Required'}
+          </span>
+        ) : (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Optional</span>
+        )}
+      </div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={drop}
+        className={`flex min-h-[92px] flex-col items-center justify-center rounded-lg border-2 px-3 py-3 text-center transition-colors ${border} ${bucket.required || file ? '' : 'opacity-80'}`}
+      >
+        {file ? (
+          <div className="flex max-w-full items-center gap-2">
+            <FileText className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="min-w-0 truncate text-sm text-foreground" title={file.name}>{file.name}</span>
+            <button type="button" aria-label={`Remove ${bucket.label}`} onClick={onClear} className="shrink-0 text-muted-foreground hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">Drop the file here</p>
+            <label className="mt-1 cursor-pointer text-sm font-medium text-primary hover:underline">
+              or browse
+              <input
+                key={inputKey}
+                type="file"
+                className="sr-only"
+                accept={bucket.accept}
+                aria-label={`Choose ${bucket.label}`}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { onFile(f); } setInputKey((k) => k + 1); }}
+              />
+            </label>
+            <p className="mt-1 text-[10px] text-muted-foreground/80">{bucket.hint}</p>
+          </>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">{bucket.why}</p>
+    </div>
+  );
+}
+
 export function RfqIntakeUploadModal({
   open,
   rfqId,
@@ -30,259 +118,107 @@ export function RfqIntakeUploadModal({
   onUploadStart,
   onUploadError,
 }: RfqIntakeUploadModalProps) {
-  const [bomFile, setBomFile] = useState<File | null>(null);
-  const [bomDragOver, setBomDragOver] = useState(false);
-  const [volumeFile, setVolumeFile] = useState<File | null>(null);
-  const [volumeDragOver, setVolumeDragOver] = useState(false);
-  // Optional -- RFQ_Flow's gerber_integration__extract_features skips itself
-  // gracefully (hitl=0, no preview) when no GERBER_ZIP file_role row exists
-  // for the rfq_id, same as this platform's other optional inputs.
-  const [gerberFile, setGerberFile] = useState<File | null>(null);
-  const [gerberDragOver, setGerberDragOver] = useState(false);
+  const [files, setFiles] = useState<Partial<Record<BucketKey, File>>>({});
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const bomInputRef = useRef<HTMLInputElement>(null);
-  const volumeInputRef = useRef<HTMLInputElement>(null);
-  const gerberInputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const missingRequired = BUCKETS.filter((b) => b.required && !files[b.key]);
+  const set = (key: BucketKey) => (f: File) => setFiles((prev) => ({ ...prev, [key]: f }));
+  const clear = (key: BucketKey) => () => setFiles((prev) => {
+    const next = { ...prev };
+    delete next[key];
+    return next;
+  });
 
-  const makeDrop = (setter: (f: File | null) => void, setDrag: (v: boolean) => void) =>
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDrag(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) { setter(file); }
-    };
-
-  const handleUpload = () => {
-    if (!bomFile) { return; }
-    if (!rfqId.trim()) {
+  // The BOM upload is synchronous on the server: it creates the RFQ's version and returns it. The QuoteWin and costing sheet are then
+  // saved to that same version, so the run has every input it needs before it starts. Nothing is asked for again during the run.
+  const handleUpload = async () => {
+    if (busy) { return; }
+    if (missingRequired.length) {
+      setError(`Add the ${missingRequired.map((b) => b.label).join(' and ')} first.`);
+      return;
+    }
+    const rfq = rfqId.trim();
+    if (!rfq) {
       setError('Please enter a Target RFQ Reference ID before uploading.');
       return;
     }
-
-    const fileName = bomFile.name;
-    onUploadStart?.(fileName);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const formData = new FormData();
-    formData.append('bom_file', bomFile);
-    if (volumeFile) { formData.append('volume_file', volumeFile); }   // optional: a SCRUB BOM workbook carries its volumes in its Settings sheet
-    formData.append('rfq_id', rfqId.trim());
-    if (gerberFile) { formData.append('gerber_file', gerberFile); }
-
-    const RFQ_UPLOAD = RFQ_UPLOAD_URL;
-    authFetch(`${RFQ_UPLOAD}/api/rfq/upload`, rfqId.trim(), {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          logger.error('BOM upload rejected by server', { status: response.status });
-          onUploadError?.(await refusalMessage(response));
-        }
-      })
-      .catch((err) => {
-        if (err instanceof Error && err.name === 'AbortError') { return; }
-        const message = err instanceof Error ? err.message : String(err);
-        logger.error('BOM upload request failed', { error: message });
-        onUploadError?.(message);
-      });
-
-    // The upload hand-off (not the full backend workflow) is what this modal
-    // gates on — the live SSE progress panel takes over from here, so the
-    // modal closes as soon as the request is dispatched.
-    setBomFile(null);
-    setVolumeFile(null);
-    setGerberFile(null);
+    const bom = files.bom!;
+    setBusy(true);
     setError(null);
-    onSuccess(fileName);
+    onUploadStart?.(bom.name);
+    try {
+      const form = new FormData();
+      form.append('bom_file', bom);
+      if (files.volume) { form.append('volume_file', files.volume); }
+      if (files.gerber) { form.append('gerber_file', files.gerber); }
+      form.append('rfq_id', rfq);
+      const res = await authFetch(`${RFQ_UPLOAD_URL}/api/rfq/upload`, rfq, { method: 'POST', body: form });
+      if (!res.ok) { throw new Error(await refusalMessage(res)); }
+
+      const extra: { url: string; file: File; label: string }[] = [];
+      if (files.quotewin) { extra.push({ url: '/api/rfq/upload/quotewin', file: files.quotewin, label: 'QuoteWin export' }); }
+      if (files.costing) { extra.push({ url: '/api/rfq/upload/costing_sheet', file: files.costing, label: 'Costing sheet' }); }
+      for (const item of extra) {
+        const body = new FormData();
+        body.append(item.url.endsWith('quotewin') ? 'quotewin_file' : 'costing_sheet_file', item.file);
+        body.append('rfq_id', rfq);
+        const r = await authFetch(`${RFQ_UPLOAD_URL}${item.url}`, rfq, { method: 'POST', body });
+        if (!r.ok) { throw new Error(`${item.label}: ${await refusalMessage(r)}`); }
+      }
+      setFiles({});
+      onSuccess(bom.name);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('Intake upload failed', { error: message });
+      setError(message);
+      onUploadError?.(message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleClose = () => {
-    abortControllerRef.current?.abort();
-    setBomFile(null);
-    setVolumeFile(null);
-    setGerberFile(null);
+    if (busy) { return; }
+    setFiles({});
     setError(null);
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose(); } }}>
-      <DialogContent className="max-w-md border-border bg-card">
+      <DialogContent className="max-w-3xl border-border bg-card">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Upload RFQ Files</DialogTitle>
+          <DialogTitle className="text-foreground">Input files for this RFQ</DialogTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            BOM & volume files for RFQ{' '}
-            <span className="font-mono text-primary">{rfqId || '—'}</span>
+            RFQ <span className="font-mono text-primary">{rfqId || '—'}</span>. Drop each file in its own bucket. The red ones are required; the grey ones are optional.
           </p>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {/* BOM File Zone */}
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">BOM File</p>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setBomDragOver(true); }}
-              onDragLeave={() => setBomDragOver(false)}
-              onDrop={makeDrop(setBomFile, setBomDragOver)}
-              onClick={() => { if (!bomFile) { bomInputRef.current?.click(); } }}
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 text-center transition-colors ${
-                bomDragOver
-                  ? 'border-primary bg-primary/5'
-                  : bomFile
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border hover:border-muted-foreground'
-              }`}
-            >
-              {bomFile ? (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
-                  <span className="max-w-[200px] truncate text-sm text-foreground">{bomFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setBomFile(null); }}
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-1.5 text-xs text-muted-foreground">Drop file here or</p>
-                  <span className="text-sm font-medium text-primary">Browse files</span>
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">.xlsx · .xls · .csv</p>
-                </>
-              )}
-            </div>
-            <input
-              ref={bomInputRef}
-              type="file"
-              className="hidden"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => { if (e.target.files?.[0]) { setBomFile(e.target.files[0]); } }}
-            />
-          </div>
-
-          {/* Volume File Zone -- optional for the SCRUB BOM pipeline (its volumes are in the workbook's Settings sheet);
-              the upload service still requires it for RFQ_Flow's intake__import_bom. */}
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Volume File (optional)</p>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setVolumeDragOver(true); }}
-              onDragLeave={() => setVolumeDragOver(false)}
-              onDrop={makeDrop(setVolumeFile, setVolumeDragOver)}
-              onClick={() => { if (!volumeFile) { volumeInputRef.current?.click(); } }}
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 text-center transition-colors ${
-                volumeDragOver
-                  ? 'border-primary bg-primary/5'
-                  : volumeFile
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border hover:border-muted-foreground'
-              }`}
-            >
-              {volumeFile ? (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
-                  <span className="max-w-[200px] truncate text-sm text-foreground">{volumeFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setVolumeFile(null); }}
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-1.5 text-xs text-muted-foreground">Drop file here or</p>
-                  <span className="text-sm font-medium text-primary">Browse files</span>
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">.xlsx · .xls · .csv</p>
-                </>
-              )}
-            </div>
-            <input
-              ref={volumeInputRef}
-              type="file"
-              className="hidden"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => { if (e.target.files?.[0]) { setVolumeFile(e.target.files[0]); } }}
-            />
-          </div>
-
-          {/* Gerber ZIP Zone -- optional. Skipped gracefully downstream if
-              omitted; see gerber_integration__extract_features. */}
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Gerber ZIP <span className="text-muted-foreground/60">(optional)</span>
-            </p>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setGerberDragOver(true); }}
-              onDragLeave={() => setGerberDragOver(false)}
-              onDrop={makeDrop(setGerberFile, setGerberDragOver)}
-              onClick={() => { if (!gerberFile) { gerberInputRef.current?.click(); } }}
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 text-center transition-colors ${
-                gerberDragOver
-                  ? 'border-primary bg-primary/5'
-                  : gerberFile
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border hover:border-muted-foreground'
-              }`}
-            >
-              {gerberFile ? (
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
-                  <span className="max-w-[200px] truncate text-sm text-foreground">{gerberFile.name}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setGerberFile(null); }}
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-1.5 text-xs text-muted-foreground">Drop file here or</p>
-                  <span className="text-sm font-medium text-primary">Browse files</span>
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">.zip</p>
-                </>
-              )}
-            </div>
-            <input
-              ref={gerberInputRef}
-              type="file"
-              className="hidden"
-              accept=".zip"
-              onChange={(e) => { if (e.target.files?.[0]) { setGerberFile(e.target.files[0]); } }}
-            />
-          </div>
-
-          {error && (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
-              {error}
-            </p>
-          )}
+        <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2 xl:grid-cols-3">
+          {BUCKETS.map((b) => (
+            <DropBucket key={b.key} bucket={b} file={files[b.key] ?? null} onFile={set(b.key)} onClear={clear(b.key)} />
+          ))}
         </div>
 
+        {missingRequired.length > 0 && !error && (
+          <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive" role="status">
+            <WarningCircle className="h-4 w-4 shrink-0" weight="fill" />
+            Still required: {missingRequired.map((b) => b.label).join(', ')}.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+
         <DialogFooter className="gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
+          <button type="button" onClick={handleClose} disabled={busy} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
             Cancel
           </button>
-          <Button
-            onClick={handleUpload}
-            disabled={!bomFile}
-            size="sm"
-          >
-            Upload & Proceed
+          <Button onClick={() => void handleUpload()} disabled={busy || missingRequired.length > 0} size="sm">
+            {busy ? 'Uploading…' : 'Upload & Proceed'}
           </Button>
         </DialogFooter>
       </DialogContent>
