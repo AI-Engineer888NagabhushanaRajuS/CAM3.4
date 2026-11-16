@@ -12,6 +12,7 @@
  * Rules decide first (rfq-chat-intent.ts); the model only chats, phrases guide or evidence rows, or hands a message back
  * as an RFQ-data question. Lists, tables, pickers and refusals need no model.
  */
+import { openRouterFailureReason } from './rfq-chat-models.js';
 import { answerFromResults, type GroundedDeps } from './rfq-chat-grounded.js';
 import { answerFromGuide, loadGuide } from './rfq-chat-guide.js';
 import { converse } from './rfq-chat-general.js';
@@ -128,7 +129,8 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
       return talk(g.message, { model: g.model });
     }
     if (g.kind === 'offline') {
-      return talk("The language model isn't reachable right now, so I can't chat freely. I can still answer how-to questions from the user guide, list your RFQs, and answer from an RFQ's results.");
+      const why = openRouterFailureReason();
+      return talk(`${why ? `${why} ` : ''}The language model isn't reachable right now, so I can't chat freely. I can still answer how-to questions from the user guide, list your RFQs, and answer from an RFQ's results.`);
     }
     if (g.kind === 'withheld') {
       const rfqs = await deps.listRfqs();

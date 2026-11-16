@@ -58,19 +58,17 @@ export function OpenRouterProviderForm({
       // Save key
       await accomplish.addApiKey('openrouter', apiKey.trim());
 
-      // Fetch models
+      // Fetch models. A failed fetch does NOT drop the connection: the key is saved, so the provider stays connected and the
+      // warning says why the list is empty (the chat and the model selector still use the daemon's own model list).
       const result = await accomplish.fetchOpenRouterModels();
-      if (!result.success) {
-        setError(result.error || t('openrouter.fetchModelsFailed'));
-        setConnecting(false);
-        return;
-      }
-
       const models =
-        result.models?.map((m) => ({
+        (result.success ? result.models?.map((m) => ({
           id: `openrouter/${m.id}`,
           name: m.name,
-        })) || [];
+        })) : []) || [];
+      if (!result.success) {
+        setError(result.error || t('openrouter.fetchModelsFailed'));
+      }
       setAvailableModels(models);
 
       // Store longer key prefix for display

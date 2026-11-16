@@ -57,6 +57,18 @@ export function localModel(timeoutMs = 120_000): ChatModel {
   };
 }
 
+/** The last reason OpenRouter refused a question, in words a person can act on (never the key). Read by the chat when it cannot answer. */
+let lastOpenRouterFailure: string | null = null;
+export function openRouterFailureReason(): string | null {
+  return lastOpenRouterFailure;
+}
+export function describeOpenRouterStatus(status: number): string {
+  if (status === 402) return "OpenRouter says the account behind the key has no credit left (HTTP 402). Add credit at openrouter.ai, then ask again.";
+  if (status === 401 || status === 403) return `OpenRouter rejected the key (HTTP ${status}). Save a valid key in Settings > Providers > OpenRouter.`;
+  if (status === 429) return "OpenRouter is rate-limiting this key right now (HTTP 429). Try again in a minute.";
+  return `OpenRouter returned HTTP ${status}.`;
+}
+
 export function openRouterModel(apiKey: string, model: string, timeoutMs = 60_000): ChatModel {
   const id = model.replace(/^openrouter\//, '');
   const label = `${id} (OpenRouter)`;
@@ -72,12 +84,15 @@ export function openRouterModel(apiKey: string, model: string, timeoutMs = 60_00
         });
         if (!res.ok) {
           log.warn(`[RfqChat] OpenRouter HTTP ${res.status}`);
+          lastOpenRouterFailure = describeOpenRouterStatus(res.status);
           return null;
         }
+        lastOpenRouterFailure = null;
         const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
         return { text: stripThink(data.choices?.[0]?.message?.content ?? ''), model: label };
       } catch (err) {
         log.warn(`[RfqChat] OpenRouter failed: ${err}`);
+        lastOpenRouterFailure = "OpenRouter could not be reached from this computer (network or timeout).";
         return null;
       }
     },
