@@ -112,3 +112,22 @@ def test_the_summary_volumes_are_the_volumes_of_the_cbom(book):
             for r in rows_of(book[tab]):
                 if r[0] == assembly:
                     assert r[EXT_QTY] == pytest.approx(r[QTY] * shown_volume, abs=TOL), (tab, assembly, r[PART])
+
+
+@pytest.mark.xfail(strict=True, reason="CAM-059 (known defect): the CBOM tab has one part fewer than the BOM for HCV_BMS_MB and one for HCV_BMS_SB")
+def test_lead_time_count_matches_the_parts_on_the_cbom(book):
+    """Covers CAM-059: the FG-wise lead-time grand total is the number of parts of that FG on the CBOM tab."""
+    lt = book["Lead Time (FG Wise)"]
+    typed_totals = {}
+    for r in range(1, lt.max_row + 1):
+        for label_col, count_col in ((1, 2), (4, 5)):
+            head = lt.cell(row=1, column=label_col).value
+            if isinstance(head, str) and head.startswith("LT in weeks - "):
+                fg = head[len("LT in weeks - "):]
+                for rr in range(2, lt.max_row + 1):
+                    if str(lt.cell(row=rr, column=label_col).value).strip().lower() == "grand total":
+                        typed_totals[fg] = lt.cell(row=rr, column=count_col).value
+    cbom = book["7.0 CBOM VL-1"]
+    for fg, total in typed_totals.items():
+        parts = {r[PART] for r in rows_of(cbom) if r[0] == fg}
+        assert total == len(parts), (fg, total, len(parts))

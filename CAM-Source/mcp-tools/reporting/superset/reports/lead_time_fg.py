@@ -147,7 +147,64 @@ def flatten_lead_time_fg(blocks):
     return rows
 
 
-def build_lead_time_fg_sheet(wb, rows):
+CBOM_TAB = "7.0 CBOM VL-1"
+HELPER_COL = 60     # BH: helper columns sit far right on this tab, one row per CBOM part line, labelled "helper (do not edit)"
+_PART_LINE_TEST = "AND({y}<>\"\",RIGHT({y},5)<>\"_PCBA\")"
+
+
+def write_lead_time_formulas(ws, bounds):
+    """Replaces the typed counts with live formulas over the CBOM VL-1 tab's part lines (bounds = (first, last), as the exporter computes them).
+
+    Helper columns (BH..BK) hold, per CBOM part line: the assembly, the part, the lead time, and two first-occurrence flags:
+      flag_lt   = 1 for the first line of each (assembly, part, lead time)   -> a part counts once per lead time (the Python rule);
+      flag_part = 1 for the first line of each (assembly, part)              -> the grand total counts each part once.
+    A bucket is then COUNTIFS(assembly = FG, flag_lt = 1, lead time = label)."""
+    first, last = bounds
+    n = last - first + 1
+    h = HELPER_COL
+    c_asm, c_part, c_lt, c_flt, c_fpart = (openpyxl_col(h + i) for i in range(5))
+    ws.cell(row=1, column=h).value = "helper (do not edit): assembly"
+    ws.cell(row=1, column=h + 1).value = "part"
+    ws.cell(row=1, column=h + 2).value = "lead time"
+    ws.cell(row=1, column=h + 3).value = "first (part, lead time)"
+    ws.cell(row=1, column=h + 4).value = "first (part)"
+    last_h = n + 1
+    rng = lambda col: f"${col}$2:${col}${last_h}"  # noqa: E731
+    for i in range(n):
+        r = i + 2                      # helper row
+        src = first + i                # CBOM tab row
+        ws[f"{c_asm}{r}"] = f"='{CBOM_TAB}'!A{src}"
+        ws[f"{c_part}{r}"] = f"='{CBOM_TAB}'!C{src}"
+        ws[f"{c_lt}{r}"] = f"=IF('{CBOM_TAB}'!S{src}=\"\",\"\",'{CBOM_TAB}'!S{src})"
+        test = _PART_LINE_TEST.format(y=f"{c_part}{r}")
+        ws[f"{c_flt}{r}"] = (f"=IF({test},IF(COUNTIFS({c_asm}$2:{c_asm}{r},{c_asm}{r},{c_part}$2:{c_part}{r},{c_part}{r},"
+                             f"{c_lt}$2:{c_lt}{r},{c_lt}{r})=1,1,0),0)")
+        ws[f"{c_fpart}{r}"] = (f"=IF({test},IF(COUNTIFS({c_asm}$2:{c_asm}{r},{c_asm}{r},{c_part}$2:{c_part}{r},{c_part}{r})=1,1,0),0)")
+    for col1 in range(1, ws.max_column + 1, 3):
+        head = ws.cell(row=1, column=col1).value
+        if not (isinstance(head, str) and head.startswith("LT in weeks - ")):
+            continue
+        fg = head[len("LT in weeks - "):].strip()
+        col2 = col1 + 1
+        lab = openpyxl_col(col1)
+        for r in range(2, ws.max_row + 1):
+            label = ws.cell(row=r, column=col1).value
+            count = ws.cell(row=r, column=col2).value
+            if label in (None, "") and count in (None, ""):
+                continue
+            if isinstance(label, str) and label.strip().lower() == "grand total":
+                ws.cell(row=r, column=col2).value = f'=COUNTIFS({rng(c_asm)},"{fg}",{rng(c_fpart)},1)'
+            else:
+                crit = f"{lab}{r}" if label not in (None, "") else '""'
+                ws.cell(row=r, column=col2).value = f'=COUNTIFS({rng(c_asm)},"{fg}",{rng(c_flt)},1,{rng(c_lt)},{crit})'
+
+
+def openpyxl_col(c):
+    from openpyxl.utils import get_column_letter
+    return get_column_letter(c)
+
+
+def build_lead_time_fg_sheet(wb, rows, cbom_bounds=None):
     """Port of FgLeadTimeExport::styles(): colors each 3-column group
     independently, using that group's own last non-blank row.
 
@@ -157,6 +214,8 @@ def build_lead_time_fg_sheet(wb, rows):
     ws = wb.create_sheet(title="Lead Time (FG Wise)")
     for row in rows:
         ws.append(row)
+    if cbom_bounds:
+        write_lead_time_formulas(ws, cbom_bounds)
 
     highest_row = len(rows)
     highest_col = max((len(r) for r in rows), default=0)

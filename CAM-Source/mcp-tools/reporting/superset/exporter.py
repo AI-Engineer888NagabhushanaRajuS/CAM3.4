@@ -207,7 +207,7 @@ def export_excel(rfq_id):
         worksheet_names.append("Feasibility & Risk")
 
     lt_blocks = lead_time_fg_blocks(mappings.to_lead_time_fg_payload(cbom_df))
-    build_lead_time_fg_sheet(wb, flatten_lead_time_fg(lt_blocks))
+    build_lead_time_fg_sheet(wb, flatten_lead_time_fg(lt_blocks), cbom_bounds=cbom_bounds_by_sheet.get("7.0 CBOM VL-1"))
     worksheet_names.append("Lead Time (FG Wise)")
 
     build_lead_time_consolidated_sheet(wb, lead_time_consolidated_rows(mappings.to_lead_time_consolidated_payload(cbom_df)))

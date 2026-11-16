@@ -18,7 +18,7 @@ def test_every_case_is_listed_once_with_kind_report_and_status():
     ids = [c["case_id"] for c in cases]
     assert len(ids) == len(set(ids)) == 282  # the source lists 282 unique cases (the 4 reference inputs appear on two sheets)
     for c in cases:
-        assert c["kind"] and c["report"] and c["status"] in ("not_tested", "tested")
+        assert c["kind"] and c["report"] and c["status"] in ("not_tested", "tested", "known_defect")
         if c["status"] == "tested":
             assert c["test"], f"{c['case_id']} is marked tested without a test id"
 

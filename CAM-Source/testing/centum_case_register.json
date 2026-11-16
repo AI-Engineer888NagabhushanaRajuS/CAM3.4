@@ -598,8 +598,9 @@
    "report": "Lead Time",
    "issue": "CPN count differs from total BOM parts",
    "expected": "Correct count",
-   "status": "not_tested",
-   "test": null
+   "status": "known_defect",
+   "test": "test_centum_defect_checks.py::test_lead_time_count_matches_the_parts_on_the_cbom",
+   "scope": "reproduced on RFQ-000032: the typed lead-time totals count one more part per FG than the CBOM tab"
   },
   {
    "case_id": "CAM-060",
