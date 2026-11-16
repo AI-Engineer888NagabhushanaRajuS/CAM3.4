@@ -1,0 +1,2825 @@
+{
+ "source": "Centum CAM - Master edge cases and mail evidence - 2026-10-09.xlsx (Master cases; the 4 reference inputs are listed on both sheets and kept once)",
+ "cases": [
+  {
+   "case_id": "CAM-001",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Summary",
+   "issue": "Proto appears without proto input",
+   "expected": "Suppress non-applicable proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-002",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Summary",
+   "issue": "Volume-1 quantity mismatch",
+   "expected": "Match supplied volumes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-003",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "CBOM VL-1",
+   "issue": "MFR name missing despite QuoteWin input",
+   "expected": "Carry source manufacturer",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-004",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "CBOM VL-1",
+   "issue": "Price #1 Original extracted incorrectly",
+   "expected": "Select correct source price",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-005",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "CBOM VL-1",
+   "issue": "Assembly level BOM not as required",
+   "expected": "Correct assembly hierarchy",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-006",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Ex Inv VL-1",
+   "issue": "Ext Vol Splits #1 incorrect",
+   "expected": "Correct extended volumes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-007",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Ex Inv VL-1",
+   "issue": "MFR name missing",
+   "expected": "Carry source manufacturer",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-008",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Ex Inv VL-1",
+   "issue": "Scrap percentage missing",
+   "expected": "Show scrap %",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-009",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "A CLASS PARTS",
+   "issue": "MFR name missing",
+   "expected": "Carry source manufacturer",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-010",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "A CLASS PARTS",
+   "issue": "Ext Vol Splits #1 incorrect",
+   "expected": "Correct extended volumes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-011",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "A CLASS PARTS",
+   "issue": "Values differ from CBOM and Ex Inv",
+   "expected": "Reconcile reports",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-012",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Price Control",
+   "issue": "Price differs from Summary",
+   "expected": "Reconcile totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-013",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Lead Time FG Wise",
+   "issue": "LT count incorrect",
+   "expected": "Accurate count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-014",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Lead Time Consolidated",
+   "issue": "LT count incorrect",
+   "expected": "Accurate count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-015",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Part Num Vs Mfg Num",
+   "issue": "Incorrect source MPN",
+   "expected": "Correct source MPN",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-016",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Missing Notes",
+   "issue": "Output incorrect, details unspecified",
+   "expected": "Correct notes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-017",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "BOM MATRIX",
+   "issue": "EAU VL-1 incorrect",
+   "expected": "Correct EAU",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-018",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "BOM MATRIX",
+   "issue": "MFR name absent",
+   "expected": "Carry manufacturer",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-019",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "BOM MATRIX",
+   "issue": "VL1 pricing captured but VL2 missing",
+   "expected": "Capture both volume prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-020",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility HCV BMS; BOM_Matrix_528",
+   "report": "Revision History",
+   "issue": "Existing-project output unsupported",
+   "expected": "Track changes on existing projects",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-021",
+   "kind": "Validation gap",
+   "project": "CE-005570 TI Clean Mobility HCV BMS",
+   "report": "PCB NRE & FAI Charge",
+   "issue": "Not verified during live updates / pricing not complete",
+   "expected": "Validate when prerequisites ready",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-022",
+   "kind": "Validation gap",
+   "project": "CE-005570 TI Clean Mobility HCV BMS",
+   "report": "Mech & EM NRE",
+   "issue": "Not verified during live updates / pricing not complete",
+   "expected": "Validate when prerequisites ready",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-023",
+   "kind": "Validation gap",
+   "project": "CE-005570 TI Clean Mobility HCV BMS",
+   "report": "Sum & Count",
+   "issue": "Not verified during live updates / pricing not complete",
+   "expected": "Validate when prerequisites ready",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-024",
+   "kind": "Validation gap",
+   "project": "CE-005570 TI Clean Mobility HCV BMS",
+   "report": "Sum & Count Detailed",
+   "issue": "Not verified during live updates / pricing not complete",
+   "expected": "Validate when prerequisites ready",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-025",
+   "kind": "Validation gap",
+   "project": "CE-005570 TI Clean Mobility HCV BMS",
+   "report": "Batchwise Cashflow",
+   "issue": "Not verified during live updates / pricing not complete",
+   "expected": "Validate when prerequisites ready",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-026",
+   "kind": "Reported defect",
+   "project": "Nov-2025 dry run, project unspecified",
+   "report": "Summary",
+   "issue": "Volumes incorrect",
+   "expected": "Match source volumes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-027",
+   "kind": "Reported defect",
+   "project": "Nov-2025 dry run, project unspecified",
+   "report": "A CLASS PARTS",
+   "issue": "Extended price mismatch due to decimals",
+   "expected": "Match precision with QuoteWin",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-028",
+   "kind": "Reported defect",
+   "project": "Nov-2025 dry run, project unspecified",
+   "report": "Pricing",
+   "issue": "Volume price incorrect",
+   "expected": "Correct volume prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-029",
+   "kind": "Reported defect",
+   "project": "Nov-2025 dry run, project unspecified",
+   "report": "Lead Time",
+   "issue": "Lead time incorrectly captured",
+   "expected": "Correct source LT",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-030",
+   "kind": "Reported defect",
+   "project": "Unspecified dry-run BOM",
+   "report": "Output generation",
+   "issue": "BOM Matrix absent after scrub and QuoteWin upload",
+   "expected": "Generate output or actionable error",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-031",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Proto quantity shown with no proto input",
+   "expected": "Suppress non-applicable proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-032",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Missing note absent",
+   "expected": "Populate notes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-033",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Serial numbers mismatch",
+   "expected": "Standardize serial numbers",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-034",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Quoted MPN incorrect",
+   "expected": "Correct quoted MPN",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-035",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Proto pricing shown without proto",
+   "expected": "Suppress non-applicable pricing",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-036",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Uncosted part count mismatch",
+   "expected": "Accurate uncosted count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-037",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Validity minimum 30 days at CBOM submission needed",
+   "expected": "Minimum 30 days",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-038",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Commodity should come from scrub",
+   "expected": "Use scrub commodity",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-039",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "Manufacturer mismatch not flagged in quoted Mfr",
+   "expected": "Flag mismatch",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-040",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "NFRND missing",
+   "expected": "Show lifecycle flag, source spelling retained",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-041",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Summary",
+   "issue": "NCNR count mismatch",
+   "expected": "Correct count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-042",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "BOM MATRIX",
+   "issue": "Currency absent from price columns",
+   "expected": "Output currency on all prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-043",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "BOM MATRIX",
+   "issue": "Validity date format / minimum 30-day extension needed",
+   "expected": "Date format and at least 30 days",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-044",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "BOM MATRIX",
+   "issue": "NCNR count mismatch",
+   "expected": "Correct count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-045",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "BOM MATRIX",
+   "issue": "Price control differs from QW",
+   "expected": "Use QW price control",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-046",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Header differs from Centum template",
+   "expected": "Match template",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-047",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Validation and status incorrect",
+   "expected": "Correct validation / status",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-048",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Price control differs from QW",
+   "expected": "Use QW price control",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-049",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Summary prices not in output currency",
+   "expected": "Output currency on all prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-050",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Validity date format / minimum 30 days needed",
+   "expected": "Correct dates / minimum 30 days",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-051",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "MOQ cost % and currency missing",
+   "expected": "Include both",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-052",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "Proto sheet shown although not applicable",
+   "expected": "Remove non-applicable proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-053",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "CBOM",
+   "issue": "NCNR differs from QW, non-NCNR not NO",
+   "expected": "Match QW and show NO",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-054",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Excess inventory",
+   "issue": "Output currency missing",
+   "expected": "Use output currency",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-055",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Excess inventory",
+   "issue": "Align to Centum column AA",
+   "expected": "Align column AA, meaning requires confirmation",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-056",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "A CLASS PARTS",
+   "issue": "Output currency missing",
+   "expected": "Use output currency",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-057",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "A CLASS PARTS",
+   "issue": "Price control differs from QW",
+   "expected": "Use QW control",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-058",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Price Control",
+   "issue": "Price control differs from QW",
+   "expected": "Use QW control",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-059",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata VW MQB ST2 Redesign",
+   "report": "Lead Time",
+   "issue": "CPN count differs from total BOM parts",
+   "expected": "Correct count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-060",
+   "kind": "Reported defect",
+   "project": "CE-005661 Lam Research Node1 Interlock",
+   "report": "Proto",
+   "issue": "Entered proto shown only in Summary, not Matrix",
+   "expected": "Show applicable proto in Matrix",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-061",
+   "kind": "Reported defect",
+   "project": "CE-005530_2433 Signata",
+   "report": "Proto",
+   "issue": "No proto input but Summary shows proto",
+   "expected": "Suppress non-applicable proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-062",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 1",
+   "issue": "Is CBOM revision number generated and mentioned in the CBOM name?",
+   "expected": "Is CBOM revision number generated and mentioned in the CBOM name?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-063",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 2",
+   "issue": "Is CBOM Reviewed by Sourcing Manager? (all CBOM)",
+   "expected": "Is CBOM Reviewed by Sourcing Manager? (all CBOM)",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-064",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 3",
+   "issue": "Is CBOM Reviewed by SCM Head? ($3M and above & all Must win)",
+   "expected": "Is CBOM Reviewed by SCM Head? ($3M and above & all Must win)",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-065",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 4",
+   "issue": "Are all material assumptions clearly mentioned and statement is correct?",
+   "expected": "Are all material assumptions clearly mentioned and statement is correct?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-066",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 5",
+   "issue": "Is LTB date mentioned for all EOL/Discontinued parts?",
+   "expected": "Is LTB date mentioned for all EOL/Discontinued parts?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-067",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 6",
+   "issue": "Is MCL Raised date mentioned for all Material Assumptions?",
+   "expected": "Is MCL Raised date mentioned for all Material Assumptions?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-068",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 7",
+   "issue": "MCLs related to RFQ, need to check and verified by Sourcing Manager",
+   "expected": "MCLs related to RFQ, need to check and verified by Sourcing Manager",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-069",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 8",
+   "issue": "Is Excess cost reviewed by Sourcing manager and optimised?",
+   "expected": "Is Excess cost reviewed by Sourcing manager and optimised?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-070",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 9",
+   "issue": "Are all Alternate MPN has been explored and CBOM is optimised?",
+   "expected": "Are all Alternate MPN has been explored and CBOM is optimised?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-071",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 10",
+   "issue": "Is MFR/Supplier emails for A class components parked in the path?",
+   "expected": "Is MFR/Supplier emails for A class components parked in the path?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-072",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 11",
+   "issue": "Are all A class components negotiated price?",
+   "expected": "Are all A class components negotiated price?",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-073",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 12",
+   "issue": "Is Lead time for Proto validated? Reason should be given if it is more than 8 weeks",
+   "expected": "Is Lead time for Proto validated? Reason should be given if it is more than 8 weeks",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-074",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 13",
+   "issue": "The QTY of each CPN listed in the SCRUB BOM for each FG and Assembly should match with the QTY recorded in the CBOM for the same CPN, Assembly, and FG.",
+   "expected": "The QTY of each CPN listed in the SCRUB BOM for each FG and Assembly should match with the QTY recorded in the CBOM for the same CPN, Assembly, and FG.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-075",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 14",
+   "issue": "Parts with Price as '0' or 'Blank' or '-' in CBOM, should be listed in Missing Notes with Reason for uncosting.",
+   "expected": "Parts with Price as '0' or 'Blank' or '-' in CBOM, should be listed in Missing Notes with Reason for uncosting.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-076",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 15",
+   "issue": "MPN listed in CBOM should match with MPNs listed in SCRUB BOM.",
+   "expected": "MPN listed in CBOM should match with MPNs listed in SCRUB BOM.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-077",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 16",
+   "issue": "If any different MPN is listed in CBOM, then that MPN should be listed in Missing Notes with reason for changing the MPN.",
+   "expected": "If any different MPN is listed in CBOM, then that MPN should be listed in Missing Notes with reason for changing the MPN.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-078",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 17",
+   "issue": "MPN listed in CBOM should not be Discontinued or EOL or NRFND. If any such MPN is listed in CBOM, then that MPN should be listed in Missing Notes with LTB date.",
+   "expected": "MPN listed in CBOM should not be Discontinued or EOL or NRFND. If any such MPN is listed in CBOM, then that MPN should be listed in Missing Notes with LTB date.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-079",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 18",
+   "issue": "All Uncosted parts, Non-cancellable & Non-refundable parts should be listed in Missing Notes",
+   "expected": "All Uncosted parts, Non-cancellable & Non-refundable parts should be listed in Missing Notes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-080",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 19",
+   "issue": "Customer support parts should be listed",
+   "expected": "Customer support parts should be listed",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-081",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 20",
+   "issue": "All Uncosted Parts that are listed should have valid reason.",
+   "expected": "All Uncosted Parts that are listed should have valid reason.",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-082",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 21",
+   "issue": "Revision history: If any change in price (Increase/Decrease), need proper reason",
+   "expected": "Revision history: If any change in price (Increase/Decrease), need proper reason",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-083",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 22",
+   "issue": "Price control to be updated for all parts - Pie chart (Count/Value)",
+   "expected": "Price control to be updated for all parts - Pie chart (Count/Value)",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-084",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 23",
+   "issue": "CBOM validity is checked carefully and is correct (Price Validity)",
+   "expected": "CBOM validity is checked carefully and is correct (Price Validity)",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-085",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 24",
+   "issue": "Payment terms (Advance/Credit) - need pie chart",
+   "expected": "Payment terms (Advance/Credit) - need pie chart",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-086",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 25",
+   "issue": "Commoditiy wise % - Pie chart",
+   "expected": "Commoditiy wise % - Pie chart",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-087",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 26",
+   "issue": "CBOM Currency need to finalise - USD/EURO (Based on buy value)",
+   "expected": "CBOM Currency need to finalise - USD/EURO (Based on buy value)",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-088",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 27",
+   "issue": "Proto Quote: Buffer quantity for all passive components (As per package size) to be amortised in Proto quantity",
+   "expected": "Proto Quote: Buffer quantity for all passive components (As per package size) to be amortised in Proto quantity",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-089",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Checklist 28",
+   "issue": "New Supplier list (If Any) is mentioned in missing notes",
+   "expected": "New Supplier list (If Any) is mentioned in missing notes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-090",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Park CBOM at least one week before rollout",
+   "expected": "Park CBOM at least one week before rollout",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-091",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "PCB panelisation aligns with NPI",
+   "expected": "PCB panelisation aligns with NPI",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-092",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Proto lead time below 8 weeks",
+   "expected": "Proto lead time below 8 weeks",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-093",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Mass lead time within 22-24 weeks",
+   "expected": "Mass lead time within 22-24 weeks",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-094",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Excess inventory below 10%, justify exceptions in rollout mail",
+   "expected": "Excess inventory below 10%, justify exceptions in rollout mail",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-095",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Alternate MPN/MFR needs approved timely MCL and Missing Notes",
+   "expected": "Alternate MPN/MFR needs approved timely MCL and Missing Notes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-096",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Uncosted parts solely based on Sales Manager feedback",
+   "expected": "Uncosted parts solely based on Sales Manager feedback",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-097",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Price validity minimum 3 months",
+   "expected": "Price validity minimum 3 months",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-098",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Test team validates ICT/FCT supplier quotes",
+   "expected": "Test team validates ICT/FCT supplier quotes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-099",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Packing/consumable quantities can mismatch",
+   "expected": "Packing/consumable quantities can mismatch",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-100",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Close MCL at least one week before target",
+   "expected": "Close MCL at least one week before target",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-101",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Add scrap to excess cost; remove excess qty for PO-to-PO",
+   "expected": "Add scrap to excess cost; remove excess qty for PO-to-PO",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-102",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Park top 10 A-class supplier mails in Generate path",
+   "expected": "Park top 10 A-class supplier mails in Generate path",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-103",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Proto LT >8 weeks needs long Matrix comment",
+   "expected": "Proto LT >8 weeks needs long Matrix comment",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-104",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Unpriceable EOL/discontinued customer prices labelled Customer Reference Price",
+   "expected": "Unpriceable EOL/discontinued customer prices labelled Customer Reference Price",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-105",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Show supplier payment terms <90/>90 days, advance and new suppliers",
+   "expected": "Show supplier payment terms <90/>90 days, advance and new suppliers",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-106",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Apply customer-provided exchange rates",
+   "expected": "Apply customer-provided exchange rates",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-107",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CBOM acceptance",
+   "report": "Guidelines",
+   "issue": "Thales/ANP TNP/CNP/SMS changes recorded in revision history",
+   "expected": "Thales/ANP TNP/CNP/SMS changes recorded in revision history",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-108",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Remove Lead Time Consolidated tab",
+   "expected": "Remove Lead Time Consolidated tab",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-109",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Remove Sum & Count tab",
+   "expected": "Remove Sum & Count tab",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-110",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Revision History manual, no separate tab",
+   "expected": "Revision History manual, no separate tab",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-111",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "A CLASS PARTS in Matrix, no separate tab",
+   "expected": "A CLASS PARTS in Matrix, no separate tab",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-112",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Remove Batchwise Cashflow",
+   "expected": "Remove Batchwise Cashflow",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-113",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Remove Ex Inv VL-proto",
+   "expected": "Remove Ex Inv VL-proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-114",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Remove Ex Inv VL-1",
+   "expected": "Remove Ex Inv VL-1",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-115",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Missing Notes serial-number wise",
+   "expected": "Missing Notes serial-number wise",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-116",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix add BOM Cost %",
+   "expected": "Matrix add BOM Cost %",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-117",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix add ABC Classification",
+   "expected": "Matrix add ABC Classification",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-118",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix quote validity date format",
+   "expected": "Matrix quote validity date format",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-119",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix payment terms from QW",
+   "expected": "Matrix payment terms from QW",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-120",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix supplier type distributor/MFR/online with AI check",
+   "expected": "Matrix supplier type distributor/MFR/online with AI check",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-121",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix add batch qty",
+   "expected": "Matrix add batch qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-122",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix add excess qty",
+   "expected": "Matrix add excess qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-123",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix remarks after BOM Cost % and Net Excess Cost",
+   "expected": "Matrix remarks after BOM Cost % and Net Excess Cost",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-124",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Matrix include proto",
+   "expected": "Matrix include proto",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-125",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Merge PCB NRE/FAI and Mech/EM NRE",
+   "expected": "Merge PCB NRE/FAI and Mech/EM NRE",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-126",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Sum & Count Detailed compare scrub vs output",
+   "expected": "Sum & Count Detailed compare scrub vs output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-127",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Part Num Vs Mfg Num compare quote vs scrub MPN",
+   "expected": "Part Num Vs Mfg Num compare quote vs scrub MPN",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-128",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM output layout",
+   "report": "Output scope",
+   "issue": "Keep Summary, Missing Notes, Matrix, CBOM Proto, CBOM VL1, FG LT, Price Control, combined NRE, detailed count, part-vs-MPN",
+   "expected": "Keep Summary, Missing Notes, Matrix, CBOM Proto, CBOM VL1, FG LT, Price Control, combined NRE, detailed count, part-vs-MPN",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-129",
+   "kind": "Reported defect",
+   "project": "CE-005641 Mahle Electric Drives",
+   "report": "BOM MATRIX / Summary",
+   "issue": "Total Value not matching",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-130",
+   "kind": "Reported defect",
+   "project": "CE-005641 Mahle Electric Drives",
+   "report": "Lead Time",
+   "issue": "Consolidated pivot differs CBOM VL-3 pivot",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-131",
+   "kind": "Reported defect",
+   "project": "CE-005641 Mahle Electric Drives",
+   "report": "Price Control / Summary",
+   "issue": "Grand totals not matching",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-132",
+   "kind": "Reported defect",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "BOM MATRIX / Summary",
+   "issue": "Total Value not matching",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-133",
+   "kind": "Reported defect",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "Lead Time",
+   "issue": "Consolidated pivot differs CBOM VL-3 pivot",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-134",
+   "kind": "Reported defect",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "Price Control / Summary",
+   "issue": "Grand totals not matching",
+   "expected": "Reconcile related totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-135",
+   "kind": "Reported defect",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "Proto",
+   "issue": "Proto in Summary but not Matrix",
+   "expected": "Include when applicable",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-136",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "Packing quantity",
+   "issue": "Fractional packing qty differs from CAM",
+   "expected": "Validate correct fractional usage",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-137",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "Packing quantity",
+   "issue": "Fractional packing qty differs from CAM",
+   "expected": "Validate correct fractional usage",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-138",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-139",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-140",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-141",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-142",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-143",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-144",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-145",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-146",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-147",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-148",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-149",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-150",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-151",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-152",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-153",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-154",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-155",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-156",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-157",
+   "kind": "Attachment comparison",
+   "project": "CE-005646 RFQ_29554 Knorr Bremse",
+   "report": "EAU",
+   "issue": "Stored EAU comparison false",
+   "expected": "Validate volumes and applicability",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-158",
+   "kind": "Reported defect",
+   "project": "CE-005639 Hitachi Hirel LVVFD",
+   "report": "Processing / output",
+   "issue": "Excel QW rejected",
+   "expected": "Accept valid input and generate correct output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-159",
+   "kind": "Reported defect",
+   "project": "CE-005637 Thales Medical Converter",
+   "report": "Processing / output",
+   "issue": "Upload complete/no error but Matrix absent next day",
+   "expected": "Accept valid input and generate correct output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-160",
+   "kind": "Reported defect",
+   "project": "CE-005632 Crane Aerospace Cabin System; reported all projects",
+   "report": "Processing / output",
+   "issue": "Summary differs from Matrix",
+   "expected": "Accept valid input and generate correct output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-161",
+   "kind": "Reported defect",
+   "project": "CE-005657 Thales LAS UK SharpView",
+   "report": "Processing / output",
+   "issue": "QW size limit blocks upload and output",
+   "expected": "Accept valid input and generate correct output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-162",
+   "kind": "Reported defect",
+   "project": "CE-005652 Hitachi Energy RTU",
+   "report": "Processing / output",
+   "issue": "Excel upload repeats error, output blocked",
+   "expected": "Accept valid input and generate correct output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-163",
+   "kind": "Reported defect",
+   "project": "Project not precisely attributed in relay",
+   "report": "Lead Time vs CBOM",
+   "issue": "Values not matching",
+   "expected": "Reconcile values",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-164",
+   "kind": "Reported defect",
+   "project": "Project not precisely attributed in relay",
+   "report": "Price Control vs Summary",
+   "issue": "Values not matching",
+   "expected": "Reconcile values",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-165",
+   "kind": "Reported defect",
+   "project": "Project not precisely attributed in relay",
+   "report": "Matrix vs Summary",
+   "issue": "Values not matching",
+   "expected": "Reconcile values",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-166",
+   "kind": "Reported defect",
+   "project": "CE-005652 / general",
+   "report": "QuoteWin upload",
+   "issue": "xlsx rejected by xlsx/xls/csv error",
+   "expected": "Accept valid xlsx",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-167",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "Download gating",
+   "issue": "Button visible before full calculation",
+   "expected": "Activate only when calculations complete",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-168",
+   "kind": "Reported defect",
+   "project": "General CAM",
+   "report": "Summary",
+   "issue": "Volume 2 values different",
+   "expected": "Correct volume-2 totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-169",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "RFQ Creation",
+   "issue": "Manual project settings hard/time-consuming",
+   "expected": "Bulk settings upload",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-170",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Scrub upload",
+   "issue": "Long load and no output",
+   "expected": "Timely processing and output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-171",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Maintenance",
+   "issue": "No advance planned-server-maintenance information",
+   "expected": "Give advance notice",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-172",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Price Control",
+   "issue": "Sheet value mismatch",
+   "expected": "Reconcile values",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-173",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Lead Time",
+   "issue": "FG-wise/consolidated mismatch",
+   "expected": "Reconcile LT",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-174",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Part Num Vs Mfg Num",
+   "issue": "Report mismatch",
+   "expected": "Match source",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-175",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Costing input",
+   "issue": "Volume-wise costing sheet input needed",
+   "expected": "Provide volume-wise costing input",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-176",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "CBOM VL-1",
+   "issue": "Assembly prices in direct price L/M",
+   "expected": "Correct direct versus assembly pricing",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-177",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Assembly levels",
+   "issue": "Incorrect numbering/order",
+   "expected": "Correct level-by-level hierarchy",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-178",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "CBOM VL-1",
+   "issue": "Price control column needs check",
+   "expected": "Correct logic",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-179",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "CBOM VL-1",
+   "issue": "Price type column needs check",
+   "expected": "Correct logic",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-180",
+   "kind": "Reported defect",
+   "project": "CE-005028_2644 Rafael G-seeker; RFQ_000063 (11-Sep cross-reference)",
+   "report": "Missing Notes",
+   "issue": "MFR/MPN mismatch missing",
+   "expected": "Flag mismatches",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-181",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Part Qty",
+   "issue": "Quantity present in inputs but CAM 0",
+   "expected": "Carry source qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-182",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Part Qty",
+   "issue": "Quantity present in inputs but CAM 0",
+   "expected": "Carry source qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-183",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Part Qty",
+   "issue": "Quantity present in inputs but CAM 0",
+   "expected": "Carry source qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-184",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Part Qty",
+   "issue": "Quantity present in inputs but CAM 0",
+   "expected": "Carry source qty",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-185",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Packing quantity",
+   "issue": "CBOM edit not reflected elsewhere",
+   "expected": "Propagate qty and related prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-186",
+   "kind": "Reported defect",
+   "project": "CE-005603_2646 Lam Research LMC 6 FGs",
+   "report": "Packing quantity",
+   "issue": "CBOM edit not reflected elsewhere",
+   "expected": "Propagate qty and related prices",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-187",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Dashboard download",
+   "issue": "ChunkLoadError loading chunk 5026 failed",
+   "expected": "Download reliably",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-188",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Validation Summary",
+   "issue": "Failed counts not red",
+   "expected": "Highlight failures red",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-189",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Ex Inv VL-1/VL-2",
+   "issue": "Scrap/batch cells show #VALUE!",
+   "expected": "Valid numeric calculations",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-190",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Ex Inv VL-2",
+   "issue": "Volume price > proto not flagged",
+   "expected": "Highlight correct comparison",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-191",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "A CLASS PARTS",
+   "issue": "BOM value differs Last Volume BOM",
+   "expected": "Reconcile totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-192",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Lead Time",
+   "issue": "Last VLM edits not reflected FG-wise",
+   "expected": "Propagate LT",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-193",
+   "kind": "Reported defect",
+   "project": "CE-005864 Lam Research Mechatronics 2 FGs",
+   "report": "Price Control",
+   "issue": "Last VLM only Non-Contract, extra categories and edits not flowing",
+   "expected": "Current categories/totals reconcile",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-194",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "Validation Summary",
+   "issue": "Failed counts not red, repeated 16-Sep",
+   "expected": "Highlight failures",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-195",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "Missing Notes",
+   "issue": "QW/output NCNR x not copied to notes",
+   "expected": "List NCNR parts",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-196",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "Price Control",
+   "issue": "Extra CNP/Centum/Non-Contract categories",
+   "expected": "Show meaningful current categories",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-197",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "Summary",
+   "issue": "Extended volume value mismatch",
+   "expected": "Reconcile line total and FG cost × volume",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-198",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "A CLASS PARTS",
+   "issue": "BOM value differs Last Volume BOM",
+   "expected": "Reconcile totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-199",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "Lead Time",
+   "issue": "FG/consolidated part counts absent",
+   "expected": "Display correct counts",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-200",
+   "kind": "Reported defect",
+   "project": "CE-005862 MKU SeeYa OLED; FG B1834-CB-504",
+   "report": "NCNR part details",
+   "issue": "NCNR flags absent from notes",
+   "expected": "Include these flagged parts",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-201",
+   "kind": "Reported defect",
+   "project": "CE-005870 Lam Research TOP PLATE NODE Vinayak; Proto5 VLM60",
+   "report": "Recurring set",
+   "issue": "Same issue as 21-Sep on another BOM",
+   "expected": "Validate whole BOM after fix",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-202",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Summary",
+   "issue": "Ext Vol Conv Price #1 differs",
+   "expected": "Reconcile authoritative input qty and totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-203",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Ex Inv VL-2",
+   "issue": "Volume above proto unflagged",
+   "expected": "Correct validation",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-204",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "A CLASS PARTS",
+   "issue": "BOM value differs Last Volume BOM",
+   "expected": "Reconcile totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-205",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Lead Time",
+   "issue": "Last VLM edit not reflected FG-wise",
+   "expected": "Propagate edit",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-206",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Price Control",
+   "issue": "Non-Contract to Contract change not reflected",
+   "expected": "Propagate category change",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-207",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Sum & Count Detailed",
+   "issue": "CBOM matches scrub qty but still red",
+   "expected": "Avoid false mismatch",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-208",
+   "kind": "Reported defect",
+   "project": "CE-005864C Lam Research Mechatronics 2 FGs",
+   "report": "Packing quantity",
+   "issue": "Changed packing qty must multiply/update prices and every related sheet",
+   "expected": "Maintain Summary/all-sheet consistency",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-209",
+   "kind": "Reported defect",
+   "project": "Project not visible",
+   "report": "Dashboard DuckDB",
+   "issue": "Widgets fail with reports.duckdb file-lock IO error",
+   "expected": "Concurrent reporting without file-lock failures",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-210",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility; BOM_Matrix_747",
+   "report": "Summary",
+   "issue": "Scrub volumes not captured",
+   "expected": "Correct volumes",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-211",
+   "kind": "Reported defect",
+   "project": "CE-005570 TI Clean Mobility; BOM_Matrix_747",
+   "report": "Determinism",
+   "issue": "Same inputs different output on rerun",
+   "expected": "Deterministic output",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-212",
+   "kind": "Reported defect",
+   "project": "BOM 5673; Matrix552 vs reference553",
+   "report": "Export format",
+   "issue": "Raw parts as headers, corrupt metadata, unusable output",
+   "expected": "Stable correct template",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-213",
+   "kind": "Reported defect",
+   "project": "5445 pricing comparison (18-Feb identifies project)",
+   "report": "Selected quote",
+   "issue": "Award$=100 price differs internal output",
+   "expected": "Clarify selected quote logic, not assume lowest price",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-214",
+   "kind": "Reported defect",
+   "project": "CE-005639; BOM581",
+   "report": "Output",
+   "issue": "Uploaded 11:02, no output",
+   "expected": "Generate output or error",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-215",
+   "kind": "Reported defect",
+   "project": "CE-005605_2482 Thales LAS UK Zeta/Leopard",
+   "report": "Input validation",
+   "issue": "Award #1 blank (no L1=100)",
+   "expected": "Validate inputs and explain failure",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-216",
+   "kind": "Reported defect",
+   "project": "CE-005605_2482 Thales LAS UK Zeta/Leopard",
+   "report": "Input validation",
+   "issue": "Filters applied",
+   "expected": "Validate inputs and explain failure",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-217",
+   "kind": "Reported defect",
+   "project": "CE-005605_2482 Thales LAS UK Zeta/Leopard",
+   "report": "Input validation",
+   "issue": "Project name mismatch",
+   "expected": "Validate inputs and explain failure",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-218",
+   "kind": "Reported defect",
+   "project": "CE-005848 Thales Trixell Mapix; RFQ26",
+   "report": "Excel calculations",
+   "issue": "Edit not enabled so formulas unpopulated",
+   "expected": "Ensure recalculation / enable editing",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-219",
+   "kind": "Reported defect",
+   "project": "CE-005231_2641 DANA HP2500; RFQ65",
+   "report": "Input pricing",
+   "issue": "QW Price Original #1 missing",
+   "expected": "Provide prices or mark uncosted",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-220",
+   "kind": "Reported defect",
+   "project": "CE-005812 Weatherford Red Eye; RFQ68",
+   "report": "Input currency",
+   "issue": "QW Original Currency blank, conversion mismatch",
+   "expected": "Provide source currency",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-221",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "API",
+   "issue": "Automate internal-server input/output without login",
+   "expected": "18 existing standard reports; no new reports",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-222",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "Cloud deployment",
+   "issue": "Centum IT wants cloud instead of proposed hardware",
+   "expected": "Agree cloud deployment",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-223",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "Commodity mapping",
+   "issue": "46 categories requested for review",
+   "expected": "Share mapping and align ERP",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-224",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "Live access",
+   "issue": "Old/new login unclear",
+   "expected": "Confirm live login",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-225",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "Go-live gate",
+   "issue": "Cannot go live without dry run",
+   "expected": "Complete accepted dry run",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-226",
+   "kind": "Historical context",
+   "project": "General CAM",
+   "report": "Large-file ingestion",
+   "issue": "80000-row QW needs manual ~10000-row splits",
+   "expected": "Ingest large files reliably",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-227",
+   "kind": "Historical context",
+   "project": "General CAM",
+   "report": "Drill-down",
+   "issue": "L1 CPN vs FG logic in progress",
+   "expected": "Correct alignment",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-228",
+   "kind": "Historical context",
+   "project": "General CAM",
+   "report": "SMTP",
+   "issue": "Centum SMTP unavailable",
+   "expected": "Working approved supplier mail channel",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-229",
+   "kind": "Historical context",
+   "project": "Unspecified BOM",
+   "report": "MOQ/FX",
+   "issue": "Suspected largest cost-discrepancy drivers",
+   "expected": "Trace approved business logic",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-230",
+   "kind": "Historical context",
+   "project": "Unspecified BOM",
+   "report": "Hidden formula dependencies",
+   "issue": "Internal hidden tabs/named ranges feed reports",
+   "expected": "Trace approved business logic",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-231",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-01 Sum & Count",
+   "issue": "Accurate sum/count",
+   "expected": "Accurate sum/count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-232",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-01 Sum & Count",
+   "issue": "Quantity mismatches",
+   "expected": "Quantity mismatches",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-233",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-01 Sum & Count",
+   "issue": "Alternate part counts",
+   "expected": "Alternate part counts",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-234",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-02 Price Control",
+   "issue": "Correct formatting",
+   "expected": "Correct formatting",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-235",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Levelling/formatting",
+   "expected": "Levelling/formatting",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-236",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Validation",
+   "expected": "Validation",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-237",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Exclude MOQ/SPQ for uncosted",
+   "expected": "Exclude MOQ/SPQ for uncosted",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-238",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Dynamic sub-assemblies by FG",
+   "expected": "Dynamic sub-assemblies by FG",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-239",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Excess inventory calculations",
+   "expected": "Excess inventory calculations",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-240",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-03 CBOM",
+   "issue": "Batchwise counts",
+   "expected": "Batchwise counts",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-241",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-04 Matrix",
+   "issue": "BOM mismatches",
+   "expected": "BOM mismatches",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-242",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-04 Matrix",
+   "issue": "Demand quantities",
+   "expected": "Demand quantities",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-243",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-04 Matrix",
+   "issue": "Grand totals",
+   "expected": "Grand totals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-244",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-05 Part vs MPN",
+   "issue": "Part/MPN validation",
+   "expected": "Part/MPN validation",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-245",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-05 Part vs MPN",
+   "issue": "Missing MPN handling",
+   "expected": "Missing MPN handling",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-246",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-05 Part vs MPN",
+   "issue": "Dynamic updates",
+   "expected": "Dynamic updates",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-247",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-05 Part vs MPN",
+   "issue": "Conditional mismatch highlighting",
+   "expected": "Conditional mismatch highlighting",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-248",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "Costed/uncosted status",
+   "expected": "Costed/uncosted status",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-249",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "Dynamic analysis",
+   "expected": "Dynamic analysis",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-250",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "Quote validity",
+   "expected": "Quote validity",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-251",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "RFQ MPN mismatches",
+   "expected": "RFQ MPN mismatches",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-252",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "Rename MFR fields",
+   "expected": "Rename MFR fields",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-253",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-06 Missing Notes",
+   "issue": "NRFND/EOL/Discontinued/LTB",
+   "expected": "NRFND/EOL/Discontinued/LTB",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-254",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-07 Reports",
+   "issue": "Remove redundant volume/proto metrics",
+   "expected": "Remove redundant volume/proto metrics",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-255",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-07 Reports",
+   "issue": "FG alternate CPN reporting",
+   "expected": "FG alternate CPN reporting",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-256",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-07 Reports",
+   "issue": "Sorting",
+   "expected": "Sorting",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-257",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-07 Reports",
+   "issue": "Generation performance",
+   "expected": "Generation performance",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-258",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-07 Reports",
+   "issue": "CBOM import updates database",
+   "expected": "CBOM import updates database",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-259",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-08 ABC",
+   "issue": "Load ABC data",
+   "expected": "Load ABC data",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-260",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-08 ABC",
+   "issue": "Rename A Class to ABC Classification",
+   "expected": "Rename A Class to ABC Classification",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-261",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-08 ABC",
+   "issue": "Summary two decimals",
+   "expected": "Summary two decimals",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-262",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-09 Misc",
+   "issue": "Assembly qty calculations",
+   "expected": "Assembly qty calculations",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-263",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-09 Misc",
+   "issue": "Multilevel BOM",
+   "expected": "Multilevel BOM",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-264",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-09 Misc",
+   "issue": "Assembly uncosted status",
+   "expected": "Assembly uncosted status",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-265",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-09 Misc",
+   "issue": "Include source scrub in report",
+   "expected": "Include source scrub in report",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-266",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-10 Currency/LT",
+   "issue": "Formula-driven LT",
+   "expected": "Formula-driven LT",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-267",
+   "kind": "Requirement / acceptance rule",
+   "project": "27/28-Jul UAT, project unspecified",
+   "report": "CE-10 Currency/LT",
+   "issue": "Consolidated LT auto-updates",
+   "expected": "Consolidated LT auto-updates",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-268",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Excel upload option",
+   "expected": "Excel upload option",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-269",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Larger font in QW view",
+   "expected": "Larger font in QW view",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-270",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Larger manual Price Comparison box",
+   "expected": "Larger manual Price Comparison box",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-271",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Review isData column",
+   "expected": "Review isData column",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-272",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Audit trail",
+   "expected": "Audit trail",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-273",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "Track edit count/user",
+   "expected": "Track edit count/user",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-274",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "CBOM Edit",
+   "expected": "CBOM Edit",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-275",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "FG tree unique count",
+   "expected": "FG tree unique count",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-276",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "FG tree CPN instead of MPN",
+   "expected": "FG tree CPN instead of MPN",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-277",
+   "kind": "Requirement / acceptance rule",
+   "project": "General CAM",
+   "report": "April feedback draft",
+   "issue": "CBOM export aligned with Centum format",
+   "expected": "CBOM export aligned with Centum format",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-278",
+   "kind": "Reference test input",
+   "project": "CE-005808 Wago single-channel ECB",
+   "report": "Provided quantity test data",
+   "issue": "Validate varied proto/volume/batch quantities",
+   "expected": "Use exact supplied FG settings",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-279",
+   "kind": "Reference test input",
+   "project": "CE-005603_2632 Lam LTC/LMC",
+   "report": "Provided quantity test data",
+   "issue": "Validate varied proto/volume/batch quantities",
+   "expected": "Use exact supplied FG settings",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-280",
+   "kind": "Reference test input",
+   "project": "CE-005677 Rafael 9CCA",
+   "report": "Provided quantity test data",
+   "issue": "Validate varied proto/volume/batch quantities",
+   "expected": "Use exact supplied FG settings",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-281",
+   "kind": "Reference test input",
+   "project": "CE-005789 Thales Saudi Fireset",
+   "report": "Provided quantity test data",
+   "issue": "Validate varied proto/volume/batch quantities",
+   "expected": "Use exact supplied FG settings",
+   "status": "not_tested",
+   "test": null
+  },
+  {
+   "case_id": "CAM-282",
+   "kind": "Validation gap",
+   "project": "Multiple FG, unspecified",
+   "report": "Coverage gap",
+   "issue": "Harish requests ten observations from multi-FG validation",
+   "expected": "Recover detailed observations for coverage",
+   "status": "not_tested",
+   "test": null
+  }
+ ]
+}
