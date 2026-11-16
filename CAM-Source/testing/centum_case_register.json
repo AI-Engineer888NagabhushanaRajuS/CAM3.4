@@ -8,8 +8,9 @@
    "report": "Summary",
    "issue": "Proto appears without proto input",
    "expected": "Suppress non-applicable proto",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_no_proto_is_shown_when_the_rfq_has_no_proto",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-002",
@@ -18,8 +19,9 @@
    "report": "Summary",
    "issue": "Volume-1 quantity mismatch",
    "expected": "Match supplied volumes",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_the_summary_volumes_are_the_volumes_of_the_cbom",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-003",
@@ -28,8 +30,9 @@
    "report": "CBOM VL-1",
    "issue": "MFR name missing despite QuoteWin input",
    "expected": "Carry source manufacturer",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_every_costed_row_carries_its_manufacturer",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-004",
@@ -58,8 +61,9 @@
    "report": "Ex Inv VL-1",
    "issue": "Ext Vol Splits #1 incorrect",
    "expected": "Correct extended volumes",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_extended_prices_are_quantity_times_price",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-007",
@@ -98,8 +102,9 @@
    "report": "A CLASS PARTS",
    "issue": "Ext Vol Splits #1 incorrect",
    "expected": "Correct extended volumes",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_extended_prices_are_quantity_times_price",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-011",
@@ -258,8 +263,9 @@
    "report": "Summary",
    "issue": "Volumes incorrect",
    "expected": "Match source volumes",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_the_summary_volumes_are_the_volumes_of_the_cbom",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-027",
@@ -268,8 +274,9 @@
    "report": "A CLASS PARTS",
    "issue": "Extended price mismatch due to decimals",
    "expected": "Match precision with QuoteWin",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_extended_prices_are_quantity_times_price",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-028",
@@ -308,8 +315,9 @@
    "report": "Summary",
    "issue": "Proto quantity shown with no proto input",
    "expected": "Suppress non-applicable proto",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_no_proto_is_shown_when_the_rfq_has_no_proto",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-032",
@@ -348,8 +356,9 @@
    "report": "Summary",
    "issue": "Proto pricing shown without proto",
    "expected": "Suppress non-applicable pricing",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_no_proto_is_shown_when_the_rfq_has_no_proto",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-036",
@@ -518,8 +527,9 @@
    "report": "CBOM",
    "issue": "Proto sheet shown although not applicable",
    "expected": "Remove non-applicable proto",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_no_proto_is_shown_when_the_rfq_has_no_proto",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-053",
@@ -608,8 +618,9 @@
    "report": "Proto",
    "issue": "No proto input but Summary shows proto",
    "expected": "Suppress non-applicable proto",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_no_proto_is_shown_when_the_rfq_has_no_proto",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-062",
@@ -1288,8 +1299,9 @@
    "report": "BOM MATRIX / Summary",
    "issue": "Total Value not matching",
    "expected": "Reconcile related totals",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_summary_cost_per_set_is_the_assembly_total_the_cbom_tab_shows",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-130",
@@ -1318,8 +1330,9 @@
    "report": "BOM MATRIX / Summary",
    "issue": "Total Value not matching",
    "expected": "Reconcile related totals",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_summary_cost_per_set_is_the_assembly_total_the_cbom_tab_shows",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-133",
@@ -1598,8 +1611,9 @@
    "report": "Processing / output",
    "issue": "Summary differs from Matrix",
    "expected": "Accept valid input and generate correct output",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_summary_cost_per_set_is_the_assembly_total_the_cbom_tab_shows",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-161",
@@ -1648,8 +1662,9 @@
    "report": "Matrix vs Summary",
    "issue": "Values not matching",
    "expected": "Reconcile values",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_summary_cost_per_set_is_the_assembly_total_the_cbom_tab_shows",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-166",
@@ -1678,8 +1693,9 @@
    "report": "Summary",
    "issue": "Volume 2 values different",
    "expected": "Correct volume-2 totals",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_the_summary_volumes_are_the_volumes_of_the_cbom",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-169",
@@ -1808,8 +1824,9 @@
    "report": "Part Qty",
    "issue": "Quantity present in inputs but CAM 0",
    "expected": "Carry source qty",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_every_part_has_a_quantity_above_zero",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-182",
@@ -1818,8 +1835,9 @@
    "report": "Part Qty",
    "issue": "Quantity present in inputs but CAM 0",
    "expected": "Carry source qty",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_every_part_has_a_quantity_above_zero",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-183",
@@ -1828,8 +1846,9 @@
    "report": "Part Qty",
    "issue": "Quantity present in inputs but CAM 0",
    "expected": "Carry source qty",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_every_part_has_a_quantity_above_zero",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-184",
@@ -1838,8 +1857,9 @@
    "report": "Part Qty",
    "issue": "Quantity present in inputs but CAM 0",
    "expected": "Carry source qty",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_every_part_has_a_quantity_above_zero",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-185",
@@ -1888,8 +1908,9 @@
    "report": "Ex Inv VL-1/VL-2",
    "issue": "Scrap/batch cells show #VALUE!",
    "expected": "Valid numeric calculations",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_the_workbook_has_no_error_cells",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-190",
@@ -1968,8 +1989,9 @@
    "report": "Summary",
    "issue": "Extended volume value mismatch",
    "expected": "Reconcile line total and FG cost × volume",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_extended_prices_are_quantity_times_price",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-198",
@@ -2098,8 +2120,9 @@
    "report": "Summary",
    "issue": "Scrub volumes not captured",
    "expected": "Correct volumes",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_the_summary_volumes_are_the_volumes_of_the_cbom",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-211",
@@ -2198,8 +2221,9 @@
    "report": "Input currency",
    "issue": "QW Original Currency blank, conversion mismatch",
    "expected": "Provide source currency",
-   "status": "not_tested",
-   "test": null
+   "status": "tested",
+   "test": "test_centum_defect_checks.py::test_an_original_price_has_its_currency",
+   "scope": "checked on the delivered workbook of RFQ-000032 only"
   },
   {
    "case_id": "CAM-221",
