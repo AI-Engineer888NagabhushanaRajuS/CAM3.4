@@ -6,7 +6,7 @@ import { SpinningIcon } from './SpinningIcon';
 // Matches the dashboard already registered for embedding in the local Superset install
 // (see apps/daemon/src/superset-client.ts's default and C:\Superset's embedded_dashboards
 // row) -- kept as one shared constant here rather than duplicating the literal UUID.
-const DASHBOARD_UUID = '427cde1b-b788-4ff8-b247-1aa3345ec1f0';
+const DASHBOARD_UUID = 'a82d4ef7-4542-4354-a8d8-e7bb92ffaf88';
 
 interface SupersetDashboardPanelProps {
   // Scopes the embed to just this RFQ's rows via Superset Row Level Security

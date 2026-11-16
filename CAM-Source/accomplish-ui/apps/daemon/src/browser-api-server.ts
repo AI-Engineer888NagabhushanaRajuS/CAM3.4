@@ -2072,7 +2072,7 @@ export class BrowserApiServer {
       // leave the daemon; see superset-client.ts.
       case 'superset.getGuestToken': {
         const payload = args[0] as { dashboardUuid?: string; rfqId?: string } | undefined;
-        const dashboardUuid = payload?.dashboardUuid ?? '427cde1b-b788-4ff8-b247-1aa3345ec1f0';
+        const dashboardUuid = payload?.dashboardUuid ?? 'a82d4ef7-4542-4354-a8d8-e7bb92ffaf88';
         const { getSupersetGuestToken, getSupersetDomain } = await import('./superset-client.js');
         const guestToken = await getSupersetGuestToken(dashboardUuid, payload?.rfqId);
         // getSupersetDomain() is a fixed value (SUPERSET_URL, loopback-safe for

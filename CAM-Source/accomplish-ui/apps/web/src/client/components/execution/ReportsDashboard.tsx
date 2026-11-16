@@ -266,7 +266,7 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
 
       <section className={CARD} aria-label="Superset">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">Superset dashboards need the Superset service (not part of this install by default).</p>
+          <p className="text-xs text-muted-foreground">The Superset dashboard is served by the local Superset service on port 8088 (optional; the figures above do not need it).</p>
           <button type="button" onClick={() => setShowSuperset((v) => !v)} className="inline-flex min-h-8 items-center rounded-md border border-border px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted">{showSuperset ? 'Hide' : 'Try the Superset view'}</button>
         </div>
         {showSuperset && <div className="mt-3 h-[480px]"><SupersetDashboardPanel rfqId={rfqId} /></div>}
