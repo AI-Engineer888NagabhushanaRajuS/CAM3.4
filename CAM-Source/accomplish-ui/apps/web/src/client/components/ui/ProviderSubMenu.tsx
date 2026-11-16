@@ -10,6 +10,8 @@ import {
   getModelDisplayName,
 } from '@accomplish_ai/agent-core/common';
 import type { ConnectedProvider, ProviderId } from '@accomplish_ai/agent-core/common';
+import { useEffect, useState } from 'react';
+import { getAccomplish } from '@/lib/accomplish';
 
 interface ProviderSubMenuProps {
   providerId: ProviderId;
@@ -27,13 +29,29 @@ export function ProviderSubMenu({
   const providerName = PROVIDER_META[providerId]?.name ?? providerId;
 
   // If availableModels is defined (even empty) use it; only fall back to static config when undefined
-  const models: Array<{ id: string; displayName: string }> =
+  const stored: Array<{ id: string; displayName: string }> =
     provider.availableModels !== undefined
       ? provider.availableModels.map((m) => ({ id: m.id, displayName: m.name }))
       : (DEFAULT_PROVIDERS.find((p) => p.id === providerId)?.models ?? []).map((m) => ({
           id: m.fullId,
           displayName: getModelDisplayName(m.fullId),
         }));
+
+  // A connected OpenRouter whose stored list is empty: ask the daemon for the models it offers, so the choice is there.
+  const [fetched, setFetched] = useState<Array<{ id: string; displayName: string }> | null>(null);
+  useEffect(() => {
+    if (providerId !== 'openrouter' || stored.length > 0) return;
+    let alive = true;
+    getAccomplish().fetchOpenRouterModels()
+      .then((r) => {
+        if (alive && r.success && r.models) {
+          setFetched(r.models.map((m) => ({ id: `openrouter/${m.id}`, displayName: m.name })));
+        }
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [providerId, stored.length]);
+  const models = stored.length > 0 ? stored : (fetched ?? []);
 
   return (
     <DropdownMenuSub>

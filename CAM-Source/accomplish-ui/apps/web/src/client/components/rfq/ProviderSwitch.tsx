@@ -13,7 +13,7 @@ interface ProviderSwitchProps {
 }
 
 /** What the daemon can offer right now (is an OpenRouter key saved, which models); null until it answers or when it cannot. */
-function useProviders(): ChatProvidersInfo | null {
+export function useProviders(): ChatProvidersInfo | null {
   const [info, setInfo] = useState<ChatProvidersInfo | null>(null);
   const load = useCallback(async () => {
     try {

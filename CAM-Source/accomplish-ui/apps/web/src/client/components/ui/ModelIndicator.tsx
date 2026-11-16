@@ -27,6 +27,7 @@ import type { ProviderId, ConnectedProvider } from '@accomplish_ai/agent-core/co
 import { useProviderSettings } from '@/components/settings/hooks/useProviderSettings';
 import { logger } from '@/lib/logger';
 import { ProviderSubMenu } from '@/components/ui/ProviderSubMenu';
+import { useProviders } from '@/components/rfq/ProviderSwitch';
 import { cn } from '@/lib/utils';
 import { AUTO_MODE_CHANGE_EVENT, isAutoMode, setAutoMode } from '@/lib/auto-model';
 
@@ -111,6 +112,14 @@ export function ModelIndicator({
   const otherProviders = Object.entries(settings?.connectedProviders ?? {}).filter(
     ([id, p]) => id !== activeProviderId && p.connectionStatus === 'connected',
   ) as Array<[ProviderId, ConnectedProvider]>;
+
+  // The daemon has an OpenRouter key (Settings > Providers) but the app's provider list does not carry OpenRouter as connected:
+  // offer it anyway, with the models OpenRouter returns, so the choice is never missing.
+  const chat = useProviders();
+  const openRouterOffered = Boolean(chat?.openrouter.hasKey) && !otherProviders.some(([id]) => id === 'openrouter') && activeProviderId !== 'openrouter';
+  const openRouterEntry = openRouterOffered
+    ? ({ providerId: 'openrouter', connectionStatus: 'connected', selectedModelId: null, availableModels: [] } as unknown as ConnectedProvider)
+    : null;
 
   const handleSelectModel = useCallback(
     async (modelId: string) => {
@@ -269,7 +278,7 @@ export function ModelIndicator({
           <div className="px-3 py-2 text-sm text-muted-foreground">{t('model.selectModel')}</div>
         )}
 
-        {otherProviders.length > 0 && (
+        {(otherProviders.length > 0 || openRouterEntry) && (
           <>
             {(hasModel || siblingModels.length > 0) && <DropdownMenuSeparator />}
             {otherProviders.map(([providerId, provider]) => (
@@ -281,6 +290,15 @@ export function ModelIndicator({
                 disabled={isRunning}
               />
             ))}
+            {openRouterEntry && (
+              <ProviderSubMenu
+                key="openrouter-offered"
+                providerId="openrouter"
+                provider={openRouterEntry}
+                onSelectModel={handleSelectProviderModel}
+                disabled={isRunning}
+              />
+            )}
           </>
         )}
       </DropdownMenuContent>
