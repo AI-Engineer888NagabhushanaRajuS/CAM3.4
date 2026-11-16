@@ -371,6 +371,8 @@ def export_excel(rfq_id):
             )
             if has_number:
                 dim.width = 15
+    from reports.presentation import style_workbook
+    style_workbook(wb)   # every tab: centred headers, aligned numbers and text (values and formulas unchanged)
     wb.save(path)
 
     duration = time.time() - start

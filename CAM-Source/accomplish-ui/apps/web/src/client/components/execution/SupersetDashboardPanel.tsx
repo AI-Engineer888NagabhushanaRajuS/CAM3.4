@@ -19,6 +19,15 @@ interface SupersetDashboardPanelProps {
 // filling the available space responsively. Guest tokens are minted server-side by the
 // daemon (superset.getGuestToken RPC) -- this component never talks to Superset
 // directly except via the iframe the SDK creates.
+// The Superset dashboard is an optional extra: when its service is not set up (no admin credentials, or nothing listening) say so plainly.
+// The Reports & Analytics figures above come from the workbook and do not depend on it.
+const NOT_SET_UP = 'The Superset dashboard is optional and is not set up on this computer. The figures above come from the workbook and do not need it.';
+export function optionalMessage(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err ?? '');
+  if (/not configured|SUPERSET_ADMIN|fetch failed|ECONNREFUSED|Failed to fetch|NetworkError/i.test(text)) { return NOT_SET_UP; }
+  return text || 'The Superset dashboard could not be loaded.';
+}
+
 export function SupersetDashboardPanel({ rfqId }: SupersetDashboardPanelProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +61,7 @@ export function SupersetDashboardPanel({ rfqId }: SupersetDashboardPanelProps) {
         }
       } catch (err) {
         if (isCurrent) {
-          setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+          setError(optionalMessage(err));
         }
       } finally {
         if (isCurrent) setLoading(false);
