@@ -53,6 +53,9 @@ import {
   MagnifyingGlass,
   Pulse,
   DownloadSimple,
+  User as UserIcon,
+  Plus,
+  FileArrowUp,
 } from '@phosphor-icons/react';
 import { RfqIntakeUploadModal } from './components/rfq/RfqIntakeUploadModal';
 import { RfqErpQuoteWinUploadModal } from './components/rfq/RfqErpQuoteWinUploadModal';
@@ -69,6 +72,8 @@ import { orderStages, skillForStage, stageActions, unwiredSkills, usePipelineMan
 import type { ManifestTree } from './lib/manifestsApi';
 import { autoDownloadEnabled, claimAutoDownload, saveFromUrl, setAutoDownload } from './lib/autoDownload';
 import './components/rfq/wireframe-rail.css';   // the left pane's look: the RFQ wireframe's rail (see that file)
+import './components/rfq/wireframe-subs.css';   // the sub-step rows: person or bull per step, as in the wireframe
+import './components/rfq/wireframe-addfiles.css'; // the Add files menu, as in the wireframe
 import type { SettingsTabId } from './components/layout/settings-tabs';
 import { RfqProvider } from './contexts/RfqContext';
 // import { AgentActivityStrip } from './components/execution/AgentActivityStrip';
@@ -305,6 +310,9 @@ export function App() {
   const [errorMessage, _setErrorMessage] = useState<string | null>(null);
   const [authSettingsOpen, setAuthSettingsOpen] = useState(false);
   const [authSettingsTab, setAuthSettingsTab] = useState<SettingsTabId>('providers');
+  // A finished run's workbook waits here for the user's approval before it is saved to their computer.
+  const [pendingDownloadRfqId, setPendingDownloadRfqId] = useState<string | null>(null);
+  const [addFilesOpen, setAddFilesOpen] = useState(false);
   // SPEC-023: the left pane follows the manifests (enabled flags, sub-skills); null until loaded, then the pane is as it was.
   const manifestTree = usePipelineManifest();
   // A ref, so the resume and progress callbacks see the latest manifest without being rebuilt on every 20 s refresh.
@@ -766,9 +774,9 @@ export function App() {
         // A run whose report is exported is not waiting for a review any more: the review grid must not cover the finished results.
         setHitlContext(null);
         void refreshExportStatus(event.rfqId).then((found) => {
-          // SPEC-023: a run watched live to its end saves the report workbook to the computer by itself (one file, once per RFQ).
+          // SPEC-023: a run watched live to its end asks before it saves the report workbook (once per RFQ); nothing is saved without the user's approval.
           if (found?.cbom && autoDownloadEnabled() && claimAutoDownload(event.rfqId)) {
-            saveFromUrl(`${PYTHON_BRIDGE}/api/bom/export/${encodeURIComponent(event.rfqId)}/download`);
+            setPendingDownloadRfqId(event.rfqId);
           }
         });
       }
@@ -1385,6 +1393,28 @@ export function App() {
                   </div>
                 )}
 
+                {/* The wireframe's Add files menu: the same upload modal as the Intake stage, for the RFQ open above. */}
+                <div className="wf-addfiles" hidden={isLeftPanelCollapsed}>
+                  <div className={`af-wrap${addFilesOpen ? ' open' : ''}`} onMouseLeave={() => setAddFilesOpen(false)}>
+                    <button
+                      type="button"
+                      className="af-btn"
+                      aria-haspopup="menu"
+                      aria-expanded={addFilesOpen}
+                      disabled={!customRfqId.trim()}
+                      title={customRfqId.trim() ? undefined : 'Open or create an RFQ first'}
+                      onClick={() => setAddFilesOpen((open) => !open)}
+                    >
+                      <Plus size={14} /> Add files
+                    </button>
+                    <div className="af-menu" role="menu" aria-label="Add files">
+                      <button type="button" role="menuitem" className="af-item" onClick={() => { setAddFilesOpen(false); setIntakeModalOpen(true); }}>
+                        <FileArrowUp size={16} /> BOM, volume file or zip
+                      </button>
+                    </div>
+                  </div>
+                  <div className="af-s">BOM and volume file (.xlsx, .csv) or a zip, for the RFQ above.</div>
+                </div>
                 <div className="wf-rail">
                   <div className="wf-head">
                     <span className="wf-label">Progress</span>
@@ -1542,13 +1572,18 @@ export function App() {
                                       key={sub.label}
                                       type="button"
                                       onClick={() => handleSubSkillClick(stage.id as WorkflowStageId, sub.action)}
-                                      className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[13px] transition-colors ${sub.action === 'createRfq'
-                                          ? 'bg-primary font-semibold text-primary-foreground hover:bg-primary/90'
-                                          : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground'
-                                        }`}
+                                      className="sub-row"
                                     >
-                                      <span className={`h-1 w-1 shrink-0 rounded-full ${sub.action === 'createRfq' ? 'bg-primary-foreground' : 'bg-muted-foreground/50'}`} />
+                                      <span className="sd" />
                                       {sub.label}
+                                      {/* A step the person does (create the RFQ, ingest their files) shows a person; the rest show the BuLLM bull. */}
+                                      <span className="mode">
+                                        <span className="mode-icon">
+                                          {sub.action === 'createRfq' || sub.action === 'ingest'
+                                            ? <UserIcon size={14} />
+                                            : <img className="bull" src="/assets/bull-head.png" alt="Automated" />}
+                                        </span>
+                                      </span>
                                     </button>
                                   )
                                 ))}
@@ -1860,6 +1895,31 @@ export function App() {
                             </button>
                           </div>
                         )}
+                        {exportStatus?.cbom && pendingDownloadRfqId === customRfqId.trim() && (
+                          <div className="flex items-center gap-3 rounded-lg border border-brand/40 bg-card p-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground">Save the report to your computer?</p>
+                              <p className="truncate font-mono text-xs text-muted-foreground">{exportStatus.cbom.filename}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                saveFromUrl(`${PYTHON_BRIDGE}/api/bom/export/${encodeURIComponent(pendingDownloadRfqId)}/download`);
+                                setPendingDownloadRfqId(null);
+                              }}
+                              className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition hover:opacity-90"
+                            >
+                              Approve download
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingDownloadRfqId(null)}
+                              className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+                            >
+                              Not now
+                            </button>
+                          </div>
+                        )}
                         {exportStatus?.cbom && (
                           <label className="flex items-center gap-2 text-xs text-muted-foreground">
                             <input
@@ -1868,7 +1928,7 @@ export function App() {
                               onChange={(e) => setAutoDownload(e.target.checked)}
                               className="h-4 w-4 accent-[var(--brand,currentColor)]"
                             />
-                            Save the report to my computer when a run finishes
+                            Ask me to save the report when a run finishes
                           </label>
                         )}
                         {exportStatus && !exportStatus.cbom && !exportStatus.consolidatedBom && !exportStatus.quoteSummary && (

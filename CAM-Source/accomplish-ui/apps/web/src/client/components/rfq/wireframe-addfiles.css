@@ -1,0 +1,10 @@
+/* Add files menu from the RFQ wireframe (src/theme.css, the .af-* rules), scoped to .wf-addfiles and mapped to the app's --wf-* palette. */
+.wf-addfiles .af-wrap { position:relative; }
+.wf-addfiles .af-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; height:38px; border:1.5px solid var(--wf-bluefill); border-radius:8px; background:var(--wf-card); color:var(--wf-blue); font-size:14px; font-weight:600; cursor:pointer; }
+.wf-addfiles .af-btn:hover { background:var(--wf-bluesoft); }
+.wf-addfiles .af-menu { display:none; position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:40; flex-direction:column; padding:4px; border:1px solid var(--wf-line); border-radius:10px; background:var(--wf-card); box-shadow:var(--shadow); }
+.wf-addfiles .af-wrap:hover .af-menu, .wf-addfiles .af-wrap.open .af-menu { display:flex; }
+.wf-addfiles .af-item { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 10px; border:0; border-radius:8px; background:none; color:var(--wf-ink); font-size:14px; text-align:left; cursor:pointer; }
+.wf-addfiles .af-item svg { color:var(--wf-ink2); flex:none; }
+.wf-addfiles .af-item:hover { background:var(--wf-bluesoft); }
+.wf-addfiles .af-s { font-size:12px; color:var(--wf-ink2); margin:6px 2px 0; }

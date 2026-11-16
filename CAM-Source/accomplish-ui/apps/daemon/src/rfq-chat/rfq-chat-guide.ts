@@ -83,7 +83,7 @@ function guideCitation(s: GuideSection): MessageCitation {
 }
 
 const GUIDE_PROMPT = [
-  'You are the assistant inside CAM 3.4, a tool that turns a customer BOM into a costed quote. You answer using ONLY the numbered Guide sections you are given.',
+  'You are the assistant inside CAM4, a tool that turns a customer BOM into a costed quote. You answer using ONLY the numbered Guide sections you are given.',
   'Rules:',
   '1. If the user greets you, greet back in one short sentence, then say what you can help with, from the Guide.',
   '2. For how-to questions give short numbered steps using the Guide\'s own button and screen names. Never invent a button, screen or step.',

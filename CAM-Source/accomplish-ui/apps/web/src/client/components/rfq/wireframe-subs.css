@@ -1,0 +1,16 @@
+/* Sub-step rows from the RFQ wireframe (src/theme.css: .sub-row, .sd, .mode, .mode-icon, .done-tick), scoped to .wf-subs and mapped to the app's --wf-* palette. */
+.wf-subs .sub-row { display:flex; align-items:center; gap:9px; min-height:36px; padding:0 8px; border:0; border-radius:7px; font-size:14px; width:100%; text-align:left; color:var(--wf-ink); }
+.wf-subs .sub-row:hover { background:var(--wf-bluesoft); }
+.wf-subs .sub-row .sd { width:8px; height:8px; border-radius:50%; border:1.5px solid var(--wf-ink2); flex-shrink:0; }
+.wf-subs .sub-row.done { color:var(--wf-ink2); }
+.wf-subs .sub-row.done .sd { background:var(--wf-bluefill); border-color:var(--wf-bluefill); }
+.wf-subs .sub-row.act { background:var(--wf-bluefill); color:var(--wf-blueink); font-weight:700; box-shadow:inset 3px 0 0 color-mix(in srgb, var(--wf-blue) 55%, transparent); }
+.wf-subs .sub-row.act .sd { background:transparent; border-color:var(--wf-blueink); }
+.wf-subs .sub-row .mode { margin-left:auto; color:var(--wf-ink2); flex-shrink:0; display:inline-flex; align-items:center; gap:6px; }
+.wf-subs .mode-icon { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border-radius:50%; background:var(--wf-soft); color:var(--wf-blue); }
+.wf-subs .mode-icon .bull { width:22px; height:22px; }
+.wf-subs .sub-row.act .mode-icon { background:#FFFFFF; color:var(--wf-blue); }
+.wf-subs .done-tick { color:var(--wf-green); display:inline-flex; align-items:center; flex-shrink:0; }
+.wf-subs .sub-row .mode { gap:6px; }
+.wf-subs .sub-row.act .mode { color:var(--wf-blueink); }
+.wf-subs .bull { width:18px; height:18px; object-fit:contain; display:block; filter:grayscale(1) brightness(0) saturate(100%) invert(39%) sepia(95%) saturate(1517%) hue-rotate(164deg) brightness(91%) contrast(101%); }

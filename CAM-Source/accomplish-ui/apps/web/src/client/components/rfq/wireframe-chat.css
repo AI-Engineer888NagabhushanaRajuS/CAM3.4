@@ -1,0 +1,9 @@
+/* Empty-chat centre from the RFQ wireframe (src/theme.css, the .ce-* rules): the BuLLM bull floats and blinks. */
+.ce-bull { display:block; animation:ce-float 3s ease-in-out infinite; }
+.ce-bull img { width:104px; height:104px; object-fit:contain; display:block; transform-origin:50% 60%; animation:ce-blink 4.6s ease-in-out infinite; }
+.ce-hello { margin:0; font-size:20px; font-weight:700; letter-spacing:-.01em; text-align:center; }
+.chat-empty.ce-leaving { position:absolute; left:0; right:0; top:0; pointer-events:none; animation:ce-out .32s ease forwards; }
+@keyframes ce-float { 0%,100% { transform:translateY(5px); } 50% { transform:translateY(-5px); } }
+@keyframes ce-blink { 0%, 90%, 98%, 100% { transform:scaleY(1); } 94% { transform:scaleY(.85); } }
+@keyframes ce-out { to { opacity:0; transform:translateY(-12px); } }
+@media (prefers-reduced-motion: reduce) { .ce-bull, .ce-bull img { animation:none; } .chat-empty.ce-leaving { animation-duration:1ms; } }

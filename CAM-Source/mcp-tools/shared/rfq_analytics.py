@@ -78,6 +78,35 @@ def _excess(wb):
     return out or None
 
 
+def _commodity_excess(wb):
+    """Net Excess Cost #n summed per commodity, for each volume's Ex Inv tab: the same column that the tab's own Excess Cost total adds up
+    (its total cell = SUM of that column). A line with no part number ends the table; a line with no commodity counts as 'Unassigned'."""
+    out = {}
+    for name in wb.sheetnames:
+        if not name.startswith("Ex Inv VL-"):
+            continue
+        rows = list(wb[name].iter_rows(min_row=4, max_col=30, values_only=True))
+        if not rows:
+            continue
+        head = list(rows[0])
+        number = name.rsplit("-", 1)[1]
+        value_name = f"Net Excess Cost #{number}"
+        if "Commodity" not in head or value_name not in head:
+            continue
+        c_col, v_col = head.index("Commodity"), head.index(value_name)
+        totals = {}
+        for r in rows[1:]:
+            if r[0] in (None, ""):
+                break
+            value = _num(r[v_col])
+            if value is None:
+                continue
+            key = str(r[c_col]).strip() if r[c_col] not in (None, "") else "Unassigned"
+            totals[key] = totals.get(key, 0.0) + value
+        out["VL-" + name.rsplit("-", 1)[1]] = totals
+    return out or None
+
+
 SECTIONS = {"1": "uncosted", "2": "mpn_mismatch", "3": "not_in_bom_subset", "4": "nrfnd", "5": "eol"}
 
 
@@ -155,7 +184,7 @@ def analytics(path):
     try:
         out = {"workbook": os.path.basename(path)}
         for key, fn in (("summary", _summary), ("price_control", _price_control), ("lead_time", _lead_time), ("cashflow", _cashflow),
-                        ("cashflow_totals", _cashflow_totals), ("excess_cost", _excess), ("uncosted_parts", _uncosted),
+                        ("cashflow_totals", _cashflow_totals), ("excess_cost", _excess), ("commodity_excess", _commodity_excess), ("uncosted_parts", _uncosted),
                         ("exceptions", _exceptions), ("currency", _currency), ("cbom", _cbom), ("manifest", _manifest)):
             try:
                 out[key] = fn(wb)
@@ -177,6 +206,7 @@ DEFINITIONS = {
     "excess_cost": "The Excess Cost figure at the top of each RFQ's Ex Inv tab for its last volume.",
     "critical_exceptions": "Rows in Missing Notes sections 1 to 5: uncosted parts, MPN mismatch, MPN not in the BOM subset, NRFND, EOL.",
     "lead_time": "Parts per lead-time bucket from each RFQ's Lead Time Consolidated tab; parts with no lead time are counted apart.",
+    "commodity_excess": "Net Excess Cost summed per commodity over each RFQ's Ex Inv tab for its last volume: the same column whose total is that tab's Excess Cost. Commodities at zero are left out of the chart.",
     "volume_rule": "Every figure uses the RFQ's last volume (VL-n); the screen says which.",
 }
 _CACHE = {}
@@ -222,6 +252,7 @@ def _portfolio_row(item, a):
         "cost_per_set": (s.get("totals") or {}).get(last), "ext_vol_cost": (s.get("ext_vol_conv_price") or {}).get(last),
         "buy": buy, "final_buy": final, "buy_variance": ((final - buy) / buy) if buy and final is not None else None,
         "excess_cost": (a.get("excess_cost") or {}).get(last),
+        "commodity_excess": (a.get("commodity_excess") or {}).get(last),
         "rows": cbom.get("rows"), "priced": cbom.get("priced"), "critical": sum(ex.values()) if ex else None, "exceptions": ex or None,
         "lead_time": _bucket_counts(a.get("lead_time")), "go_no_go": (a.get("manifest") or {}).get("go_no_go"),
         # An older export, made before the engine step stored the formulas' values: its cash-flow cells read as empty, not as zero.
@@ -247,13 +278,17 @@ def portfolio(items):
     buy, final = total("buy"), total("final_buy")
     rows_all, priced_all = total("rows"), total("priced")
     lead = {name: sum(r["lead_time"].get(name, 0) for r in same) for name in [n for n, _, _ in LEAD_BUCKETS] + ["no lead time"]}
+    commodities = {}
+    for r in same:
+        for name, value in (r.get("commodity_excess") or {}).items():
+            commodities[name] = commodities.get(name, 0.0) + value
     return {
         "rfqs": sorted(rows, key=lambda r: r["rfq_id"], reverse=True),
         "totals": {"total_rfqs": len(ok), "currency": main, "counted_rfqs": len(same), "other_currency_rfqs": len(ok) - len(same),
                    "cash_rfqs": sum(1 for r in same if r.get("final_buy") is not None),
                    "costing_pct": (priced_all / rows_all) if rows_all else None, "final_buy": final, "buy": buy,
                    "buy_variance": ((final - buy) / buy) if buy else None, "excess_cost": total("excess_cost"),
-                   "critical_exceptions": total("critical"), "lead_time": lead, "errors": len(rows) - len(ok),
+                   "critical_exceptions": total("critical"), "lead_time": lead, "commodity_excess": commodities, "errors": len(rows) - len(ok),
                    "without_stored_values": sum(1 for r in ok if r.get("needs_values"))},
         "definitions": DEFINITIONS,
     }

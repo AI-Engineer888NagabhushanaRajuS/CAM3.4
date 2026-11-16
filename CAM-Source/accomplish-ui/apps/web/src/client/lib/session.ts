@@ -49,12 +49,21 @@ export function isFde(): boolean {
   return getSessionRole() === 'fde';
 }
 
+/** The assistant's per-RFQ chat cache belongs to one user: drop it whenever the signed-in user changes. */
+function clearChatCache(): void {
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith('rfq-chat:') || key.startsWith('rfq-chat-scope:')) sessionStorage.removeItem(key);
+  }
+}
+
 export function saveSession(token: string, user: { name: string; email: string; role: UserRole }): void {
+  clearChatCache();
   const session: Session = { token, user, createdAt: Date.now() };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 export function clearSession(): void {
+  clearChatCache();
   sessionStorage.removeItem(SESSION_KEY);
 }
 

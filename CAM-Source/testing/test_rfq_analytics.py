@@ -149,3 +149,23 @@ def test_a_workbook_that_cannot_be_read_is_listed_with_its_error(tmp_path):
     bad.write_bytes(b"not a workbook")
     out = rfq_analytics.portfolio([{"rfq_id": "RFQ-X", "path": str(bad)}])
     assert out["rfqs"][0]["error"] and out["totals"]["errors"] == 1 and out["totals"]["total_rfqs"] == 0
+
+
+def test_commodity_excess_adds_up_to_the_ex_inv_tab_total(tmp_path):
+    """Net Excess Cost per commodity (last volume's Ex Inv tab) must sum to that tab's own Excess Cost total; each volume reads its own column."""
+    wb = openpyxl.Workbook()
+    wb.active.title = "Summary"
+    for n, rows in ((1, [("PASSIVE", 6.0), ("ACTIVE", 4.0)]), (2, [("PASSIVE", 5.0), ("", 0.0), ("ACTIVE", 9.0)])):
+        ws = wb.create_sheet(f"Ex Inv VL-{n}")
+        ws.append([f"Excess Cost #{n}"])
+        ws.append([sum(v for _, v in rows if _)])
+        ws.append([])
+        ws.append(["Part Number", "Commodity", f"Net Excess Cost #{n}"])
+        for i, (commodity, value) in enumerate(rows):
+            ws.append([f"P{i}", commodity or None, value])
+    path = str(tmp_path / "book.xlsx")
+    wb.save(path)
+    got = rfq_analytics._commodity_excess(openpyxl.load_workbook(path, data_only=True, read_only=True))
+    assert got["VL-1"] == {"PASSIVE": 6.0, "ACTIVE": 4.0}
+    assert sum(got["VL-2"].values()) == 14.0
+    assert got["VL-2"]["ACTIVE"] == 9.0

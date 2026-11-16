@@ -11,7 +11,7 @@ import type { ChatMessage, ChatModel, Turn } from './rfq-chat-types.js';
 export const NEEDS_RFQ_DATA = 'NEEDS_RFQ_DATA';
 
 export const GENERAL_PROMPT = [
-  'You are the assistant inside CAM 3.4, a tool that turns a customer BOM into a costed quote. Chat naturally and briefly in the language style of the user.',
+  'You are the assistant inside CAM4, a tool that turns a customer BOM into a costed quote. Chat naturally and briefly in the language style of the user.',
   'Rules:',
   '1. You have NO access to any RFQ, BOM, price, supplier, lead time or part here. Never state, guess or recall any fact, figure, part number or RFQ id about them.',
   `2. If the user asks about the contents, status, costs, parts or numbers of a particular RFQ, BOM or report, reply with exactly ${NEEDS_RFQ_DATA} and nothing else.`,
@@ -20,8 +20,8 @@ export const GENERAL_PROMPT = [
 ].join('\n');
 
 const RFQ_ID = /\bRFQ-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/gi;
-// "CAM 3.4" is the product name, not a figure; small counts ("2 ways") are ordinary talk, 3+ digits are data-like.
-const PRODUCT = 'CAM 3.4';
+// "CAM4" is the product name, not a figure; small counts ("2 ways") are ordinary talk, 3+ digits are data-like.
+const PRODUCT = 'CAM4';
 const SMALL_COUNT = /^\d{1,2}$/;
 
 /** RFQ ids, part-number-like tokens and figures in `reply` that the user did not write themselves. */

@@ -1,12 +1,13 @@
 import { memo, useEffect, useRef, type ElementType } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Brain, ChatCircleDots, Database, FileText, Paperclip, Rows, ShieldCheck } from '@phosphor-icons/react';
+import { Brain, Database, FileText, Paperclip, Rows, ShieldCheck } from '@phosphor-icons/react';
 import type { MessageCitation } from '@accomplish_ai/agent-core';
 import { cn } from '@/lib/utils';
 import { MessageCopyButton } from '@/components/execution/MessageCopyButton';
 import { markdownComponents, proseClasses } from '@/components/execution/message-markdown-config';
 import { Directive, type DirectiveActions } from './AssistantDirectives';
+import './wireframe-chat.css';
 import type { ChatMsg } from './useAssistantChat';
 
 // Vocabulary from the KT encyclopedias: A-class (> $1.25), uncosted, MOQ excess, price control (Centum/CONTRACT/CNP), lead time.
@@ -20,7 +21,7 @@ export const RFQ_SUGGESTIONS = [
 ];
 
 const GENERAL_SUGGESTIONS = [
-  { title: 'How to use CAM 3.4', prompt: 'How do I use this tool?' },
+  { title: 'How to use CAM4', prompt: 'How do I use this tool?' },
   { title: 'My RFQs', prompt: 'Which RFQs do I have?' },
 ];
 
@@ -110,11 +111,12 @@ export function AssistantMessages({ messages, running, rfqId, onPick, actions, s
       <div className="mx-auto max-w-3xl space-y-3" role="log" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-5 py-8 text-center">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-              <ChatCircleDots className="h-5 w-5" weight="fill" />
+            {/* The wireframe's empty-chat centre: the floating, blinking BuLLM bull (wireframe-chat.css). */}
+            <span className="ce-bull">
+              <img src="/assets/bull-head.png" alt="" className="h-24 w-24 object-contain" />
             </span>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-foreground">{rfqId ? `Ask about ${rfqId}` : 'Ask anything about CAM 3.4'}</h3>
+              <h3 className="ce-hello text-base font-semibold text-foreground">How can BuLLM help you today?</h3>
               <p className="mx-auto max-w-md text-sm text-muted-foreground">
                 {rfqId
                   ? 'Answers about this RFQ come from its results and show the cells they came from. You can also ask me to check progress, resume it, upload a file or download its reports.'

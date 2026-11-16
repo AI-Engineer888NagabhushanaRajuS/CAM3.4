@@ -288,6 +288,10 @@ export class BrowserApiServer {
         updated_by VARCHAR
       )
     `);
+    // Chat is private per signed-in user: one conversation per (owner, RFQ). Older rows (owner '') stay unreachable.
+    await fileMetadataPool.query(`ALTER TABLE rfq_chat_history ADD COLUMN IF NOT EXISTS owner VARCHAR NOT NULL DEFAULT ''`);
+    await fileMetadataPool.query(`ALTER TABLE rfq_chat_history DROP CONSTRAINT IF EXISTS rfq_chat_history_pkey`);
+    await fileMetadataPool.query(`CREATE UNIQUE INDEX IF NOT EXISTS rfq_chat_history_owner_rfq ON rfq_chat_history (owner, rfq_id)`);
   }
 
   private async ensureFeasibilitySchema(): Promise<void> {
@@ -943,11 +947,11 @@ export class BrowserApiServer {
       // it loses the credit, it does not break anything.
       case 'system:about': {
         return {
-          app: 'CAM 3.4',
+          app: 'CAM4',
           brand: 'DigiBull.ai',
           author: 'Nagabhushana Raju S',
           location: 'Mysore, Karnataka, India',
-          build: 'CAM 3.4 (Centum), built on the open-source Accomplish base',
+          build: 'CAM4 (Centum), built on the open-source Accomplish base',
         };
       }
 
@@ -1887,10 +1891,14 @@ export class BrowserApiServer {
       // ensureCurrencySchema() above for the schema.
       // Settings > Feasibility: every signed-in user may read the rules; only an admin saves them (the pipeline reads them on each run).
       case 'chat.loadHistory': {
-        if (!this.getSession(req)) { throw new Error('Not signed in'); }
+        const who = this.getSession(req);
+        if (!who) { throw new Error('Not signed in'); }
         const rfqId = String((args[0] as { rfqId?: unknown } | undefined)?.rfqId ?? '').trim();
         if (!rfqId) { throw new Error('rfqId is required'); }
-        const row = await fileMetadataPool.query<{ messages: unknown }>(`SELECT messages FROM rfq_chat_history WHERE rfq_id = $1`, [rfqId]);
+        const row = await fileMetadataPool.query<{ messages: unknown }>(
+          `SELECT messages FROM rfq_chat_history WHERE owner = $1 AND rfq_id = $2`,
+          [who.userId, rfqId],
+        );
         return { messages: Array.isArray(row.rows[0]?.messages) ? row.rows[0].messages : [] };
       }
       case 'chat.saveHistory': {
@@ -1901,9 +1909,9 @@ export class BrowserApiServer {
         if (!rfqId) { throw new Error('rfqId is required'); }
         const kept = Array.isArray(body.messages) ? body.messages.slice(-60) : [];
         await fileMetadataPool.query(
-          `INSERT INTO rfq_chat_history (rfq_id, messages, updated_at, updated_by) VALUES ($1, $2::jsonb, now(), $3)
-           ON CONFLICT (rfq_id) DO UPDATE SET messages = EXCLUDED.messages, updated_at = now(), updated_by = EXCLUDED.updated_by`,
-          [rfqId, JSON.stringify(kept), who.email ?? null],
+          `INSERT INTO rfq_chat_history (owner, rfq_id, messages, updated_at, updated_by) VALUES ($1, $2, $3::jsonb, now(), $4)
+           ON CONFLICT (owner, rfq_id) DO UPDATE SET messages = EXCLUDED.messages, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+          [who.userId, rfqId, JSON.stringify(kept), who.email ?? null],
         );
         return { saved: kept.length };
       }
@@ -2519,7 +2527,7 @@ export class BrowserApiServer {
           res.end(JSON.stringify(describeChatProviders({ settingsKey: this.svc.secretsService.getApiKey('openrouter'), selected: this.svc.settingsService.getSelectedModel() })));
           return;
         }
-        // ── CAM 3.4: RFQ assistant chat (SPEC-019) ───────────────────────────
+        // ── CAM4: RFQ assistant chat (SPEC-019) ───────────────────────────
         // POST /api/chat is the conversation: { messages, scope?, fileRefs? } -> { message, citations, model, rfq_id, scope?, ui? }.
         // POST /api/rfq/:id/chat is the same route with the RFQ in the URL (alias for the earlier per-RFQ pane).
         // POST /api/chat/actions/confirm runs or cancels a confirmation card issued by the chat (single-use token, same session).

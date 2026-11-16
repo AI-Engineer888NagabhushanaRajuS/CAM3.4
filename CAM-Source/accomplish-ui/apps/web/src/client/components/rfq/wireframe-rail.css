@@ -1,6 +1,6 @@
 /* Left pane (workflow rail) from the RFQ wireframe (ParvithaCGowda29/RFQ_automation, src/theme.css), scoped to .wf-rail so nothing else in the app changes.
    Only the rules the rail uses are copied. Colours are the wireframe's light tokens. */
-.wf-rail {
+.wf-rail, .wf-addfiles {
   --wf-blue: #006C99;
   --wf-bluefill: #F2F9FD;
   --wf-blueink: #006C99;

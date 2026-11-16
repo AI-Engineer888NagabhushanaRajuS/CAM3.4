@@ -5,7 +5,7 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <span className={cn('inline-flex items-baseline gap-[0.3em] font-semibold leading-none tracking-tight text-foreground', className)}>
       <span>CAM</span>
-      <span className="text-primary">3.4</span>
+      <span className="text-primary">4</span>
     </span>
   );
 }

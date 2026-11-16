@@ -29,7 +29,7 @@ export function LocalModelRuntimeSelector({
       <div className="mb-3">
         <div className="text-sm font-semibold text-foreground">Runtime target</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Choose where CAM 3.4 should run the local model.
+          Choose where CAM4 should run the local model.
         </p>
       </div>
 
