@@ -4,6 +4,7 @@ import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
 import { downloadReports } from '../rfq/OpenDirectives';
 import { SupersetDashboardPanel } from './SupersetDashboardPanel';
+import { VolumeBars3D } from './VolumeBars3D';
 import { PortfolioDashboard } from './PortfolioDashboard';
 
 /**
@@ -164,6 +165,19 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
             </ul>
           ) : <Empty what="The summary" />}
         </section>
+
+        {s && s.fgs.length > 0 && (
+          <section className={`${CARD} xl:col-span-2`} aria-label="Cost per set by assembly and volume, 3D">
+            <h3 className="text-sm font-semibold text-foreground">Cost per set, every assembly and volume (3D)</h3>
+            <p className="text-xs text-muted-foreground">Hover a bar for its figure; drag to turn the chart.</p>
+            <VolumeBars3D
+              assemblies={s.fgs.map((f) => String(f.assembly))}
+              volumes={s.volumes}
+              values={s.fgs.map((f) => s.volumes.map((v) => Number(f[v]) || 0))}
+              unit={data.currency ?? ''}
+            />
+          </section>
+        )}
 
         <section className={CARD} aria-label="Price control">
           <h3 className="text-sm font-semibold text-foreground">Who set the price</h3>
