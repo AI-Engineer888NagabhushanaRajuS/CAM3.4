@@ -49,7 +49,9 @@ def same(fe, engine_value, stored):
     if isinstance(engine_value, (int, float)) and isinstance(stored, (int, float)):
         return math.isclose(float(engine_value), float(stored), rel_tol=1e-9, abs_tol=1e-9)
     if fe.is_blank(engine_value) or engine_value == "":
-        return stored in (None, "")
+        # Excel shows a formula that refers to an empty cell as 0 (the file stores 0), while the engine keeps it empty so the
+        # comparisons that use it (for example BI6<>"") behave as in Excel. Same value, different representation.
+        return stored in (None, "", 0, 0.0)
     return engine_value == stored
 
 

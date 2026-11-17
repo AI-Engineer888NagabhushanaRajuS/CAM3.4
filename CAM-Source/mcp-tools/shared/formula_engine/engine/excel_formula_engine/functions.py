@@ -155,7 +155,8 @@ def _parse_criteria_literal(s):
     try:
         return float(s2)
     except ValueError:
-        return s2
+        # Text criteria keep their exact characters: Excel does not trim a trailing space in the criterion, so "<>X " differs from X.
+        return s
 
 
 def _loose_eq(a, b):
@@ -1231,9 +1232,16 @@ class _RawArg:
         self.v = v
 
 
+_BLANK_FALSE_PREDICATES={"ISERROR","ISNA","ISNUMBER","ISTEXT","ISLOGICAL"}
+
+
 def _sumproduct_clipped_expression(node,ctx):
     """A computed expression cannot extrapolate transformed missing blank tails."""
     from .parser import Node,RangeRef,TableRef,DynRange,FuncCall
+    # ISERROR/ISNA/ISNUMBER/ISTEXT/ISLOGICAL give a constant FALSE for every blank cell, so a blank tail beyond the used rows
+    # contributes exactly 0 whatever its length: no extrapolation is needed and Excel returns the same number. ISBLANK is not
+    # here: it is TRUE on blanks, so the tail length would matter.
+    if isinstance(node,FuncCall) and node.name.removeprefix('_XLFN.').upper() in _BLANK_FALSE_PREDICATES:return False
     if isinstance(node,TableRef):node=ctx.resolve_table(node,return_reference=True)
     if isinstance(node,DynRange):
         from .evaluator import _dynamic_reference

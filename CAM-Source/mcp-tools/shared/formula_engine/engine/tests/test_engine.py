@@ -1,3 +1,5 @@
+import tempfile as _tempfile
+TMP = _tempfile.gettempdir()
 """Test suite for the CAM Formula Engine.
 
 Every test is grounded in either (a) an authored SRIM/CAM template from the
@@ -22,7 +24,7 @@ from excel_formula_engine.values import (BLANK, NA, VALUE_ERR, REF_ERR, DIV0,
 
 def make_wb(cells, today=datetime.date(2026, 10, 9)):
     """cells: {sheet: {(row,col): value}} ; strings starting '=' become formulas."""
-    path = "/tmp/_t.xlsx"
+    path = os.path.join(TMP, '_t.xlsx')
     wb = openpyxl.Workbook()
     first = True
     for sheet, data in cells.items():
@@ -272,7 +274,7 @@ def test_unknown_function_is_name_error_counted():
 # Ex_Inv_VN[[#This Row],[Part Number]], Currency_VN[Value]) ----
 
 def make_table_wb():
-    path = "/tmp/_t_tbl.xlsx"
+    path = os.path.join(TMP, '_t_tbl.xlsx')
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Data"
@@ -431,7 +433,7 @@ def test_index_reads_only_selected_reference_not_excluded_self():
 
 
 def test_subtotal_saved_hidden_rows_and_nested_subtotal():
-    p='/tmp/_subtotal_fixture.xlsx'
+    p=os.path.join(TMP, '_subtotal_fixture.xlsx')
     raw=openpyxl.Workbook();s=raw.active;s.title='S'
     for cell,v in {'A1':2,'A2':3,'A3':'=SUBTOTAL(9,A1:A2)','C1':'=SUBTOTAL(9,A1:A3)','C2':'=SUBTOTAL(109,A1:A3)'}.items():s[cell]=v
     s.row_dimensions[2].hidden=True;raw.save(p)
@@ -773,7 +775,7 @@ def test_numbervalue_omitted_separators_use_explicit_caller_configuration():
     import pytest
     wb=make_wb({'S':{(1,1):'=NUMBERVALUE("2.500,27")'}})
     assert V(wb,'S',1,1)==VALUE_ERR  # default dot decimal, comma group; not source locale inference
-    wb=Workbook('/tmp/_t.xlsx',decimal_separator=',',group_separator='.')
+    wb=Workbook(os.path.join(TMP, '_t.xlsx'),decimal_separator=',',group_separator='.')
     assert V(wb,'S',1,1)==2500.27
     with pytest.raises(ValueError):Workbook(decimal_separator='xx')
     with pytest.raises(ValueError):Workbook(decimal_separator='.',group_separator='.')
@@ -873,7 +875,7 @@ def test_exact_lookup_table_reference_and_whole_column_growth():
     s.add_table(Table(displayName='Lookups',ref='A1:B3'))
     s['D1']='=VLOOKUP("b",Lookups[#All],2,FALSE)'
     s['D2']='=VLOOKUP("later",A:B,2,FALSE)'
-    w.save('/tmp/lookup_table_test.xlsx');wb=Workbook('/tmp/lookup_table_test.xlsx')
+    w.save(os.path.join(TMP, 'lookup_table_test.xlsx'));wb=Workbook(os.path.join(TMP, 'lookup_table_test.xlsx'))
     assert V(wb,'S',1,4)==20
     assert V(wb,'S',2,4)==NA
     wb.set_value('S',90,1,'later');wb.set_value('S',90,2,66)
@@ -921,7 +923,7 @@ def test_subtotal_active_filter_rejects_without_guessing_hidden_cause(tmp_path):
     p=tmp_path/'filtered.xlsx'
     raw=openpyxl.Workbook();s=raw.active;s.title='S'
     for row in [('Key','Amount'),('A',2),('B',3),('A',5)]:s.append(row)
-    s.auto_filter.ref='A1:B4';s.auto_filter.add_filter_column(0,['A'])
+    s.auto_filter.ref='A1:B4';s.auto_filter.add_filter_column(0,['A*'])
     s.row_dimensions[3].hidden=True
     # The independently hidden matching row must not be silently inferred as filtered.
     s.row_dimensions[4].hidden=True

@@ -134,8 +134,18 @@ class Workbook:
 
     def load(self, path):
         import openpyxl
-        wbf = openpyxl.load_workbook(path, data_only=False, read_only=False, keep_links=True)
-        wbv = openpyxl.load_workbook(path, data_only=True, read_only=False, keep_links=True)
+        # Read the bytes once and load from memory: openpyxl keeps the file archive open until garbage collection, which
+        # locked the workbook on Windows (the caller could not delete or rewrite it after a check).
+        import io
+        if hasattr(path, 'read'):
+            raw = path.read()
+            if hasattr(path, 'seek'):
+                path.seek(0)
+        else:
+            with open(path, 'rb') as fh:
+                raw = fh.read()
+        wbf = openpyxl.load_workbook(io.BytesIO(raw), data_only=False, read_only=False, keep_links=True)
+        wbv = openpyxl.load_workbook(io.BytesIO(raw), data_only=True, read_only=False, keep_links=True)
         self.date_system_1904 = (wbf.epoch.year == 1904)
         from .text_filters import source_text_filters
         try: text_filter_regions=source_text_filters(path)
