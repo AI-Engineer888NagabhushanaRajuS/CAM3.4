@@ -9,9 +9,14 @@ Sessions are cached per server URL so we only initialize once per process.
 
 import itertools
 import json
+import os
 import threading
 import requests
 from config import get_mcp_url
+
+# A tool call can wait for a model: a cold load of the 7B mapping model alone took ~2 min on this 8 GB GPU (measured 2026-11-17),
+# so a 300 s limit cut a QuoteWin standardize mid-load. Must stay above the mapping model's own limit (CAM_OLLAMA_TIMEOUT).
+TOOL_CALL_TIMEOUT = int(os.environ.get("TOOL_CALL_TIMEOUT", "900"))
 
 _request_id = itertools.count(1)
 _sessions: dict[str, str] = {}   # url → session_id
@@ -76,7 +81,7 @@ def _post(url: str, payload: dict) -> dict:
         url, json=payload,
         headers={"Accept": "application/json, text/event-stream",
                  "mcp-session-id": session_id},
-        timeout=300, stream=True,
+        timeout=TOOL_CALL_TIMEOUT, stream=True,
     )
     if resp.status_code == 404 or (resp.status_code == 400 and "session" in resp.text.lower()):
         # Session expired or the server restarted (a 404 for a cached id). Purge and retry once.
@@ -87,7 +92,7 @@ def _post(url: str, payload: dict) -> dict:
             url, json=payload,
             headers={"Accept": "application/json, text/event-stream",
                      "mcp-session-id": session_id},
-            timeout=300, stream=True,
+            timeout=TOOL_CALL_TIMEOUT, stream=True,
         )
     resp.raise_for_status()
     return _read_response(resp)

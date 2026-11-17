@@ -67,7 +67,7 @@ class RFQWorkflow:
             result = await workflow.execute_activity(
                 activities.execute_tool,
                 args=[rfq_id, tool_name, tool_args],
-                start_to_close_timeout=timedelta(minutes=10),
+                start_to_close_timeout=timedelta(minutes=20),  # a QuoteWin standardize can wait on a cold model load (see TOOL_CALL_TIMEOUT)
                 retry_policy=RetryPolicy(
                     maximum_attempts=3,
                     backoff_coefficient=2.0,

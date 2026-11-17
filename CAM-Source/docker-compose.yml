@@ -253,6 +253,8 @@ services:
     environment:
       <<: *python-env
       OLLAMA_HOST: host.docker.internal:11434
+      # A cold load of the mapping model is ~2 min on the 8 GB GPU, plus the mapping itself: 300 s cut QuoteWin runs (2026-11-17).
+      CAM_OLLAMA_TIMEOUT: "900"
     extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["18004:8004"]
 
