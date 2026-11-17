@@ -525,6 +525,65 @@ def list_staged_inputs(rfq_id: str, token: dict = Depends(auth.verify_token)):
     return {"rfq_id": rfq_id.strip(), "staged": staged}
 
 
+# 10.4 "Approve and send" (SKILL_10): the person who signs off the quote readiness package. One approval per RFQ; recorded
+# with the signed-in email the UI sends, and never sent anywhere by this service (the e-mail dispatch is a separate step).
+class QuoteApprovalBody(BaseModel):
+    approved_by: str
+
+
+def _ensure_quote_approval_schema() -> None:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS rfq_quote_approval (
+                    rfq_id VARCHAR PRIMARY KEY,
+                    approved_by VARCHAR NOT NULL,
+                    approved_at TIMESTAMP NOT NULL DEFAULT now()
+                );
+            """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.get("/api/rfq/{rfq_id}/quote-approval")
+def get_quote_approval(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    _ensure_quote_approval_schema()
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT approved_by, approved_at FROM rfq_quote_approval WHERE rfq_id = %s;", (rfq_id.strip(),))
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return {"rfq_id": rfq_id.strip(), "approved": False}
+    return {"rfq_id": rfq_id.strip(), "approved": True, "approved_by": row[0], "approved_at": row[1].isoformat()}
+
+
+@app.post("/api/rfq/{rfq_id}/quote-approval")
+def approve_quote(rfq_id: str, body: QuoteApprovalBody, token: dict = Depends(auth.verify_token)):
+    who = body.approved_by.strip()
+    if "@" not in who or len(who) > 200:
+        raise HTTPException(status_code=422, detail="approved_by must be the signed-in person's email")
+    _ensure_quote_approval_schema()
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO rfq_quote_approval (rfq_id, approved_by) VALUES (%s, %s) ON CONFLICT (rfq_id) DO NOTHING;",
+                (rfq_id.strip(), who),
+            )
+            inserted = cur.rowcount == 1
+        conn.commit()
+    finally:
+        conn.close()
+    if not inserted:
+        raise HTTPException(status_code=409, detail="This quote was already approved.")
+    return {"success": True, "rfq_id": rfq_id.strip(), "approved_by": who}
+
+
 @app.delete("/api/rfq/{rfq_id}/inputs/{role}")
 def unstage_input(rfq_id: str, role: str, token: dict = Depends(auth.verify_token)):
     if role not in STAGED_ROLES:

@@ -26,6 +26,7 @@ import { StageExecutionOutput } from './components/execution/StageExecutionOutpu
 import { FormulaEngine3D } from './components/execution/FormulaEngine3D';
 import { OutputButton } from './components/execution/OutputButton';
 import { ProcessingChip } from './components/execution/ProcessingChip';
+import { ReportingSteps } from './components/execution/ReportingSteps';
 import { OutputPage, type OutputDownload } from './components/execution/OutputPage';
 import { sectionShown, useDashboardPrefs } from './lib/dashboardPrefs';
 import { PortfolioDashboard } from './components/execution/PortfolioDashboard';
@@ -1793,6 +1794,11 @@ export function App() {
                           total={rfqProgressLog.length}
                         />
                       )}
+                      <ReportingSteps
+                        rfqId={customRfqId.trim()}
+                        entries={rfqProgressLog}
+                        outputReady={Boolean(runCompleted && exportStatus?.cbom)}
+                      />
                       {runCompleted && exportStatus?.cbom && (
                         <OutputButton
                           onOpen={() => {
