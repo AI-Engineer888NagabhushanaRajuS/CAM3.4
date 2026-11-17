@@ -7,7 +7,7 @@ import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
 import { intakeReadiness, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
 import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
-import { stageInput } from '@/lib/intakeInputs';
+import { stageInput, type StagedRole } from '@/lib/intakeInputs';
 import { IntakeDashboard } from './IntakeDashboard';
 import { InputBuckets, type Assignment } from './InputBuckets';
 import { PerimeterSteps, type Phase } from './PerimeterSteps';
@@ -91,13 +91,24 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
    * A released QuoteWin or costing sheet (by its bucket, or by the role the scan gave it) is kept for the RFQ on the server, so the run
    * attaches it to its BOM and never asks for it again. Only released files are kept: a held file never reaches the RFQ.
    */
+  /** Which kept input a released file is: the bucket it was dropped in, else what the scan recognised (a QuoteWin), else its name. */
+  const keptKeyOf = (r: ScanResponse['results'][number]): StagedRole | undefined => {
+    const assigned = assignment[r.name];
+    if (assigned === 'quotewin' || assigned === 'costing') return assigned;
+    if (assigned) return undefined;
+    // A costing sheet can be recognised as a QuoteWin export, so its name is checked first.
+    if (/costing/i.test(r.name)) return 'costing';
+    if (r.role === 'quotewin') return 'quotewin';
+    return undefined;
+  };
+
   const keepReleasedInputs = async (resp: ScanResponse): Promise<{ names: string[]; failed: string[] }> => {
     const names: string[] = [];
     const failed: string[] = [];
     for (const r of resp.results) {
       if (r.decision !== 'released') continue;
-      const key = assignment[r.name];
-      if (key !== 'quotewin' && key !== 'costing') continue;
+      const key = keptKeyOf(r);
+      if (!key) continue;
       const file = picked.find((f) => f.name === r.name);
       if (!file) continue;
       try {
@@ -123,10 +134,14 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
     try {
       const out = await scanInWaves(rfqId, chosen, { acceptRisk: digests, onWave: (n, of) => setWave({ n, of }) });
       if (out.response) {
-        setKept(await keepReleasedInputs(out.response));
+        // The re-scan covers only the flagged files, so the merged list is what is kept: the QuoteWin released in the first scan too.
         const fresh = new Map(out.response.results.map((r) => [r.name, r]));
-        setResponse((prev) => prev && { ...prev, results: prev.results.map((r) => fresh.get(r.name) ?? r) });
-        if (out.response.results.some((r) => r.decision === 'released')) onReleased();
+        const merged = response
+          ? { ...response, results: response.results.map((r) => fresh.get(r.name) ?? r) }
+          : out.response;
+        setKept(await keepReleasedInputs(merged));
+        setResponse(merged);
+        if (merged.results.some((r) => r.decision === 'released')) onReleased();
       }
       setPhase('result');
     } catch (err) {
