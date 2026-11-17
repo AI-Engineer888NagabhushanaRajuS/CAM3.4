@@ -23,8 +23,9 @@ import { OAuthProviderId } from '@accomplish_ai/agent-core/common';
 // import Sidebar from './components/layout/Sidebar';
 // import { SidebarFallback } from './components/layout/SidebarFallback';
 import { StageExecutionOutput } from './components/execution/StageExecutionOutput';
-import { ReportsDashboard } from './components/execution/ReportsDashboard';
 import { FormulaEngine3D } from './components/execution/FormulaEngine3D';
+import { OutputButton } from './components/execution/OutputButton';
+import { OutputPage, type OutputDownload } from './components/execution/OutputPage';
 import { sectionShown, useDashboardPrefs } from './lib/dashboardPrefs';
 import { PortfolioDashboard } from './components/execution/PortfolioDashboard';
 import { TaskLauncher } from './components/TaskLauncher';
@@ -243,6 +244,17 @@ const RFQ_UPLOAD = RFQ_UPLOAD_URL;
 // duck_db_api.py — same bridge StageExecutionOutput.tsx already uses for cbomPreview.
 const PYTHON_BRIDGE = PYTHON_BRIDGE_URL;
 
+/** The files the Output page offers for one RFQ: the workbooks the run exported, each with its own download address. */
+function outputDownloadsOf(status: ExportStatus | null, rfq: string): OutputDownload[] {
+  if (!rfq || !status) return [];
+  const id = encodeURIComponent(rfq);
+  const out: OutputDownload[] = [];
+  if (status.cbom) out.push({ label: 'CBOM workbook', filename: status.cbom.filename, url: `${PYTHON_BRIDGE}/api/bom/export/${id}/download` });
+  if (status.consolidatedBom) out.push({ label: 'Consolidated BOM', filename: status.consolidatedBom.filename, url: `${PYTHON_BRIDGE}/api/bom/export-cbom/${id}/download` });
+  if (status.quoteSummary) out.push({ label: 'Quote summary', filename: status.quoteSummary.filename, url: `${PYTHON_BRIDGE}/api/bom/export-quote/${id}/download` });
+  return out;
+}
+
 // Tailwind needs literal class names — this lookup keeps every class string static so
 // the JIT compiler picks them up, instead of building them with template interpolation.
 const STAGE_COLOR_CLASSES: Record<StageColor, { border: string; borderLeft: string; icon: string; tagBorder: string; tagText: string }> = {
@@ -359,6 +371,7 @@ export function App() {
   }, [authSettingsOpen, manifestFlags]);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const [erpSyncModalOpen, setErpSyncModalOpen] = useState(false);
+  const [outputOpen, setOutputOpen] = useState(false);
   const [versionSelectOpen, setVersionSelectOpen] = useState(false);
   const [costingSheetsOpen, setCostingSheetsOpen] = useState(false);
   const [intakeProgress, setIntakeProgress] = useState<IntakeProgressState>(initialIntakeProgress);
@@ -1767,22 +1780,40 @@ export function App() {
                   onNavigateToStage={goToStage}
                 />
               ) : currentWorkflowStage === 'reportingAnalytics' ? (
-                /* A finished RFQ lands here, which is exactly where edits happen: the changes timeline and the kept
-                   versions must be visible next to the dashboard, not only in the progress view. */
-                <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-                  {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
-                  {/* The reporting steps stream here as they run (rfq:skill-progress), the same live feed the progress view shows. */}
-                  {/* The results come first; the live feed of the steps sits under them, collapsed, so nothing is pushed out of view. */}
-                  <div className="shrink-0">
-                    {customRfqId.trim() ? <ReportsDashboard rfqId={customRfqId.trim()} ready={runCompleted} onOpenRfq={handleAssistantSelectRfq} /> : <PortfolioDashboard onOpenRfq={handleAssistantSelectRfq} />}
-                  </div>
-                  {sectionShown(dashboardPrefs, 'live_feed') && (
-                    <details className="space-y-3 border-t border-border py-4">
-                      <summary className="cursor-pointer px-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">See your work, live</summary>
-                      <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
-                      <FormulaEngine3D entries={rfqProgressLog} />
-                      <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
-                    </details>
+                /* The right pane is the workflow: the steps as they ran, and the history. A finished run's results open from the
+                   Output button, in full screen (the reports, charts, Superset, review and downloads). */
+                <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-5">
+                  {customRfqId.trim() ? (
+                    <>
+                      {runCompleted && (
+                        <OutputButton
+                          onOpen={() => {
+                            // Pressing Output is the request: the CBOM workbook is saved, and the Output page opens.
+                            const rfq = customRfqId.trim();
+                            if (exportStatus?.cbom) saveFromUrl(`${PYTHON_BRIDGE}/api/bom/export/${encodeURIComponent(rfq)}/download`);
+                            setOutputOpen(true);
+                          }}
+                        />
+                      )}
+                      {sectionShown(dashboardPrefs, 'live_feed') && (
+                        <div className="space-y-3">
+                          <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
+                          <FormulaEngine3D entries={rfqProgressLog} />
+                          <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
+                        </div>
+                      )}
+                      {outputOpen && (
+                        <OutputPage
+                          rfqId={customRfqId.trim()}
+                          workbook={exportStatus?.cbom?.filename ?? null}
+                          downloads={outputDownloadsOf(exportStatus, customRfqId.trim())}
+                          onClose={() => setOutputOpen(false)}
+                          onOpenRfq={handleAssistantSelectRfq}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <PortfolioDashboard onOpenRfq={handleAssistantSelectRfq} />
                   )}
                 </div>
               ) : (
