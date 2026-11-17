@@ -5,6 +5,7 @@ import { authFetch } from '@/lib/apiAuth';
 import { downloadReports } from '../rfq/OpenDirectives';
 import { SupersetDashboardPanel } from './SupersetDashboardPanel';
 import { VolumeBars3D } from './VolumeBars3D';
+import { BomHeatmap, type MatrixPart } from './BomHeatmap';
 import { PortfolioDashboard } from './PortfolioDashboard';
 
 /**
@@ -17,6 +18,7 @@ interface Analytics {
   summary: { volumes: string[]; fgs: Array<Record<string, number | string | null>>; totals: Record<string, number | null>; ext_vol_conv_price?: Record<string, number | null>; moq_cost?: Record<string, number | null>; moq_pct?: Record<string, number | null> } | null;
   price_control: Array<{ label: string; ext_price: number | null; ext_vol_cost: number | null; pct: number | null }> | null;
   lead_time: Array<{ weeks: string | null; count: number | null; pct: number | null }> | null;
+  bom_matrix?: { assemblies: string[]; parts: MatrixPart[] } | null;
   cashflow: Array<Array<{ type: string; buy: number | null; final_buy: number | null }>> | null;
   excess_cost: Record<string, number | null> | null;
   uncosted_parts: number | null;
@@ -165,6 +167,13 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
             </ul>
           ) : <Empty what="The summary" />}
         </section>
+
+        {data.bom_matrix && data.bom_matrix.parts.length > 0 && (
+          <section className={`${CARD} xl:col-span-2`} aria-label="BOM matrix heat map">
+            <h3 className="text-sm font-semibold text-foreground">BOM matrix: quantity of each part in each assembly</h3>
+            <BomHeatmap assemblies={data.bom_matrix.assemblies} parts={data.bom_matrix.parts} />
+          </section>
+        )}
 
         {s && s.fgs.length > 0 && (
           <section className={`${CARD} xl:col-span-2`} aria-label="Cost per set by assembly and volume, 3D">

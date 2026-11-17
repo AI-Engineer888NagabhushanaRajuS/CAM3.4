@@ -184,7 +184,7 @@ def analytics(path):
     try:
         out = {"workbook": os.path.basename(path)}
         for key, fn in (("summary", _summary), ("price_control", _price_control), ("lead_time", _lead_time), ("cashflow", _cashflow),
-                        ("cashflow_totals", _cashflow_totals), ("excess_cost", _excess), ("commodity_excess", _commodity_excess), ("uncosted_parts", _uncosted),
+                        ("cashflow_totals", _cashflow_totals), ("excess_cost", _excess), ("commodity_excess", _commodity_excess), ("bom_matrix", _bom_matrix), ("uncosted_parts", _uncosted),
                         ("exceptions", _exceptions), ("currency", _currency), ("cbom", _cbom), ("manifest", _manifest)):
             try:
                 out[key] = fn(wb)
@@ -292,3 +292,38 @@ def portfolio(items):
                    "without_stored_values": sum(1 for r in ok if r.get("needs_values"))},
         "definitions": DEFINITIONS,
     }
+
+
+def _bom_matrix(wb):
+    """The BOM MATRIX tab: each part's quantity in each assembly (the header row names the assemblies, the Part Number column names the
+    parts). A '-' or a blank is no quantity, read as 0. Returns the assemblies and the parts, in the tab's own order."""
+    if "BOM MATRIX" not in wb.sheetnames:
+        return None
+    rows = list(wb["BOM MATRIX"].iter_rows(max_col=12, values_only=True))
+    head = next((i for i, r in enumerate(rows) if r and str(r[0] or "").strip() == "Part Number"), None)
+    if head is None:
+        return None
+    header = list(rows[head])
+    total_col = header.index("Grand Total") if "Grand Total" in header else None
+    commodity_col = header.index("Commodity") if "Commodity" in header else None
+    stop = header.index("Grand Total") if total_col is not None else None
+    # Assemblies are the header cells between the Part Number and the first summary column (Grand Total or EAU)
+    assemblies = []
+    for i in range(1, stop if stop is not None else len(header)):
+        name = str(header[i] or "").strip()
+        if not name or name.startswith("EAU"):
+            break
+        assemblies.append((i, name))
+    parts = []
+    for r in rows[head + 1:]:
+        part = str(r[0] or "").strip() if r else ""
+        if not part:
+            continue
+        qty = {name: (_num(r[i]) or 0.0) for i, name in assemblies}
+        parts.append({
+            "part": part,
+            "quantities": qty,
+            "grand_total": _num(r[total_col]) if total_col is not None else None,
+            "commodity": str(r[commodity_col]).strip() if commodity_col is not None and r[commodity_col] else None,
+        })
+    return {"assemblies": [name for _, name in assemblies], "parts": parts}

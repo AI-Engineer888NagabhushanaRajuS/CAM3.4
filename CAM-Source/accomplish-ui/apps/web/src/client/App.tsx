@@ -59,6 +59,7 @@ import {
 } from '@phosphor-icons/react';
 import { RfqIntakeUploadModal } from './components/rfq/RfqIntakeUploadModal';
 import { RfqErpQuoteWinUploadModal } from './components/rfq/RfqErpQuoteWinUploadModal';
+import { ConflictPopup } from './components/execution/ConflictPopup';
 import { RfqIntakeProgressPanel, initialIntakeProgress, type IntakeProgressState } from './components/rfq/RfqIntakeProgressPanel';
 import { RfqVersionSelectModal } from './components/rfq/RfqVersionSelectModal';
 import type { RfqFileVersion } from './components/rfq/RfqVersionSelectModal';
@@ -546,6 +547,12 @@ export function App() {
       if (rfqId !== customRfqIdRef.current.trim()) { return false; }
       setRfqProgressLog(history);
       setAwaitingUpload(hitlRequired);
+      // A run paused after the price-source step (resolve_final_selection) reopens its popup after a reload; the live
+      // hitl:request event only fires once, when the gate is first reached.
+      const priceGateOpen = hitlRequired && history.some((h) => /resolve_final_selection$/i.test(h.skillCode ?? ''));
+      if (priceGateOpen && rfqId === customRfqIdRef.current.trim()) {
+        setHitlContext((prev) => prev ?? { rfqId, stage: 'resolve_final_selection', type: 'priceSourceReview' });
+      }
       if (typeof stage !== 'number') { return false; }
       const mapped = MACRO_CATEGORY_TO_STAGE[stage];
       if (mapped) { goToStage(getNextEnabledStage(mapped, manifestTreeRef.current)); }
@@ -678,6 +685,9 @@ export function App() {
   const [hitlActive, setHitlActive] = useState<boolean>(false);
 
   const [hitlContext, setHitlContext] = useState<HitlContext | null>(null);
+  // The price-source popup can be hidden without clearing the gate; the run stays paused until it is resolved.
+  const [conflictHidden, setConflictHidden] = useState(false);
+  useEffect(() => { setConflictHidden(false); }, [hitlContext?.rfqId, hitlContext?.type]);
   const [sharedRowData, setSharedRowData] = useState<Record<string, unknown>[]>([]);
   // Manual override for the HITL collapsed layout — lets the user toggle back to the
   // full 3-panel view (and re-collapse) without waiting for the backend's hitl:clear.
@@ -1183,6 +1193,12 @@ export function App() {
         </button>
       )}
 
+      <ConflictPopup
+        open={!conflictHidden && hitlContext?.type === 'priceSourceReview' && hitlContext.rfqId === customRfqId.trim()}
+        rfqId={customRfqId.trim()}
+        onResumed={() => setHitlContext(null)}
+        onClose={() => setConflictHidden(true)}
+      />
       <RfqIntakeUploadModal
         open={intakeModalOpen}
         rfqId={customRfqId}
