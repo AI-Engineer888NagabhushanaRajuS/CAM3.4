@@ -6,6 +6,7 @@ import { BrandMark } from '@/components/BrandMark';
 
 const NAV_ITEMS = [
   { to: '/organization', label: 'Organization Master', icon: Buildings },
+  { to: '/cam-masters', label: 'CAM Masters', icon: Buildings },
   { to: '/project', label: 'Project Master', icon: Kanban },
   { to: '/costing', label: 'Quote Master', icon: Calculator },
 ] as const;

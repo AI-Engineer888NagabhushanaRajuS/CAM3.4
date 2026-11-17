@@ -74,6 +74,12 @@ function sheetRowsWithHeaders(worksheet: XLSX.WorkSheet): { headers: string[]; d
   // trusting the declared range, or a sheet with 1 real row can come back
   // with hundreds of phantom trailing rows.
   if (hasSubTableMarker) {
+    // The header is the first row after the marker that has more than one filled cell: a blank separator row in between is skipped,
+    // not taken as the header (the CAM Masters workbook has one).
+    const headerIndex = rawRows.findIndex((row, i) => i > 0 && row.filter((cell) => String(cell).trim() !== '').length > 1);
+    if (headerIndex > 0) {
+      return { headers: rawRows[headerIndex].map((h) => String(h)), dataRows: rawRows.slice(headerIndex + 1).filter((row) => !isRowBlank(row)) };
+    }
     return { headers: rawRows[1].map((h) => String(h)), dataRows: rawRows.slice(2).filter((row) => !isRowBlank(row)) };
   }
   return { headers: rawRows[0].map((h) => String(h)), dataRows: rawRows.slice(1).filter((row) => !isRowBlank(row)) };

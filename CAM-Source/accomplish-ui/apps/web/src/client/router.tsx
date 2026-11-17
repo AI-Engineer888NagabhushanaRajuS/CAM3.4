@@ -3,6 +3,7 @@ import { HomePage } from './pages/Home';
 import ExecutionPage from './pages/Execution';
 import { LoginPage } from './pages/LoginPage';
 import { OrganizationPage } from './pages/admin/OrganizationPage';
+import { CamMastersPage } from './pages/admin/CamMastersPage';
 import { ProjectPage } from './pages/admin/ProjectPage';
 import { CostingPage } from './pages/admin/CostingPage';
 import { RouteErrorFallback } from './components/ui/RouteErrorFallback';
@@ -70,6 +71,7 @@ export const router = createHashRouter([
     loader: requireAdmin,
     children: [
       { path: 'organization', Component: OrganizationPage },
+      { path: 'cam-masters', Component: CamMastersPage },
       { path: 'project', Component: ProjectPage },
       { path: 'costing', Component: CostingPage },
       { path: '*', element: <Navigate to="/organization" replace /> },
