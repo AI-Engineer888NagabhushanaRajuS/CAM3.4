@@ -1,0 +1,15 @@
+.git
+accomplish-ui
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/service_logs
+**/*.log
+testing
+docs
+# runtime data: mounted by docker-compose.yml at /app/database, never needed in the image
+database
+.run
+staged
+sample-inputs

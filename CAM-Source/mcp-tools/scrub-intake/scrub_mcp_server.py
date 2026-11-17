@@ -226,7 +226,10 @@ def standardize_scrub_bom(rfq_id, version=1) -> str:
         # succeeded). Re-pausing here on a no-op re-run would wrongly stall an
         # already-advancing pipeline right back at the start.
         already_processed = all(r.get("already_processed") for r in table_results.values())
-        if overall_status == "success" and not already_processed:
+        # Only halt when the QuoteWin is still missing. A QuoteWin uploaded with the BOM (the intake dialog sends them together)
+        # is already registered for this version, so the run goes straight on and nobody is asked for it again.
+        quotewin_registered = _fetch_file_path(session, rfq_id_str, version_int, "QUOTEWIN") is not None
+        if overall_status == "success" and not already_processed and not quotewin_registered:
             response["hitl"] = 1
 
         if overall_status == "success":

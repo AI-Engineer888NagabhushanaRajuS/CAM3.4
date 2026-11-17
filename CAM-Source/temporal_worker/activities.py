@@ -16,7 +16,7 @@ async def get_routing_sequence(rfq_id: str, profile_name: str) -> dict:
     """
     url = f"{config.FASTAPI_ROUTER_URL}/pipeline/routing-sequence/{rfq_id}/{profile_name}"
     async with httpx.AsyncClient() as client:
-        resp = await client.get(url, timeout=30.0)
+        resp = await client.get(url, timeout=120.0)
         resp.raise_for_status()
         body = resp.json()
         # The router reports lookup failures as HTTP 200 + {"error": ...}. Raise here so the

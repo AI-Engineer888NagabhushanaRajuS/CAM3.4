@@ -1,4 +1,5 @@
 import asyncio
+import io
 import threading
 import os
 import random
@@ -6,7 +7,7 @@ import json
 import zipfile
 import requests
 from typing import Optional
-from fastapi import Depends, FastAPI, UploadFile, File, Form, Header, HTTPException
+from fastapi import Depends, FastAPI, Path, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
@@ -370,7 +371,8 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
     }
 
 
-async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str]) -> None:
+async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forced: bool = False) -> int:
+    """Returns the number of cells still in error. A forced run ("Force Run Anyway") is let through with them; the count is kept on the run."""
     """SPEC-023: a BOM that would give NaN / errors in the output (or that the first step rejects) is refused HERE, before a
     version or a run exists, with every offending cell, instead of failing minutes later or finishing with NaN. Only for the
     SCRUB BOM pipeline (the default profile); another profile reads other files."""
@@ -378,7 +380,7 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str]) -> N
     import input_check
     chosen = profile if isinstance(profile, str) and profile else os.environ.get("CAM_DEFAULT_PROFILE", "Standard_BOM_Flow")
     if chosen != "Standard_BOM_Flow":
-        return
+        return 0
     ext = os.path.splitext(bom_file.filename or "")[1].lower()
     data = await bom_file.read()
     await bom_file.seek(0)
@@ -387,13 +389,186 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str]) -> N
         with open(path, "wb") as f:
             f.write(data)
         report = await asyncio.to_thread(input_check.check, path)
-    if not report["ok"]:
+    if not report["ok"] and not forced:
         raise HTTPException(status_code=422, detail={
             "code": "input_invalid",
             "message": f"The BOM was not accepted: {report['errors']} problem{'s' if report['errors'] != 1 else ''} would give NaN or errors in the output. Fix them and upload again.",
             "errors": report["errors"], "warnings": report["warnings"],
             "issues": [i for i in report["issues"] if i["severity"] == "error"][:30],
         })
+    return int(report["errors"]) if not report["ok"] else 0
+
+
+def _mark_forced_run(rfq_id: str, version: int, unresolved: int) -> None:
+    """A run started with "Force Run Anyway" keeps the count of cells it went ahead with, on its BOM row (execution_logs)."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE rfq_file_telemetry SET execution_logs = jsonb_build_object('forced_run', jsonb_build_object('unresolved_cells', %s, 'at', now()::text))
+                   WHERE rfq_id = %s AND version = %s AND file_role = 'BOM' AND is_active = TRUE;""",
+                (unresolved, rfq_id, version),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Staged inputs ──────────────────────────────────────────────────────────────
+# A QuoteWin or costing sheet dropped in the intake dialog is kept per RFQ until its BOM version exists. The BOM upload then attaches it to
+# that version (attach_staged_inputs) with the same checks as its own upload, so the run takes it from here and never asks again.
+STAGE_DIR = os.path.join(os.getcwd(), "staged", "rfq_inputs")
+STAGED_ROLES = {"quotewin": "QUOTEWIN", "costing": "COSTING_SHEET"}
+
+
+def _ensure_staging_schema() -> None:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS rfq_input_staging (
+                    rfq_id VARCHAR NOT NULL,
+                    role VARCHAR NOT NULL,
+                    file_name VARCHAR NOT NULL,
+                    saved_path VARCHAR NOT NULL,
+                    staged_at TIMESTAMP DEFAULT now(),
+                    PRIMARY KEY (rfq_id, role)
+                );
+            """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _staged_row(rfq_id: str, role: str):
+    """(file_name, saved_path, staged_at) of the input staged for this RFQ and role, or None."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT file_name, saved_path, staged_at FROM rfq_input_staging WHERE rfq_id = %s AND role = %s;", (rfq_id, role))
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def _unstage(rfq_id: str, role: str) -> None:
+    row = _staged_row(rfq_id, role)
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rfq_input_staging WHERE rfq_id = %s AND role = %s;", (rfq_id, role))
+        conn.commit()
+    finally:
+        conn.close()
+    if row:
+        try:
+            os.remove(row[1])
+        except OSError:
+            pass
+
+
+@app.post("/api/rfq/{rfq_id}/inputs/{role}")
+async def stage_input(rfq_id: str = Path(...), role: str = Path(...), file: UploadFile = File(...), token: dict = Depends(auth.verify_token)):
+    """Keeps a QuoteWin or costing sheet for this RFQ until its BOM is uploaded. Replaces the one staged before for the same role."""
+    if role not in STAGED_ROLES:
+        raise HTTPException(status_code=400, detail="Only 'quotewin' and 'costing' can be staged.")
+    rfq_id = (rfq_id or "").strip()
+    if not rfq_id:
+        raise HTTPException(status_code=400, detail="The RFQ ID cannot be blank.")
+    name = os.path.basename(file.filename or "")
+    ext = os.path.splitext(name)[1].replace(".", "").lower()
+    if not name or ext not in ALLOWED_FILE_TYPES:
+        raise HTTPException(status_code=415, detail={"message": f"Unsupported file type: .{ext}", "allowed_types": sorted(ALLOWED_FILE_TYPES)})
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="The file is empty.")
+    _ensure_staging_schema()
+    folder = os.path.join(STAGE_DIR, rfq_id, role)
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.normpath(os.path.join(folder, f"{random.randint(100000, 999999)}_{name}"))
+    with open(path, "wb") as fh:
+        fh.write(data)
+    previous = _staged_row(rfq_id, role)
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO rfq_input_staging (rfq_id, role, file_name, saved_path, staged_at)
+                VALUES (%s, %s, %s, %s, now())
+                ON CONFLICT (rfq_id, role) DO UPDATE SET file_name = EXCLUDED.file_name, saved_path = EXCLUDED.saved_path, staged_at = now();
+            """, (rfq_id, role, name, path))
+        conn.commit()
+    finally:
+        conn.close()
+    if previous and previous[1] != path:
+        try:
+            os.remove(previous[1])
+        except OSError:
+            pass
+    # Cognee keeps what went where, for the RFQ's memory (best effort: a memory failure never stops the staging).
+    rfq_memory_client.queue_attachment_ingestion(
+        rfq_id, f"input-{role}", name,
+        f"{STAGED_ROLES[role]} for RFQ {rfq_id}: {name}. Kept until the BOM is uploaded, then attached to that BOM version and used by the run.",
+    )
+    return {"success": True, "rfq_id": rfq_id, "role": role, "file_name": name}
+
+
+@app.get("/api/rfq/{rfq_id}/inputs")
+def list_staged_inputs(rfq_id: str, token: dict = Depends(auth.verify_token)):
+    """Which inputs are kept for this RFQ, by role (the intake buckets read this)."""
+    _ensure_staging_schema()
+    staged = {}
+    for role in STAGED_ROLES:
+        row = _staged_row(rfq_id.strip(), role)
+        if row:
+            staged[role] = {"file_name": row[0], "staged_at": row[2].isoformat() if row[2] else None}
+    return {"rfq_id": rfq_id.strip(), "staged": staged}
+
+
+@app.delete("/api/rfq/{rfq_id}/inputs/{role}")
+def unstage_input(rfq_id: str, role: str, token: dict = Depends(auth.verify_token)):
+    if role not in STAGED_ROLES:
+        raise HTTPException(status_code=400, detail="Only 'quotewin' and 'costing' can be unstaged.")
+    _ensure_staging_schema()
+    _unstage(rfq_id.strip(), role)
+    return {"success": True, "rfq_id": rfq_id.strip(), "role": role}
+
+
+async def attach_staged_inputs(rfq_id: str, version: int) -> dict:
+    """Moves each staged input of this RFQ onto the version just created. A QuoteWin goes through the same match check as its own upload;
+    a refused one stays staged and is reported with its reason. Never raises: the BOM upload itself must not fail because of these."""
+    report = {}
+    try:
+        _ensure_staging_schema()
+    except Exception as e:
+        print(f"[STAGED INPUTS] schema unavailable: {e}")
+        return report
+    for role, label in STAGED_ROLES.items():
+        try:
+            row = _staged_row(rfq_id, role)
+        except Exception as e:
+            report[role] = {"attached": False, "reason": str(e)}
+            continue
+        if not row:
+            continue
+        file_name, path, _ = row
+        try:
+            with open(path, "rb") as fh:
+                data = fh.read()
+            match = None
+            if role == "quotewin":
+                match = await _quotewin_match(rfq_id, version, UploadFile(filename=file_name, file=io.BytesIO(data)))
+            saved = await process_file_upload(rfq_id, UploadFile(filename=file_name, file=io.BytesIO(data)), label, version=version)
+            _unstage(rfq_id, role)
+            report[role] = {"attached": True, "file_name": file_name, "saved_path": saved, "match": match}
+        except HTTPException as e:
+            # Refused by its own check (for example a QuoteWin of another BOM): it is not kept in the bucket any more, so the bucket
+            # shows what the run really has. The reason goes back to the dialog.
+            _unstage(rfq_id, role)
+            report[role] = {"attached": False, "file_name": file_name, "reason": e.detail}
+        except Exception as e:
+            report[role] = {"attached": False, "file_name": file_name, "reason": str(e)}
+    return report
 
 
 async def _quotewin_match(rfq_id: str, version: int, quotewin_file: UploadFile) -> dict:
@@ -441,11 +616,14 @@ async def upload_rfq_file(
     rfq_id: str = Form(...),
     # Optional routing profile for this run; omitted = CAM_DEFAULT_PROFILE (Standard_BOM_Flow unless set).
     profile: Optional[str] = Form(None),
+    # "Force Run Anyway": the run goes ahead with the cells the pre-check flags; they are recorded on the run (see _mark_forced_run).
+    force_run: Optional[str] = Form(None),
     token: dict = Depends(auth.verify_token_form),
     x_cam_user: Optional[str] = Header(None),
     x_cam_user_email: Optional[str] = Header(None),
 ):
-    await _refuse_invalid_bom(bom_file, profile)
+    forced = (force_run or "").strip().lower() in ("1", "true", "yes")
+    unresolved = await _refuse_invalid_bom(bom_file, profile, forced)
     # The SCRUB BOM pipeline (default profile) takes its volumes from the workbook's own Settings sheet and never reads this file;
     # RFQ_Flow's import_bom does need it. So it is optional for the default profile only.
     has_volume = volume_file is not None and bool(volume_file.filename)
@@ -523,11 +701,16 @@ async def upload_rfq_file(
         # a file_role='VOLUME' row in rfq_file_telemetry to exist alongside
         # the BOM row before it can run; there is no graceful-skip for it.
         file_path = await process_file_upload(rfq_id, bom_file, "BOM", version=new_version)
+        if forced and unresolved:
+            _mark_forced_run(rfq_id, new_version, unresolved)
         saved_paths = {"BOM": file_path}
         if has_volume:
             saved_paths["VOLUME"] = await process_file_upload(rfq_id, volume_file, "VOLUME", version=new_version)
         if gerber_file is not None and gerber_file.filename:
             saved_paths["GERBER_ZIP"] = await process_file_upload(rfq_id, gerber_file, "GERBER_ZIP", version=new_version)
+
+        # QuoteWin / costing sheet dropped in the intake before the BOM: attached to this version now, so the run never asks for them again.
+        staged_inputs = await attach_staged_inputs(rfq_id, new_version)
 
         # Trigger Dify workflow
         # Off the event loop: see start_dify_workflow.
@@ -538,6 +721,7 @@ async def upload_rfq_file(
             "rfq_id": rfq_id,
             "version": new_version,
             "saved_paths": saved_paths,
+            "staged_inputs": staged_inputs,
             "telemetry": {
                 "rfq_process_stage": "0 (STAGED_INTAKE)",
                 "dify_pipeline_status": dify_status

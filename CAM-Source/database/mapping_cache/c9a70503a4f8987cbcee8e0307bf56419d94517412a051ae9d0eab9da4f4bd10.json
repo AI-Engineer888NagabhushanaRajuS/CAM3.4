@@ -1,0 +1,22 @@
+{
+    "fg": "FG",
+    "level": "Level",
+    "assembly": "Assembly",
+    "cpn": "CPN",
+    "description": "Description",
+    "manufacturer": "MFR",
+    "mpn": "MPN",
+    "commodity": "Commodity",
+    "quantity": "Quantity",
+    "unit_of_measure": "UOM",
+    "part_status": "Part Status",
+    "ce_remarks": "CE Remarks",
+    "drawing_reference": "Drawing Reference",
+    "designators": "Reference Designators",
+    "item_number": "Item #",
+    "part_type": "Part Type",
+    "ltb_date": "LTB Date",
+    "common_aml": "Common (AML)",
+    "change_remarks": "Change Remarks",
+    "inventory_stock": "Inventory Stock"
+}

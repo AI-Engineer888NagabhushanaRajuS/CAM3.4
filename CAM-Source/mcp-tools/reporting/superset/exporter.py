@@ -374,6 +374,12 @@ def export_excel(rfq_id):
             )
             if has_number:
                 dim.width = 15
+    # The Run Inputs tab: which inputs this report was built from. A missing required input (run allowed to proceed with missing values)
+    # is shown red here, so the workbook never reads as complete when it is not.
+    from reports.run_inputs import build_run_inputs_sheet, run_input_rows, has_missing_required
+    run_inputs = run_input_rows(bom_rows=len(scrub_df), quotewin_rows=len(quote_df))
+    build_run_inputs_sheet(wb, run_inputs)
+    worksheet_names.append("Run Inputs")
     from reports.presentation import style_workbook
     style_workbook(wb)   # every tab: centred headers, aligned numbers and text (values and formulas unchanged)
     wb.save(path)
@@ -388,6 +394,7 @@ def export_excel(rfq_id):
         "workbook_path": path,
         "worksheet_count": len(worksheet_names),
         "worksheet_names": worksheet_names,
+        "missing_required_inputs": has_missing_required(run_inputs),
         # What the workbook is made of, so the UI can say "0 of 502 rows priced" instead of a green tick (RFQ-000024).
         "cbom_row_count": int(len(cbom_df)),
         "priced_row_count": int(cbom_df["final_price_conv"].notna().sum()) if "final_price_conv" in cbom_df.columns else 0,

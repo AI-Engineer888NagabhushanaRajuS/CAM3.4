@@ -7,10 +7,12 @@ import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
 import { intakeReadiness, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
 import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
+import { stageInput } from '@/lib/intakeInputs';
 import { IntakeDashboard } from './IntakeDashboard';
+import { InputBuckets, type Assignment } from './InputBuckets';
 import { PerimeterSteps, type Phase } from './PerimeterSteps';
 import { ScanProgress } from './ScanProgress';
-import { InputFixDialog } from './InputFixDialog';
+import { WorkbookEditor } from './WorkbookEditor';
 import { ScanResults } from './ScanResults';
 
 interface AttachFilesDialogProps {
@@ -44,6 +46,8 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const [wave, setWave] = useState({ n: 1, of: 1 });
   const [failure, setFailure] = useState<WaveOutcome['failure']>(null);
   const [fixTarget, setFixTarget] = useState<{ attachmentId: string; name: string } | null>(null);
+  const [assignment, setAssignment] = useState<Assignment>({});
+  const [kept, setKept] = useState<{ names: string[]; failed: string[] } | null>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -70,6 +74,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
       const out = await scanInWaves(rfqId, picked, { signal: controller.signal, onWave: (n, of) => setWave({ n, of }) });
       if (out.response?.results.some((r) => r.decision === 'released')) onReleased();
       if (out.failure && !out.response) throw new Error(out.failure.message);
+      if (out.response) setKept(await keepReleasedInputs(out.response));
       setResponse(out.response);
       setFailure(out.failure);
       setPhase('result');
@@ -79,6 +84,54 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
       setPhase('review');
     } finally {
       abort.current = null;
+    }
+  };
+
+  /**
+   * A released QuoteWin or costing sheet (by its bucket, or by the role the scan gave it) is kept for the RFQ on the server, so the run
+   * attaches it to its BOM and never asks for it again. Only released files are kept: a held file never reaches the RFQ.
+   */
+  const keepReleasedInputs = async (resp: ScanResponse): Promise<{ names: string[]; failed: string[] }> => {
+    const names: string[] = [];
+    const failed: string[] = [];
+    for (const r of resp.results) {
+      if (r.decision !== 'released') continue;
+      const key = assignment[r.name];
+      if (key !== 'quotewin' && key !== 'costing') continue;
+      const file = picked.find((f) => f.name === r.name);
+      if (!file) continue;
+      try {
+        await stageInput(rfqId, key, file);
+        names.push(r.name);
+      } catch (err) {
+        failed.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+    return { names, failed };
+  };
+
+  // Files Repel Shield warned about (ClamAV clean): held until the user decides. Shown with their flags, never removed by us.
+  const warned = response?.results.filter((r) => r.decision === 'quarantined' && r.clamav.verdict === 'clean' && r.repel.verdict === 'threat') ?? [];
+
+  /** "Run anyway": scans only the warned files again, with their hashes marked as accepted; ClamAV still decides virus hits. */
+  const acceptAndRun = async () => {
+    const chosen = picked.filter((f) => warned.some((w) => w.name === f.name));
+    const digests = warned.map((w) => w.sha256.slice(0, 12));
+    setError(null);
+    setPhase('scanning');
+    setWave({ n: 1, of: 1 });
+    try {
+      const out = await scanInWaves(rfqId, chosen, { acceptRisk: digests, onWave: (n, of) => setWave({ n, of }) });
+      if (out.response) {
+        setKept(await keepReleasedInputs(out.response));
+        const fresh = new Map(out.response.results.map((r) => [r.name, r]));
+        setResponse((prev) => prev && { ...prev, results: prev.results.map((r) => fresh.get(r.name) ?? r) });
+        if (out.response.results.some((r) => r.decision === 'released')) onReleased();
+      }
+      setPhase('result');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The scan failed');
+      setPhase('result');
     }
   };
 
@@ -109,7 +162,8 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+    <>
+    <Dialog open={open && !fixTarget} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -131,6 +185,11 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
             </p>
           )}
           <IntakeDashboard files={files} alreadyAttached={attached.current} onChange={setPicked} onReady={(u) => { uppy.current = u; }} />
+          <InputBuckets
+            names={picked.map((f) => f.name)}
+            assignment={assignment}
+            onAssign={(name, key) => setAssignment((a) => ({ ...a, [name]: key }))}
+          />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{picked.length} selected{triage.rejected.length > 0 && ` · ${triage.rejected.length} rejected`}{waves > 1 && ` · sent in ${waves} waves`}</span>
             <button type="button" className="hover:text-foreground" onClick={() => uppy.current?.cancelAll()}>Remove all</button>
@@ -153,6 +212,30 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
         )}
 
         {phase === 'result' && response && <ScanResults response={response} />}
+        {phase === 'result' && warned.length > 0 && (
+          <section role="alert" aria-label="Security flags" data-testid="security-flags" className="space-y-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-foreground">
+            <p className="flex items-center gap-2 font-semibold">
+              <WarningCircle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+              Security flags on {warned.length} {warned.length === 1 ? 'file' : 'files'}: not released yet
+            </p>
+            <ul className="space-y-1 pl-6">
+              {warned.map((w) => (
+                <li key={w.sha256}>
+                  <span className="font-medium">{w.name}</span>: {(w.repel.flags ?? []).join(', ') || w.repel.detail}
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground">Nothing is removed from these files. Fix them yourself and attach the fixed copy, or run anyway if you accept the risk.</p>
+            <Button variant="outline" onClick={() => void acceptAndRun()} data-testid="accept-risk-run">Run anyway: I accept the risk</Button>
+          </section>
+        )}
+
+        {phase === 'result' && kept && (kept.names.length > 0 || kept.failed.length > 0) && (
+          <div role="status" className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-foreground" data-testid="kept-inputs">
+            {kept.names.length > 0 && <p>Kept for this RFQ, to attach to its BOM: {kept.names.join(', ')}.</p>}
+            {kept.failed.map((m) => <p key={m} className="text-destructive">{m}</p>)}
+          </div>
+        )}
         {phase === 'result' && readiness && (
           <p role="note" className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-foreground" data-testid="intake-readiness">
             <RocketLaunch className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
@@ -163,22 +246,6 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
           <Button variant="outline" onClick={() => setFixTarget({ attachmentId: readiness.fix!.attachmentId, name: readiness.fix!.name })} className="w-fit">
             Fix {readiness.fix.errors} {readiness.fix.errors === 1 ? 'cell' : 'cells'} in {readiness.fix.name}
           </Button>
-        )}
-        {phase === 'result' && fixTarget && (
-          <InputFixDialog
-            open
-            scope={rfqId}
-            attachmentId={fixTarget.attachmentId}
-            name={fixTarget.name}
-            onClose={() => setFixTarget(null)}
-            onFixed={(fixed, previousId) => {
-              // the corrected copy replaced the original: the result row and the readiness follow it
-              setResponse((r) => r && ({ ...r, results: r.results.map((x) => (x.attachment_id === previousId
-                ? { ...x, attachment_id: fixed.attachment_id, name: fixed.name, sha256: fixed.sha256, check: fixed.check }
-                : x)) }));
-              onReleased();
-            }}
-          />
         )}
         {phase === 'result' && failure && (
           <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-foreground">
@@ -207,5 +274,24 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
         </DialogFooter>
       </DialogContent>
     </Dialog>
+      {phase === 'result' && fixTarget && (
+          // The whole workbook, full screen: the flagged cells in red, editable like a spreadsheet, and Force Run Anyway below it.
+          <WorkbookEditor
+            open
+            rfqId={rfqId}
+            attachmentId={fixTarget.attachmentId}
+            name={fixTarget.name}
+            onClose={() => setFixTarget(null)}
+            onFixed={(fixed, previousId) => {
+              // the corrected copy replaced the original: the result row and the readiness follow it
+              setResponse((r) => r && ({ ...r, results: r.results.map((x) => (x.attachment_id === previousId
+                ? { ...x, attachment_id: fixed.attachment_id, name: fixed.name, sha256: fixed.sha256, check: fixed.check }
+                : x)) }));
+              onReleased();
+            }}
+            onForced={(unresolved) => setKept({ names: [], failed: [`The run was started with ${unresolved} cell${unresolved === 1 ? '' : 's'} left as they are; the output is marked as a forced run.`] })}
+          />
+        )}
+    </>
   );
 }

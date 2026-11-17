@@ -210,9 +210,14 @@ async function failure(res: Response): Promise<Error> {
 }
 
 /** Uploads the files to quarantine and scans each with both engines. Nothing is released unless both say clean. */
-export async function scanFiles(rfqId: string, files: File[], signal?: AbortSignal): Promise<ScanResponse> {
+/**
+ * acceptRisk: sha256 prefixes of files the user chose to release despite a Repel Shield warning (ClamAV must be clean; the server
+ * enforces that and records the acceptance in the audit log).
+ */
+export async function scanFiles(rfqId: string, files: File[], signal?: AbortSignal, acceptRisk: string[] = []): Promise<ScanResponse> {
   const body = new FormData();
   for (const f of files) body.append('files', f, f.name);
+  if (acceptRisk.length) body.append('accept_risk', acceptRisk.join(','));
   const res = await authFetch(`${base(rfqId)}/scan`, rfqId, { method: 'POST', body, signal });
   if (!res.ok) throw await failure(res);
   return (await res.json()) as ScanResponse;

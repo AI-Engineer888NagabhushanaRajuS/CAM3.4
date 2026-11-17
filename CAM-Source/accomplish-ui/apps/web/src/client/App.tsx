@@ -853,6 +853,8 @@ export function App() {
               // RfqErpQuoteWinUploadModal's own upload success handler calls
               // GET /api/dify/start/{rfqId} to resume it.
               logger.info('Intake HITL received — awaiting QuoteWin/Costing Sheet upload before resuming', { rfqId: payload.rfqId });
+              // Staged QuoteWin / costing sheets are attached by the server when the BOM was uploaded, so this halt only happens when none was
+              // staged: then the run waits here for the ERP stage's upload, as before.
               // Only patch the progress panel if this event is actually for
               // the RFQ ID currently shown -- guards against a stale event
               // landing after the user has already typed a different ID.

@@ -9,11 +9,11 @@ import { AboutTab } from '@/components/settings/AboutTab';
 import { PRODUCT_VERSION } from '@/lib/productVersion';
 
 describe('AboutTab', () => {
-  it('shows CAM 3.4 for Centum and the product version, never 3.2', () => {
+  it('shows CAM4 for Centum and the product version, never 3.2', () => {
     render(<AboutTab appVersion="" />);
-    expect(screen.getByText('CAM 3.4 (for Centum)')).toBeInTheDocument();
+    expect(screen.getByText('CAM4 (for Centum)')).toBeInTheDocument();
     expect(screen.getByText(PRODUCT_VERSION)).toBeInTheDocument();
-    expect(PRODUCT_VERSION).toBe('3.4');
+    expect(PRODUCT_VERSION).toBe('4');
     expect(screen.queryByText('3.2')).not.toBeInTheDocument();
   });
 

@@ -201,6 +201,8 @@ def release_gate(result: dict) -> tuple[bool, list]:
         reasons.append("report validation did not run")
     if not engine_ok:
         reasons.append(f"engine check {engine.get('status')}: complete={engine.get('complete')}")
+    if result.get("missing_required_inputs"):
+        reasons.append("a required input is missing (see the Run Inputs tab): the run went ahead with missing values")
     return (not reasons), reasons
 
 

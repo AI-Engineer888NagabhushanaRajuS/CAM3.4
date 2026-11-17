@@ -1,6 +1,6 @@
 import json
 
-import ollama
+import llm_mapping
 import pandas as pd
 
 
@@ -69,7 +69,7 @@ Example:
 }}
 """
 
-    response = ollama.chat(
+    response = llm_mapping.chat(
         model="qwen2.5-coder:7b",
         messages=[
             {
@@ -81,7 +81,8 @@ Example:
                 "content": user_prompt
             }
         ],
-        format="json"
+        format="json",
+        required=("mpn", "mfr", "quantity", "uom", "last_purchase_price", "currency", "in_stock_qty", "reserved_qty", "available_qty"),
     )
 
     mapping = json.loads(

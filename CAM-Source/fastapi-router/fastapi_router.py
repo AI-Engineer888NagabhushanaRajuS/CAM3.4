@@ -95,6 +95,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.on_event("startup")
+async def _widen_thread_pool() -> None:
+    # The pipeline endpoints are plain `def` handlers. They wait on the shared DuckDB lock, so with many runs at once the default
+    # 40-thread pool fills with waiting requests and the quick routing lookups time out behind them. A larger pool keeps them answering.
+    import anyio
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 200
+
 # Routing-sequence lookups below build their SQL as a raw string forwarded to
 # the postgres-mcp tool (see call_tool in tool_calling.py), which takes only a
 # "sql" string with no parameter-binding support -- so untrusted path

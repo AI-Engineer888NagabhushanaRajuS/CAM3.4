@@ -29,8 +29,10 @@ async def main():
         task_queue=config.TASK_QUEUE,
         workflows=[RFQWorkflow],
         activities=[activities.get_routing_sequence, activities.execute_tool],
+        max_concurrent_activities=config.MAX_CONCURRENT_ACTIVITIES,
     )
     print(f"[Temporal Worker] Connected to {config.TEMPORAL_HOST}", flush=True)
+    print(f"[Temporal Worker] At most {config.MAX_CONCURRENT_ACTIVITIES} tool calls at a time", flush=True)
     print(f"[Temporal Worker] Listening on task queue '{config.TASK_QUEUE}'", flush=True)
     await worker.run()
 

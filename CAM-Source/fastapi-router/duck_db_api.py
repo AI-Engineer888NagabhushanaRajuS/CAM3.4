@@ -1416,7 +1416,7 @@ def chat_evidence(rfq_id: str, body: ChatEvidenceRequest, token: dict = Depends(
 import functools
 import shutil
 import tempfile
-from fastapi import File, Request, UploadFile
+from fastapi import File, Form, Request, UploadFile
 
 ATTACHMENT_INBOX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "staged", "inbox")
 MAX_ATTACHMENT_FILES = 10
@@ -1511,7 +1511,7 @@ def _queue_attachment_memory(rfq_id: str, attachment_id: str, name: str, path: s
 
 @app.post("/api/rfq/{rfq_id}/attachments/scan")
 def scan_attachments(rfq_id: str, request: Request, files: list[UploadFile] = File(...),
-                     token: dict = Depends(auth.verify_token)):
+                     accept_risk: Optional[str] = Form(None), token: dict = Depends(auth.verify_token)):
     """Scan files attached in the RFQ assistant with BOTH engines (BuLL*Sav ClamAV + Repel Shield). Released only
     when both say clean; a threat is quarantined (deleted), an engine error holds the file (deleted, not released)."""
     import scan_engines
@@ -1544,7 +1544,8 @@ def scan_attachments(rfq_id: str, request: Request, files: list[UploadFile] = Fi
             items.append((qpath, upload.filename or name))
 
         results = []
-        for (qpath, original), result in zip(items, scan_engines.scan_files(items)):
+        accepted = {a.strip().lower() for a in (accept_risk or "").split(",") if a.strip()}
+        for (qpath, original), result in zip(items, scan_engines.scan_files(items, accepted)):
             result["attachment_id"] = None
             if result["decision"] == "released":
                 os.makedirs(folder, exist_ok=True)

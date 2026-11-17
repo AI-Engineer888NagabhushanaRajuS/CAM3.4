@@ -390,8 +390,9 @@ def _decide(clam, repel):
     return "released", "Clean on both engines"
 
 
-def scan_files(items):
-    """items: [(path, original_name)] -> one result per item, in order (one clamscan run for the batch)."""
+def scan_files(items, accepted=frozenset()):
+    """items: [(path, original_name)] -> one result per item, in order (one clamscan run for the batch).
+    accepted: sha256 prefixes the user chose to release despite a Repel Shield warning. Never overrides a ClamAV virus hit or an engine error."""
     started = time.monotonic()
     clam = clamav_scan([p for p, _ in items])
     clam_ms = (time.monotonic() - started) * 1000
@@ -400,7 +401,12 @@ def scan_files(items):
         t = time.monotonic()
         repel = repel_scan(path, name)
         decision, reason = _decide(clam[path], repel)
-        results.append({"name": safe_name(name), "size": os.path.getsize(path), "sha256": sha256_of(path),
+        digest = sha256_of(path)
+        risk_accepted = False
+        if decision == "quarantined" and clam[path]["verdict"] == "clean" and repel["verdict"] == "threat" and digest[:12] in accepted:
+            decision, risk_accepted = "released", True
+            reason = f"Released on the user's accepted risk: {REPEL_LABEL}: {', '.join(repel['flags'])}"
+        results.append({"name": safe_name(name), "size": os.path.getsize(path), "sha256": digest, "risk_accepted": risk_accepted,
                         "ext": os.path.splitext(safe_name(name))[1].lower(), "clamav": clam[path], "repel": repel,
                         "decision": decision, "reason": reason,
                         "ms": round(clam_ms / max(len(items), 1) + (time.monotonic() - t) * 1000)})

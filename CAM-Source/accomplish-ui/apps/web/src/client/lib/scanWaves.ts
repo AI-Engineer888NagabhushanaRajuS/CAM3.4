@@ -12,14 +12,14 @@ export interface WaveOutcome {
 export async function scanInWaves(
   rfqId: string,
   files: File[],
-  opts: { signal?: AbortSignal; onWave?: (wave: number, waves: number) => void } = {},
+  opts: { signal?: AbortSignal; onWave?: (wave: number, waves: number) => void; acceptRisk?: string[] } = {},
 ): Promise<WaveOutcome> {
   const { waves } = planWaves(files);
   let response: ScanResponse | null = null;
   for (let i = 0; i < waves.length; i++) {
     opts.onWave?.(i + 1, waves.length);
     try {
-      const out = await scanFiles(rfqId, waves[i], opts.signal);
+      const out = await scanFiles(rfqId, waves[i], opts.signal, opts.acceptRisk ?? []);
       response = response ? { ...out, results: [...response.results, ...out.results] } : out;
     } catch (err) {
       if (opts.signal?.aborted) throw err;
