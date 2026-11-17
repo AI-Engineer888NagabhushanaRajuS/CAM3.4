@@ -17,9 +17,13 @@ import asyncio
 import logging
 import os
 import time
+import uuid
+from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
+import httpx
 
 # config MUST be imported before cognee -- it sets cognee's LLM/embedding/
 # access-control env vars at import time (ENABLE_BACKEND_ACCESS_CONTROL
@@ -256,7 +260,167 @@ _DISPATCH = {
 }
 
 
+BATCH_ROWS = max(1, int(os.environ.get("RFQ_MEMORY_BATCH_ROWS") or 25))
+DAEMON_URL = os.environ.get("CAM_DAEMON_URL", "http://host.docker.internal:9334").rstrip("/")
+OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+
+
+FALLBACK_MODEL = os.environ.get("RFQ_MEMORY_FALLBACK_MODEL", "anthropic/claude-haiku-5.5")
+# Models that answered the graph extraction as text, not as Cognee's structure. Remembered for the life of the process.
+_BAD_MODELS: set[str] = set()
+
+
+def _set_cloud(model: str) -> None:
+    cognee.config.set_llm_provider("openai")
+    cognee.config.set_llm_model(f"openai/{model}")
+    cognee.config.set_llm_endpoint(OPENROUTER_BASE)
+    cognee.config.set_llm_api_key(OPENROUTER_KEY)
+
+
+def _use_client_llm() -> str:
+    """Points Cognee's extraction at the model the client chose in the daemon (cloud, through OpenRouter), or at the Ollama
+    default when no cloud choice exists. Called under COGNIFY_LOCK: one job at a time, so the setting is never shared mid-job.
+    Embeddings stay on Ollama either way (OpenRouter has no embeddings endpoint)."""
+    choice = {"provider": "ollama", "model": None}
+    try:
+        choice = httpx.get(f"{DAEMON_URL}/api/internal/memory-provider", timeout=3).json()
+    except Exception as e:
+        logger.warning("[MEMORY LLM] client choice unavailable, using the Ollama default: %s", e)
+    if choice.get("provider") == "openrouter" and choice.get("model") and OPENROUTER_KEY:
+        if choice["model"] in _BAD_MODELS:
+            # Already known not to produce the graph structure: go straight to the fallback, no retry loop per job.
+            _set_cloud(FALLBACK_MODEL)
+            return f"openrouter:{FALLBACK_MODEL} (client model {choice['model']} does not extract graphs)"
+        _set_cloud(choice["model"])
+        return f"openrouter:{choice['model']}"
+    cognee.config.set_llm_provider(config.LLM_PROVIDER)
+    cognee.config.set_llm_model(config.LLM_MODEL)
+    cognee.config.set_llm_endpoint(config.LLM_ENDPOINT)
+    cognee.config.set_llm_api_key(config.LLM_API_KEY)
+    return f"ollama:{config.LLM_MODEL}"
+
+
+def _batched(items: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
+    """Groups rows into documents of BATCH_ROWS. Cognee runs one LLM extraction per document: a 500-row CBOM as 500
+    documents took hours on the local model. The citation of a group names its rows (row ids, in order) and its first and
+    last label, so each citation still points at the real rows it was built from."""
+    out = []
+    for start in range(0, len(items), BATCH_ROWS):
+        group = items[start:start + BATCH_ROWS]
+        first, last = group[0][1], group[-1][1]
+        # Each row keeps its own identity: the first identifier value of every row, in order (cbom_item_id, row number, ...).
+        row_keys = ",".join(next((str(v) for v in c.get("identifier", {}).values()), "") for _, c in group)
+        citation = {
+            "sourceType": first["sourceType"],
+            "identifier": {"rfq_id": str(first.get("identifier", {}).get("rfq_id", "")), "rows": len(group), "row_keys": row_keys[:900]},
+            "label": f"{first['label']} to {last['label']} ({len(group)} rows)" if len(group) > 1 else first["label"],
+        }
+        out.append(("\n".join(text for text, _ in group), citation))
+    return out
+
+
+async def _cognify_with_fallback(dataset_name: str) -> str:
+    """Cognifies one dataset with the client's model. A model that answers the graph extraction as text instead of Cognee's
+    structure is remembered (_BAD_MODELS) and the work is retried once on the fallback; a local model, or a fallback that fails
+    too, is a real error. Returns the label of the model that finished."""
+    llm = _use_client_llm()
+    try:
+        await cognee.cognify(datasets=[dataset_name])
+        return llm
+    except Exception as first:
+        failed_model = llm.split(":", 1)[1].split(" ")[0] if llm.startswith("openrouter:") else ""
+        if not failed_model or failed_model == FALLBACK_MODEL:
+            raise
+        # Only a model that answered in the wrong shape is remembered. A rate limit or a timeout is transient: this job still
+        # finishes on the fallback, but the client's model is tried again next time.
+        structural = "ValidationError" in type(first).__name__ or "valid array" in str(first) or "validation error" in str(first).lower()
+        if structural and failed_model not in _BAD_MODELS:
+            logger.warning("[MEMORY LLM] %s answered the graph extraction in the wrong shape (%s); remembering it", llm, first)
+            _BAD_MODELS.add(failed_model)
+        else:
+            logger.warning("[MEMORY LLM] %s failed this job (%s); finishing it on %s", llm, first, FALLBACK_MODEL)
+        _set_cloud(FALLBACK_MODEL)
+        await cognee.cognify(datasets=[dataset_name])
+        return f"openrouter:{FALLBACK_MODEL} (after {failed_model} failed)"
+
+
+RECENT_JOBS: deque = deque(maxlen=50)
+
+
+def _emit(job: dict) -> None:
+    """Publishes one job's state to the daemon (it broadcasts memory:job to the open admin pages) and keeps it for the status
+    endpoint. Best effort: a missing daemon never fails an ingest."""
+    # One entry per job: the end state replaces the running one, so the status list never shows both.
+    for i, existing in enumerate(RECENT_JOBS):
+        if existing.get("jobId") == job.get("jobId"):
+            RECENT_JOBS[i] = job
+            break
+    else:
+        RECENT_JOBS.appendleft(job)
+    try:
+        httpx.post(f"{DAEMON_URL}/api/internal/emit-memory-event", json=job, timeout=2)
+    except Exception as e:
+        logger.info("[MEMORY EVENT] not delivered: %s", e)
+
+
 async def ingest_stage(rfq_id: str, version: int, source: str, tool_result: dict | None = None) -> dict:
+    """One Cognee write, reported as it runs: a running entry when it starts, the outcome when it ends."""
+    job = {"jobId": uuid.uuid4().hex, "rfqId": rfq_id, "version": version, "source": source, "state": "running", "startedAt": _now()}
+    _emit(job)
+    result = await _ingest_stage_inner(rfq_id, version, source, tool_result)
+    job = {**job, "state": result.get("status", "error"), "finishedAt": _now(), "items": result.get("items"), "llm": result.get("llm")}
+    _emit(job)
+    return result
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+ADMIN_DATASET = "rfq_ADMIN-MASTERS"
+ADMIN_TAG = "admin-masters"
+
+
+async def ingest_admin_masters(sheets: list[dict]) -> dict:
+    """The company masters (Organisation, Project, CAM Masters, Quote): one document per row group of each tab, in the
+    ADMIN_DATASET with the ADMIN_TAG node set. Rows come from the browser, which parses the shipped workbooks; a row is
+    cited by its master, tab and row number."""
+    job = {"jobId": uuid.uuid4().hex, "rfqId": "ADMIN-MASTERS", "version": 0, "source": "admin_masters", "state": "running", "startedAt": _now()}
+    _emit(job)
+    items: list[tuple[str, dict]] = []
+    for sheet in sheets:
+        master, tab = str(sheet["master"]), str(sheet["tab"])
+        columns = [str(c) for c in sheet["columns"]]
+        for n, row in enumerate(sheet["rows"], start=1):
+            fields = [f"{col}: {val}" for col, val in zip(columns, row) if val not in (None, "")]
+            if not fields:
+                continue
+            items.append((
+                f"{master} · {tab}, row {n}: " + "; ".join(fields),
+                {"sourceType": "admin_master", "identifier": {"master": master, "tab": tab, "row": n}, "label": f"{master} · {tab}, row {n}"},
+            ))
+    if not items:
+        job = {**job, "state": "empty", "finishedAt": _now(), "items": 0}
+        _emit(job)
+        return {"status": "empty", "items": 0}
+    try:
+        groups = _batched(items)
+        async with COGNIFY_LOCK:
+            for body, citation in groups:
+                await cognee.add(data=body, dataset_name=ADMIN_DATASET, node_set=[ADMIN_TAG])
+                citation_store.store_citation(body, ADMIN_DATASET, citation)
+            llm = await _cognify_with_fallback(ADMIN_DATASET)
+        result = {"status": "ok", "items": len(items), "documents": len(groups), "llm": llm}
+    except Exception:
+        logger.exception("[MEMORY MASTERS ERROR] %d rows", len(items))
+        result = {"status": "error", "items": len(items)}
+    job = {**job, "state": result["status"], "finishedAt": _now(), "items": len(items), "llm": result.get("llm")}
+    _emit(job)
+    return result
+
+
+async def _ingest_stage_inner(rfq_id: str, version: int, source: str, tool_result: dict | None = None) -> dict:
     """The single entrypoint every trigger site calls (via the /internal/
     memory/ingest HTTP route). Re-validates the carried version is STILL
     the active one immediately before the Cognee write (plan §0.A) -- a
@@ -281,6 +445,7 @@ async def ingest_stage(rfq_id: str, version: int, source: str, tool_result: dict
         if not items:
             logger.info("[MEMORY INGEST] rfq_id=%s source=%s: builder returned no content", rfq_id, source)
             return {"status": "empty"}
+        items = _batched(items)
 
         # Second, authoritative check: immediately before the actual Cognee
         # write. This is the check that closes the real race (plan §0.A) --
@@ -310,13 +475,13 @@ async def ingest_stage(rfq_id: str, version: int, source: str, tool_result: dict
                 # from the real row this text was built from -- never
                 # reconstructed or guessed at retrieval time.
                 citation_store.store_citation(text, rfq_id, citation)
-            await cognee.cognify(datasets=[dataset_name])
+            llm = await _cognify_with_fallback(dataset_name)
 
         logger.info(
-            "[MEMORY INGEST] rfq_id=%s version=%s source=%s: %d item(s) added+cognified",
-            rfq_id, version, source, len(items),
+            "[MEMORY INGEST] rfq_id=%s version=%s source=%s: %d document(s) added+cognified with %s",
+            rfq_id, version, source, len(items), llm,
         )
-        return {"status": "ok", "items": len(items)}
+        return {"status": "ok", "items": len(items), "llm": llm}
 
     except versioning.StaleVersionError as e:
         logger.info("[MEMORY INGEST STALE] %s", e)

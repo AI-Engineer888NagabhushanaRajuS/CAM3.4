@@ -194,6 +194,17 @@ services:
       - exports:/app/exports
     ports: ["18105:8105"]
 
+  # The price-source gate as MCP tools (status, list conflicts, record sources, resume). Same HITL endpoints as the review screen.
+  price-gate-mcp-server:
+    <<: *python-common
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args: { SERVICE_DIR: mcp-tools/price-gate, ENTRYPOINT: mcp_server.py }
+    environment:
+      <<: *python-env
+    ports: ["18110:8110"]
+
   intake-mcp-server:
     <<: *python-common
     build:
@@ -269,6 +280,10 @@ services:
       RFQ_MEMORY_LLM_PROVIDER: ${RFQ_MEMORY_LLM_PROVIDER:-ollama}
       # Off unless "1": every Cognee write (remember/ingest) runs LLM jobs that starved the chat model on the shared Ollama.
       RFQ_MEMORY_LLM_WRITES: ${RFQ_MEMORY_LLM_WRITES:-}
+      # Cognee's session caching ran a write on every search: 65-160 s per search, 5 s with it off (measured 2026-11-17).
+      # Sessions are not used for retrieval here. Telemetry off: no outbound calls from the memory service.
+      CACHING: "false"
+      TELEMETRY_DISABLED: "1"
     extra_hosts: ["host.docker.internal:host-gateway"]
     # Chat (JWT on every route) is published for the host daemon; ingest/reset only on host loopback.
     ports: ["18108:8108", "127.0.0.1:18109:8109"]

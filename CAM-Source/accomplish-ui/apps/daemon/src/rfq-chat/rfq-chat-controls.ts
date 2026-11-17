@@ -7,6 +7,8 @@
  */
 import type { ChatActionDeps, ChatScope, UiDirective } from './rfq-chat-contract.js';
 import { parseEdit } from './rfq-chat-edit-fields.js';
+import { parseDashboardChange } from './rfq-chat-dashboard.js';
+import { GATE_LABEL, readAllConflicts, type GateItem, type GateSource } from './rfq-chat-actions-gate.js';
 import { rfqMentions, type ControlIntent } from './rfq-chat-intent.js';
 import { manifestReply, type LoadManifests } from './rfq-chat-manifests.js';
 import { describeStatus, type RfqStatus } from './rfq-chat-status.js';
@@ -43,7 +45,12 @@ export function unknownRfqReply(unknown: string[], rfqs: RfqSummary[]): Pick<Cha
 
 const ACCEPT = ['.xlsx', '.xls', '.csv', '.pdf', '.docx', '.txt'];
 const PURPOSE = 'Choose the files to attach. Both security engines (BuLL*Sav and Repel) scan every file first, and only clean files reach the chat.';
-const SETTINGS_NOTE = 'The Local / OpenRouter / Auto switch is in the assistant header; the OpenRouter API key is saved in Settings, Providers.';
+/** Which price source the message names, or null: "use QuoteWin", "the costing sheet", "ERP". */
+const gateSourceOf = (q: string): GateSource | null => (/\b(quote ?win|qw)\b/i.test(q) ? 'qw' : /\bcosting\b/i.test(q) ? 'costing' : /\berp\b/i.test(q) ? 'erp' : null);
+const sourcesLine = (i: GateItem) =>
+  (['costing', 'erp', 'qw'] as const).map((s) => { const v = i.available_sources?.[s]?.price_conv; return `${GATE_LABEL[s]} ${typeof v === 'number' ? v : 'none'}`; }).join(' · ');
+const DASHBOARD_HELP ='I can change the Reports & Analytics dashboard: the BOM matrix as a line chart or heat map, how many parts it shows (top 10, 25, 50, 100 or all), and show or hide the BOM matrix, 3D cost chart, live feed or formula check. For example: "switch the BOM matrix to heat map" or "hide the 3D chart".';
+const SETTINGS_NOTE ='The Local / OpenRouter / Auto switch is in the assistant header; the OpenRouter API key is saved in Settings, Providers.';
 
 type Found = { rfq: RfqSummary } | { reply: Partial<ChatReply> & { message: string } };
 
@@ -75,6 +82,14 @@ export async function controlReply(
   if (intent === 'upload') {
     return { message: `${PURPOSE} Press the button to choose them.`, ui: { type: 'ask_upload', accept: ACCEPT, purpose: PURPOSE } };
   }
+  if (intent === 'dashboard') {
+    // A view setting only: the UI applies it to the open dashboard, no RFQ data is touched.
+    const change = parseDashboardChange(question);
+    if (!change) {
+      return { message: DASHBOARD_HELP };
+    }
+    return { message: `Changed the dashboard: ${change.summary}.`, ui: { type: 'dashboard_view', summary: change.summary, prefs: change.prefs } };
+  }
   if (intent === 'settings') {
     return { message: `Press the button to open Settings, Providers. ${SETTINGS_NOTE}`, ui: { type: 'open_settings', section: 'providers' } };
   }
@@ -82,7 +97,7 @@ export async function controlReply(
     return manifestReply(question, deps.manifests, incoming.mode === 'rfqs' && incoming.rfqIds.length > 0);
   }
   const rfqs = await deps.listRfqs();
-  const found = pickRfq(question, incoming, rfqs, { open: 'open', status: 'check', resume: 'start', export: 'export', edit: 'change' }[intent]);
+  const found = pickRfq(question, incoming, rfqs, { open: 'open', status: 'check', resume: 'start', export: 'export', edit: 'change', price_gate: 'check' }[intent]);
   if (!found) {
     // Nothing named and nothing scoped. A list question ("which RFQs are waiting for review?") stays a data question.
     if (intent === 'status' && /\brfqs\b/i.test(question)) {
@@ -100,6 +115,30 @@ export async function controlReply(
   const label = `${rfq.rfqId}${detail(rfq) ? ` (${detail(rfq)})` : ''}`;
   const mine = { rfq_id: rfq.rfqId };
 
+  if (intent === 'price_gate') {
+    const source = gateSourceOf(question);
+    if (source && /\b(use|choose|pick|resolve|record|take|apply|set)\b/i.test(question)) {
+      if (!deps.actions) {
+        return { ...mine, message: 'Recording the price sources from the chat is not available here. Use the review screen.' };
+      }
+      const r = await deps.actions.proposeResolveConflicts({ sessionKey: deps.sessionKey ?? 'local', rfqId: rfq.rfqId, source });
+      return { ...mine, message: r.message, ui: r.ui };
+    }
+    try {
+      const items = await readAllConflicts(rfq.rfqId);
+      if (items.length === 0) {
+        return { ...mine, message: `Nothing is waiting at the price-source gate for ${rfq.rfqId}.` };
+      }
+      const shown = items.slice(0, 10).map((i) => `- ${i.cpn ?? 'no CPN'}, volume ${i.volume_no ?? '?'}: ${sourcesLine(i)}`).join('\n');
+      const more = items.length > 10 ? `\n\n*${items.length - 10} more not shown.*` : '';
+      return {
+        ...mine,
+        message: `${items.length} price conflicts are waiting at the gate for ${rfq.rfqId}. Each shows the costing sheet, ERP and QuoteWin price.\n\n${shown}${more}\n\nSay which source to use, for example "use QuoteWin for the conflicts of ${rfq.rfqId}", and I will prepare it for you to confirm.`,
+      };
+    } catch (err) {
+      return { ...mine, message: `I can't reach the price-source gate of ${rfq.rfqId} right now (${err instanceof Error ? err.message : String(err)}). Nothing was changed.` };
+    }
+  }
   if (intent === 'open') {
     return { ...mine, message: `Press the button to open ${label} in the left and right panes. I do not change the screen myself.`, ui: { type: 'open_rfq', rfqId: rfq.rfqId } };
   }

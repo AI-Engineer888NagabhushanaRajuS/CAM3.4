@@ -22,6 +22,7 @@ const MEMORY_CHUNKS = 4;
 // so the evidence size IS the latency: about 2500 chars keeps a first answer near 30 s. Cloud models get the full budget.
 const LOCAL_EVIDENCE_CHARS = Number(process.env.RFQ_CHAT_LOCAL_EVIDENCE_CHARS) || 2500;
 const MEMORY_CHARS = 600;
+const DASHBOARD_ROWS = 30; // dashboard figures and the newest live-feed steps added to one answer
 
 /**
  * A model chain's label is "first -> second" (rfq-chat-models.ts firstAvailable). Only the FIRST link decides the evidence
@@ -53,6 +54,8 @@ export interface GroundedDeps {
   retrieve?: (p: { rfqId: string; question: string; topK: number; maxChars?: number }) => Promise<RfqEvidence | null>;
   /** Best-effort extra context from the Cognee memory service. Never required: null or a throw means "none". */
   memory?: (p: { rfqId: string; question: string }) => Promise<MemoryContext | null>;
+  /** The Reports & Analytics dashboard's numbers, added as evidence when the question is about a chart or card. */
+  dashboard?: (rfqId: string) => Promise<Chunk[]>;
   signal?: AbortSignal;
 }
 
@@ -98,9 +101,12 @@ export async function answerFromResults(
   if (hello) return reply(hello);
 
   const query = retrievalQuery(question, history);
-  const [evidence, memory] = await Promise.all([
+  // Every answer about an RFQ also reads its dashboard numbers and live-feed steps: any question about the results or the screen can be answered.
+  const dashboardOf = deps.dashboard;
+  const [evidence, memory, dashboard] = await Promise.all([
     (deps.retrieve ?? retrieveRfqEvidence)({ rfqId, question: query, topK: TOP_K, maxChars: asksLocalFirst(deps.model) ? LOCAL_EVIDENCE_CHARS : undefined }),
     deps.memory ? deps.memory({ rfqId, question: query }).catch(() => null) : Promise.resolve(null),
+    dashboardOf ? dashboardOf(rfqId).catch(() => [] as Chunk[]) : Promise.resolve([] as Chunk[]),
   ]);
   if (evidence === null) {
     return reply(`I can't reach the results service right now, so I can't answer questions about **${rfqId}**. Nothing was guessed. Please try again in a moment.`);
@@ -114,7 +120,8 @@ export async function answerFromResults(
   }
 
   const remembered = (memory?.chunks ?? []).slice(0, MEMORY_CHUNKS).map((c) => ({ ...c, text: c.text.slice(0, MEMORY_CHARS) }));
-  const chunks = [...rows, ...remembered];
+  // The dashboard and the feed add at most DASHBOARD_ROWS rows: a long feed must not swamp the evidence the model reads.
+  const chunks = [...rows, ...dashboard.slice(-DASHBOARD_ROWS), ...remembered];
   const partial = LIST_OR_TOTAL.test(question) && evidence.matchedRows > TOP_K;
   const notes = [
     missing.length ? `Not in the results: ${quoted(missing)}.` : '',

@@ -100,7 +100,7 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
       request = [...history.filter((t) => t.role === 'user').slice(-4).map((t) => t.content), question].join('\n');
     }
   }
-  if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings' || intent === 'edit' || intent === 'manifest') {
+  if (intent === 'open' || intent === 'status' || intent === 'resume' || intent === 'export' || intent === 'upload' || intent === 'settings' || intent === 'edit' || intent === 'manifest' || intent === 'dashboard' || intent === 'price_gate') {
     const done = await controlReply(intent, { deps, question, incoming });
     if (done) {
       return talk(done.message, done);

@@ -5,6 +5,7 @@
  */
 import type { MessageCitation } from '@accomplish_ai/agent-core';
 import { backendUrl } from '@/config/endpoints';
+import type { DashboardPrefs } from './dashboardPrefs';
 import { clearSession, getSessionToken } from '@/lib/session';
 
 /** What the conversation is about. 'none' = no RFQ chosen yet (normal chat). */
@@ -34,7 +35,7 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: DisambiguateOption[] }
   | {
       type: 'confirm_action';
-      action: 'create_rfq' | 'start_pipeline' | 'edit_value';
+      action: 'create_rfq' | 'start_pipeline' | 'edit_value' | 'resolve_conflicts';
       summary: string;
       /** Exactly what will be done: customer, project, files, flow profile. start_pipeline: { rfqId, stage, customer, project }. edit_value: { rfqId, bomItemId, label, field, fieldLabel, before, after }. */
       params: Record<string, unknown>;
@@ -42,6 +43,8 @@ export type UiDirective =
       expiresAt: string;
     }
   | { type: 'ask_upload'; accept: string[]; purpose: string }
+  /** The user asked the chat to change the Reports & Analytics dashboard; applied at once (view settings only, no RFQ data). */
+  | { type: 'dashboard_view'; summary: string; prefs: DashboardPrefs }
   /** Buttons only: the user presses them, the UI never acts alone. open_rfq selects the RFQ like the left list does. */
   | { type: 'open_rfq'; rfqId: string }
   | { type: 'open_export'; rfqId: string }
@@ -146,6 +149,8 @@ export function parseUi(value: unknown): UiDirective | undefined {
       return typeof ui.confirmToken === 'string' && ui.params && typeof ui.params === 'object' ? (ui as unknown as UiDirective) : undefined;
     case 'ask_upload':
       return Array.isArray(ui.accept) ? (ui as unknown as UiDirective) : undefined;
+    case 'dashboard_view':
+      return typeof ui.summary === 'string' && ui.prefs && typeof ui.prefs === 'object' ? (ui as unknown as UiDirective) : undefined;
     case 'open_rfq':
     case 'open_export':
       return typeof ui.rfqId === 'string' && ui.rfqId.trim() ? (ui as unknown as UiDirective) : undefined;

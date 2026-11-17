@@ -2373,6 +2373,32 @@ export class BrowserApiServer {
         // step so the daemon can broadcast live progress to connected browser tabs.
         // Not session-authenticated, same posture as /api/internal/trigger-hitl above
         // (protected by network placement, not app-level auth).
+        // GET /api/internal/memory-provider: which model Cognee's extraction uses, for the memory service (same placement). The
+        // client's saved choice: cloud when a key is saved, as the chat's model is, else Ollama. Provider and model name only.
+        if (method === 'GET' && (url ?? '').split('?')[0] === '/api/internal/memory-provider') {
+          const info = describeChatProviders({ settingsKey: this.svc.secretsService.getApiKey('openrouter'), selected: this.svc.settingsService.getSelectedModel() });
+          const cloud = info.openrouter.hasKey && Boolean(info.openrouter.model);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ provider: cloud ? 'openrouter' : 'ollama', model: cloud ? info.openrouter.model.replace(/^openrouter\//, '') : null }));
+          return;
+        }
+        // POST /api/internal/emit-memory-event: one Cognee job's state, from the memory service. Broadcast to every open stream
+        // (the Cognee admin page and any other tab); not RFQ-scoped, since masters and RFQs both write to Cognee.
+        if (method === 'POST' && url === '/api/internal/emit-memory-event') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              this.send('memory:job', JSON.parse(body) as Record<string, unknown>);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end('{"ok":true}');
+            } catch (err) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err instanceof Error ? err.message : 'bad request' }));
+            }
+          });
+          return;
+        }
         if (method === 'POST' && url === '/api/internal/emit-skill-progress') {
           let body = '';
           req.on('data', (chunk: Buffer) => { body += chunk; });
@@ -2516,6 +2542,56 @@ export class BrowserApiServer {
         if (handleManifestRoute(req, res, this.getSession(req), (skillId, on) => applySkillEnabled(logicDb, skillId, on, metaDb))) { return; }
         // SPEC-021: who ran which RFQ (Temporal), admin sees all, others only their own runs.
         if (handleRunsRoute(req, res, this.getSession(req))) { return; }
+        // /api/admin/cognee/*: the Cognee admin page's data, read from the memory service's loopback port. Admin session only.
+        if ((url ?? '').split('?')[0].startsWith('/api/admin/cognee/')) {
+          try {
+            this.requireAdminSession(req);
+          } catch {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end('{"error":"Admin only"}');
+            return;
+          }
+          const memory = process.env.RFQ_MEMORY_INTERNAL_URL ?? 'http://127.0.0.1:18109';
+          const path = (url ?? '').split('?')[0].slice('/api/admin/cognee'.length);
+          const send = (status: number, body: unknown) => {
+            res.writeHead(status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(body));
+          };
+          const pull = async (target: string, init?: RequestInit) => {
+            const r = await fetch(`${memory}${target}`, { ...init, signal: AbortSignal.timeout(20000) });
+            if (!r.ok) throw new Error(`memory service answered ${r.status}`);
+            return r.json();
+          };
+          void (async () => {
+          try {
+            if (method === 'GET' && path === '/overview') {
+              const [status, datasets] = await Promise.all([pull('/internal/memory/status'), pull('/internal/memory/datasets')]);
+              send(200, { status, datasets: (datasets as { datasets: unknown[] }).datasets });
+            } else if (method === 'GET' && /^\/datasets\/[^/]+\/documents$/.test(path)) {
+              send(200, await pull(`/internal/memory/datasets/${path.split('/')[2]}/documents`));
+            } else if (method === 'GET' && /^\/datasets\/[^/]+\/inventory$/.test(path)) {
+              send(200, await pull(`/internal/memory/datasets/${path.split('/')[2]}/inventory`));
+            } else if (method === 'POST' && path === '/search') {
+              let body = '';
+              for await (const chunk of req) body += chunk;
+              send(200, await pull('/internal/memory/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }));
+            } else if (method === 'GET' && path === '/graph') {
+              const query = (url ?? '').includes('?') ? (url ?? '').slice((url ?? '').indexOf('?')) : '';
+              send(200, await pull(`/internal/memory/graph${query}`));
+            } else if (method === 'POST' && path === '/sync-masters') {
+              // The browser parses the shipped masters workbooks and sends the rows; the memory service ingests them in the background.
+              let body = '';
+              for await (const chunk of req) body += chunk;
+              send(202, await pull('/internal/memory/ingest-masters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }));
+            } else {
+              send(404, { error: 'Not found' });
+            }
+          } catch (err) {
+            send(502, { error: err instanceof Error ? err.message : 'memory service unreachable' });
+          }
+          })();
+          return;
+        }
         // GET /api/chat/providers: what the assistant's Local / OpenRouter switch can offer (is a key saved, which models). Never the key.
         if (method === 'GET' && (url ?? '').split('?')[0] === '/api/chat/providers') {
           if (!this.getSession(req)) {

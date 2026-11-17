@@ -7,8 +7,9 @@ import { log } from '../logger.js';
 import { resolveChatModel, type ChatProviderMode } from './rfq-chat-models.js';
 import { makeChatActions } from './rfq-chat-actions.js';
 import { loadManifestTree } from './rfq-chat-manifests.js';
-import { fetchRfqStatus } from './rfq-chat-status.js';
-import { rememberTurn, retrieveRfqContext, rfqHasExport } from './rfq-chat-client.js';
+import { fetchRfqStatus, loadStepHistory } from './rfq-chat-status.js';
+import { stepChunks } from './rfq-chat-dashboard.js';
+import { rememberTurn, retrieveDashboardEvidence, retrieveRfqContext, rfqHasExport } from './rfq-chat-client.js';
 import type { ChatActionDeps } from './rfq-chat-contract.js';
 import type { ChatServiceDeps, RfqSummary } from './rfq-chat-service.js';
 
@@ -58,12 +59,18 @@ export function makeChatDeps(src: ChatDepsSource, sessionKey: string, signal?: A
     listRfqs,
     withExports,
     actions: (sharedActions ??= makeChatActions(src)),
+    // The dashboard's numbers (3D rows, cards, matrix) and the live feed's steps, so "explain this" can be answered from either.
+    dashboard: async (rfqId) => [
+      ...(await retrieveDashboardEvidence(rfqId)),
+      ...stepChunks(rfqId, await loadStepHistory(rfqId).catch(() => [])),
+    ],
     sessionKey,
     pipelineStatus: (rfqId) => fetchRfqStatus(rfqId),
     manifests: loadManifestTree,
     signal,
     memory: async ({ rfqId, question }) => {
-      const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 4000 });
+      // Cognee's search takes seconds with session caching off (see docker-compose.yml); 30 s leaves room under load. It runs beside the DuckDB evidence.
+      const r = await retrieveRfqContext({ rfqId, question, sessionId: sessionId(rfqId), topK: 6, timeoutMs: 30000 });
       return r ? { chunks: r.chunks.map((c) => ({ text: c.text, citation: { ...c.citation } })), sessionRecall: r.sessionRecall } : null;
     },
     // Off by default: each write makes Cognee run LLM extraction on the same Ollama that answers the user, and on one

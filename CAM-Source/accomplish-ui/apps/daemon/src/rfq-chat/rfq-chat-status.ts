@@ -29,6 +29,8 @@ export interface RfqStatus {
   finished: boolean;
   /** Skill rows that ran or are running, in order. */
   steps: StatusStep[];
+  /** The newest failed step that no later completion of the same skill cleared; null when none. */
+  failure: { skill: string; detail: string | null } | null;
 }
 
 type Rows = { rows: Array<Record<string, unknown>> };
@@ -73,7 +75,19 @@ async function progress(db: StatusDb, rfqId: string, completed: number): Promise
   return { steps: toSteps(ordered, (r) => tools.indexOf(String(r.mcp_tool_name)) < completed), finished: completed >= sequence.length, macro };
 }
 
-/** ponytail: the DB records only completed and running skills; a failure is visible live in the right pane but is not stored, so 'failed' is never set here. */
+/** The newest failed step that no later completed run of the same skill cleared (rfq_step_events holds every status). */
+async function unclearedFailure(db: StatusDb, rfqId: string): Promise<RfqStatus['failure']> {
+  const { rows } = await db.fileMeta.query(
+    `SELECT e.skill_name, e.detail FROM rfq_step_events e
+      WHERE e.rfq_id = $1 AND e.step_status = 'failed'
+        AND NOT EXISTS (SELECT 1 FROM rfq_step_events c WHERE c.rfq_id = e.rfq_id AND c.skill_code = e.skill_code AND c.step_status = 'completed' AND c.at > e.at)
+      ORDER BY e.at DESC LIMIT 1`,
+    [rfqId],
+  );
+  const row = rows[0];
+  return row ? { skill: String(row.skill_name), detail: (row.detail as string | null) ?? null } : null;
+}
+
 export async function fetchRfqStatus(rfqId: string, dbSource: () => Promise<StatusDb> = realDb): Promise<RfqStatus> {
   const db = await dbSource();
   const meta = await db.fileMeta.query(`SELECT customer_name, project_name FROM rfq_project_tracking WHERE rfq_id = $1 LIMIT 1`, [rfqId]);
@@ -86,10 +100,23 @@ export async function fetchRfqStatus(rfqId: string, dbSource: () => Promise<Stat
   };
   const completed = run.rows[0]?.rfq_process_stage;
   if (typeof completed !== 'number') {
-    return { ...base, started: false, stage: null, reviewPending: false, finished: false, steps: [] };
+    return { ...base, started: false, stage: null, reviewPending: false, finished: false, steps: [], failure: null };
   }
   const p = await progress(db, rfqId, completed);
-  return { ...base, started: true, stage: stageNumber(p.macro), reviewPending: run.rows[0]?.hitl_required === true, finished: p.finished, steps: p.steps };
+  const failure = await unclearedFailure(db, rfqId);
+  return { ...base, started: true, stage: stageNumber(p.macro), reviewPending: run.rows[0]?.hitl_required === true, finished: p.finished, steps: p.steps, failure };
+}
+
+/** The step history the "See your work" feed shows, oldest first: every stored status with its detail (rfq_step_events). */
+export async function loadStepHistory(rfqId: string, dbSource: () => Promise<StatusDb> = realDb): Promise<Array<{ name: string; status: string; detail: string | null; at: string }>> {
+  const db = await dbSource();
+  const { rows } = await db.fileMeta.query(
+    `SELECT skill_name, step_status, detail, at FROM rfq_step_events WHERE rfq_id = $1 ORDER BY at DESC LIMIT 40`,
+    [rfqId],
+  );
+  return rows
+    .map((r) => ({ name: String(r.skill_name), status: String(r.step_status), detail: (r.detail as string | null) ?? null, at: new Date(r.at as string).toISOString() }))
+    .reverse();
 }
 
 const TAG = { done: '[DONE]', running: '[RUNNING]', failed: '[FAILED]' } as const;
@@ -109,5 +136,9 @@ export function describeStatus(s: RfqStatus): string {
   const state = s.finished ? 'The pipeline has finished.' : 'The pipeline has not finished.';
   const review = s.reviewPending ? 'Review pending: yes, it is waiting for a person; resolve it on the review screen in the right pane.' : 'Review pending: no.';
   const recent = s.steps.slice(-SHOWN_STEPS).map((x) => `${TAG[x.state]} ${x.name}`).join('\n');
-  return `${head}: ${stage}. ${state} ${review}${recent ? `\n\nLast steps:\n${recent}` : ''}`;
+  // A failure is the next thing to fix: name it and say what the person does next, instead of a clean status line.
+  const failed = s.failure
+    ? `\n\nFailed: ${s.failure.skill}${s.failure.detail ? `: ${s.failure.detail}` : ''}. ${/uploaded/i.test(s.failure.detail ?? '') ? 'Upload the missing file, then resume the run.' : 'Fix the input, then resume the run.'}`
+    : '';
+  return `${head}: ${stage}. ${state} ${review}${recent ? `\n\nLast steps:\n${recent}` : ''}${failed}`;
 }

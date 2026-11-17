@@ -40,6 +40,16 @@ function rowsOf(ui: Confirm): Array<[string, unknown]> {
     const val = (v: unknown) => (v === null || v === undefined || v === '' ? 'Empty' : String(v));
     return [['RFQ', str(rfqId)], ['Item', `${str(part)} (bom item ${str(bomItemId)})`], ['Field', str(fieldLabel)], ['Current value', val(before)], ['New value', val(after)]];
   }
+  if (ui.action === 'resolve_conflicts') {
+    const { rfqId, source, conflictIds, parts } = ui.params as { rfqId?: unknown; source?: unknown; conflictIds?: unknown; parts?: unknown };
+    const names: Record<string, string> = { costing: 'Costing sheet', erp: 'ERP', qw: 'QuoteWin' };
+    return [
+      ['RFQ id', str(rfqId)],
+      ['Price source', typeof source === 'string' ? names[source] ?? source : NOT_SET],
+      ['Conflicts', Array.isArray(conflictIds) ? `${conflictIds.length} conflicting prices` : NOT_SET],
+      ['Parts', typeof parts === 'number' ? String(parts) : NOT_SET],
+    ];
+  }
   if (ui.action !== 'start_pipeline') {
     return Object.entries(ui.params).map(([k, v]) => [label(k), v]);
   }

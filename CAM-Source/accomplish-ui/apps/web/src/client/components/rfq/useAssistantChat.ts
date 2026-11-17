@@ -7,6 +7,7 @@ import {
   defaultScope, isRfqId, parseScope, parseUi, scopeFromIds,
   type ActionConfirmResponse, type ChatProviderMode, type ChatResponse, type ChatScope, type DisambiguateOption, type FileRef, type UiDirective,
 } from '@/lib/chatContract';
+import { setChatProvider, useChatProvider } from '@/lib/chatProvider';
 
 /** How a confirmation card ended; kept on the message so it survives a reload and cannot be clicked twice. */
 export interface ConfirmOutcome {
@@ -114,26 +115,13 @@ const newId = () => (globalThis.crypto?.randomUUID?.() ?? `m_${Date.now()}_${Mat
  * message, and the composer stays available. `rfqId` is the RFQ selected in the left list (null = none); it sets the
  * scope when it changes, and the daemon's replies may change the scope after that.
  */
-const PROVIDER_KEY = 'cam-chat-provider';
-function loadProvider(): ChatProviderMode {
-  try {
-    const v = localStorage.getItem(PROVIDER_KEY);
-    return v === 'local' || v === 'openrouter' ? v : 'auto';
-  } catch {
-    return 'auto'; // storage blocked: the default still works
-  }
-}
-
 export function useAssistantChat(rfqId: string | null, getFileRefs?: () => FileRef[]) {
   const convo = convoOf(rfqId);
-  // The Local / OpenRouter switch; remembered per browser, sent with every question.
-  const [provider, setProviderState] = useState<ChatProviderMode>(loadProvider);
+  // The Local / OpenRouter / Auto switch lives in one store shared with the model menu; sent with every question.
+  const provider = useChatProvider();
   const providerRef = useRef(provider);
-  const setProvider = useCallback((next: ChatProviderMode) => {
-    providerRef.current = next;
-    setProviderState(next);
-    try { localStorage.setItem(PROVIDER_KEY, next); } catch { /* not remembered */ }
-  }, []);
+  providerRef.current = provider;
+  const setProvider = useCallback((next: ChatProviderMode) => setChatProvider(next), []);
   const [messages, setMessages] = useState<ChatMsg[]>(() => load(convo));
   const [scope, setScopeState] = useState<ChatScope>(() => loadScope(convo) ?? defaultScope(rfqId));
   const [pickerFor, setPickerFor] = useState<string | null>(null);

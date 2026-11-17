@@ -13,6 +13,7 @@
 
 import { log } from '../logger.js';
 import type { MessageCitation } from '@accomplish_ai/agent-core';
+import { dashboardChunks } from './rfq-chat-dashboard.js';
 
 // The Python bridge (JWT minting, results evidence) and the optional Cognee memory service. The defaults are the
 // local bare-metal ports; run-cam34.ps1 / the daemon .env point PYTHON_SERVICE_URL at the compose-published port.
@@ -117,6 +118,21 @@ export async function rfqHasExport(rfqId: string, timeoutMs = 2500): Promise<boo
     return !!(d.cbom || d.consolidatedBom || d.quoteSummary);
   } catch {
     return false;
+  }
+}
+
+/** The Reports & Analytics dashboard's own numbers for one RFQ (the bridge's analytics), as citable evidence. [] when unreachable. */
+export async function retrieveDashboardEvidence(rfqId: string, timeoutMs = 8000): Promise<Array<{ text: string; citation: MessageCitation }>> {
+  try {
+    const token = await mintRfqToken(rfqId, timeoutMs);
+    const res = await fetch(`${PYTHON_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/analytics`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return [];
+    return dashboardChunks(rfqId, (await res.json()) as Record<string, unknown>);
+  } catch {
+    return [];
   }
 }
 

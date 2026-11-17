@@ -24,6 +24,8 @@ import { OAuthProviderId } from '@accomplish_ai/agent-core/common';
 // import { SidebarFallback } from './components/layout/SidebarFallback';
 import { StageExecutionOutput } from './components/execution/StageExecutionOutput';
 import { ReportsDashboard } from './components/execution/ReportsDashboard';
+import { FormulaEngine3D } from './components/execution/FormulaEngine3D';
+import { sectionShown, useDashboardPrefs } from './lib/dashboardPrefs';
 import { PortfolioDashboard } from './components/execution/PortfolioDashboard';
 import { TaskLauncher } from './components/TaskLauncher';
 import { AuthErrorToast } from './components/AuthErrorToast';
@@ -682,6 +684,7 @@ export function App() {
 
 
   const [sseConnection, setSseConnection] = useState<EventSource | null>(null);
+  const dashboardPrefs = useDashboardPrefs();
   const [hitlActive, setHitlActive] = useState<boolean>(false);
 
   const [hitlContext, setHitlContext] = useState<HitlContext | null>(null);
@@ -1768,6 +1771,13 @@ export function App() {
                    versions must be visible next to the dashboard, not only in the progress view. */
                 <div className="flex h-full min-h-0 flex-col overflow-y-auto">
                   {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
+                  {/* The reporting steps stream here as they run (rfq:skill-progress), the same live feed the progress view shows. */}
+                  {sectionShown(dashboardPrefs, 'live_feed') && <div className="space-y-3 border-b border-border py-4">
+                    <p className="px-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">See your work, live</p>
+                    <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
+                    <FormulaEngine3D entries={rfqProgressLog} />
+                    <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
+                  </div>}
                   <div className="min-h-0 flex-1">
                     {customRfqId.trim() ? <ReportsDashboard rfqId={customRfqId.trim()} ready={runCompleted} onOpenRfq={handleAssistantSelectRfq} /> : <PortfolioDashboard onOpenRfq={handleAssistantSelectRfq} />}
                   </div>

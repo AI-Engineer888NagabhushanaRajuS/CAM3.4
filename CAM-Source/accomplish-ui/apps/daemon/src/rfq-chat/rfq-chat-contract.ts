@@ -25,7 +25,7 @@ export type UiDirective =
   | { type: 'disambiguate'; prompt: string; options: Array<{ id: string; label: string; detail?: string; /** Text sent when pressed (default: the label). */ send?: string }> }
   | {
       type: 'confirm_action';
-      action: 'create_rfq' | 'start_pipeline' | 'edit_value';
+      action: 'create_rfq' | 'start_pipeline' | 'edit_value' | 'resolve_conflicts';
       summary: string;
       /** Exactly what will be done: customer, project, files, flow profile. Shown to the user before Confirm. */
       params: Record<string, unknown>;
@@ -34,6 +34,8 @@ export type UiDirective =
       expiresAt: string;
     }
   | { type: 'ask_upload'; accept: string[]; purpose: string }
+  // The user asked the chat to change the Reports & Analytics dashboard: the UI applies these view settings (no RFQ data changes).
+  | { type: 'dashboard_view'; summary: string; prefs: import('./rfq-chat-dashboard.js').DashboardPrefs }
   // Buttons the user presses in the bubble (assistant controls the app, 2026-11-05): the UI never navigates by itself.
   | { type: 'open_rfq'; rfqId: string }
   | { type: 'open_export'; rfqId: string }
@@ -98,5 +100,7 @@ export interface ChatActionDeps {
    * (action 'edit_value', params { rfqId, bomItemId, label, field, fieldLabel, before, after }).
    */
   proposeEditValue(p: { sessionKey: string; rfqId: string; target: string; fieldText: string; value: string; volume?: number }): Promise<{ message: string; ui?: UiDirective }>;
+  /** The price-source gate: record one source for every pending conflict of an RFQ, then resume (rfq-chat-actions-gate.ts). */
+  proposeResolveConflicts(p: { sessionKey: string; rfqId: string; source: 'costing' | 'erp' | 'qw' }): Promise<{ message: string; ui?: UiDirective }>;
   confirm(p: { sessionKey: string; req: ActionConfirmRequest; actor?: { name: string; email: string } }): Promise<ActionConfirmResponse>;
 }

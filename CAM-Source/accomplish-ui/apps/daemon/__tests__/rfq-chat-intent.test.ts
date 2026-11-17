@@ -77,7 +77,7 @@ describe('RFQ mentions', () => {
 
 describe('no-data-claims check', () => {
   it('passes plain talk and small counts', () => {
-    expect(dataClaims('Sure, there are 3 ways to do that. CAM 3.4 can help.', 'how many ways?')).toEqual([]);
+    expect(dataClaims('Sure, there are 3 ways to do that. CAM4 can help.', 'how many ways?')).toEqual([]);
   });
   it('flags RFQ ids, part numbers and figures the user did not write', () => {
     const bad = dataClaims('RFQ-00001 has UBR03225 at an MOQ of 5000 and a margin of 12.5%.', 'tell me something');

@@ -6,6 +6,8 @@ recall.
 """
 
 import logging
+import os
+import re
 
 # config MUST be imported before cognee -- see ingest.py's identical comment.
 import config
@@ -14,6 +16,7 @@ from cognee.modules.engine.models.node_set import NodeSet
 from cognee.modules.search.types import SearchType
 
 import citation_store
+from ingest import ADMIN_DATASET, ADMIN_TAG
 
 logger = logging.getLogger("rfq_memory.query")
 
@@ -59,7 +62,10 @@ async def retrieve_rfq_context(
             top_k=top_k,
             session_id=session_id,
         )
-    except Exception:
+    except Exception as e:
+        # No dataset yet = nothing was ingested for this RFQ: a state, not a failure (the chat says so instead of "retrieval failed").
+        if "DatasetNotFound" in type(e).__name__ or "No datasets found" in str(e):
+            return {"matched": False, "chunks": [], "session_recall": None, "warning": "no_memory_yet"}
         logger.exception("[MEMORY QUERY ERROR] rfq_id=%s", rfq_id)
         return {"matched": False, "chunks": [], "session_recall": None, "warning": "retrieval_failed"}
 
@@ -99,7 +105,9 @@ async def retrieve_rfq_context(
         chunks.append({"text": text, "citation": citation, "score": None})
 
     session_recall = None
-    if session_id:
+    # cognee.recall runs an LLM completion over the session. On the local model that is minutes per question, so it is off
+    # unless RFQ_MEMORY_SESSION_RECALL=1; the RFQ's own evidence above never depends on it.
+    if session_id and os.environ.get("RFQ_MEMORY_SESSION_RECALL") == "1":
         try:
             recall_results = await cognee.recall(question, session_id=session_id)
             if recall_results:
@@ -117,6 +125,43 @@ async def retrieve_rfq_context(
         "session_recall": session_recall,
         "warning": warning,
     }
+
+
+# Only the master names and company-level terms: "customer" or "skill" alone is an ordinary RFQ question and must not add a second search.
+COMPANY_WORDS = re.compile(
+    r"\b(organi[sz]ation master|organi[sz]ation profile|business units?|tool factory|skill factory|project master|quote master|cam masters?|centum|the company|our company)\b",
+    re.IGNORECASE,
+)
+
+
+async def retrieve_company_masters(question: str, top_k: int = 4) -> list[dict]:
+    """The company masters (organisations, projects, skills, tools) for a question about the company. Its own search, scoped to
+    the masters dataset AND its own tag, never combined with an RFQ's tag: one combined filter is the leak config.py warns about.
+    Only asked when the question is about the company, so RFQ answers do not pick up master rows."""
+    if not COMPANY_WORDS.search(question):
+        return []
+    try:
+        results = await cognee.search(
+            query_text=question,
+            query_type=SearchType.CHUNKS,
+            datasets=[ADMIN_DATASET],
+            node_type=NodeSet,
+            node_name=[ADMIN_TAG],
+            top_k=top_k,
+        )
+    except Exception:
+        logger.warning("[MEMORY QUERY] company masters search failed (non-fatal)")
+        return []
+    chunks = []
+    for r in results or []:
+        text = r.get("text") if isinstance(r, dict) else getattr(r, "text", None)
+        tags = (r.get("belongs_to_set") if isinstance(r, dict) else getattr(r, "belongs_to_set", None)) or []
+        if not text or ADMIN_TAG not in tags:
+            continue
+        citation = citation_store.lookup_citation(text)
+        if citation:
+            chunks.append({"text": text, "citation": citation, "score": None})
+    return chunks
 
 
 async def remember_turn(rfq_id: str, session_id: str, question: str, answer: str) -> None:

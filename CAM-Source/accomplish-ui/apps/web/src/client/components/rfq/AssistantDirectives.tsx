@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import type { DisambiguateOption } from '@/lib/chatContract';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { applyPrefs } from '@/lib/dashboardPrefs';
 import { ConfirmActionCard } from './ConfirmActionCard';
 import { InputFixDialog } from './InputFixDialog';
 import { OpenExportDirective, OpenManifestDirective, OpenRfqDirective, OpenSettingsDirective } from './OpenDirectives';
@@ -30,6 +31,22 @@ function FixInputDirective({ ui, busy, actions }: { ui: Extract<NonNullable<Chat
       <InputFixDialog open={open} scope={ui.scope} attachmentId={ui.attachmentId} name={ui.name} onClose={() => setOpen(false)} onFixed={actions.onFixed} onContinue={actions.onContinueAfterFix} />
     </div>
   );
+}
+
+/** The user asked the chat to change the dashboard: apply the view settings once, when the answer arrives, and say what changed. */
+function DashboardViewDirective({ msgId, ui }: { msgId: string; ui: Extract<NonNullable<ChatMsg['ui']>, { type: 'dashboard_view' }> }) {
+  // Once per answer: reloading the chat must not replay an old change over a newer one made by hand.
+  useEffect(() => {
+    const key = `cam-dashboard-applied:${msgId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // Storage blocked: apply, which is the first time anyway.
+    }
+    applyPrefs(ui.prefs);
+  }, [msgId, ui]);
+  return <p className="mt-3 text-xs text-muted-foreground">Dashboard updated: {ui.summary}. Open Reports &amp; Analytics to see it.</p>;
 }
 
 /** What the daemon asked the UI to draw under an assistant message. The UI only shows it; the user decides. */
@@ -92,6 +109,8 @@ export function Directive({ msg, actions, busy }: { msg: ChatMsg; actions: Direc
       return <OpenManifestDirective path={ui.path} label={ui.label} />;
     case 'fix_input':
       return <FixInputDirective ui={ui} busy={busy} actions={actions} />;
+    case 'dashboard_view':
+      return <DashboardViewDirective msgId={msg.id} ui={ui} />;
     default:
       return null;
   }

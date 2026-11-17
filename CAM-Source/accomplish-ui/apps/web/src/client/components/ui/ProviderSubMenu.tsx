@@ -61,7 +61,7 @@ export function ProviderSubMenu({
       >
         {providerName}
       </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="w-48">
+      <DropdownMenuSubContent className="w-72">
         {models.length === 0 ? (
           <DropdownMenuItem disabled className="px-3 py-2 text-sm text-muted-foreground">
             No models available

@@ -4,16 +4,20 @@
  * question (rfq-chat-general.ts), so the model "classifies" inside the one call it makes anyway.
  */
 import { isEditRequest } from './rfq-chat-edit-fields.js';
+import { DASHBOARD_CHANGE, DASHBOARD_NOUN, parseDashboardChange } from './rfq-chat-dashboard.js';
 
 /** The assistant's controls over the app (rfq-chat-controls.ts); each is answered from rules and the database, no model. */
-export type ControlIntent = 'open' | 'status' | 'resume' | 'export' | 'upload' | 'settings' | 'edit' | 'manifest';
+export type ControlIntent = 'open' | 'status' | 'resume' | 'export' | 'upload' | 'settings' | 'edit' | 'manifest' | 'dashboard' | 'price_gate';
+
+// The price-source gate (resolve_final_selection): conflicts between the costing sheet, ERP and QuoteWin prices.
+const PRICE_GATE = /\b(price[- ]source|price (conflicts?|gate|choices?)|conflicts? (of|for|in|at) (the )?(price|pricing|sources?|gate|RFQ-)|(pending|open|unresolved) conflicts?|(resolve|review|choose|use|record) (the |these |all )?(price )?conflicts?|(use|choose|pick|record|apply) (quote ?win|qw|costing( sheet)?|erp)\b[^.?!\n]{0,30}\bconflicts?)\b/i;
 export type Intent = 'guide' | 'create' | 'data' | 'unsure' | ControlIntent;
 
 // "hai" is how this team writes hi. A greeting is answered from the guide (what I can do); thanks and the like are plain talk.
 const GREETING = /^\s*(hi+|hai|hello|hey|yo|hola|namaste|good (morning|afternoon|evening))\b/i;
 const HOW_TO = /\b(how (do|to|can|should|does|would|did)|help|guide|tutorial|instructions?|what can you do|what do you do|who are you|what is (this|cam)|walk me through|get(ting)? started|where (do|can|is|are)|explain (the )?(tool|app|screen|ui))\b/i;
 const CREATE = /\b(create|make|add|raise|open|start|set ?up|register)\b[^.?!\n]{0,40}\brfq\b|\b(upload|attach)\b[^.?!\n]{0,30}\b(bom|file|sheet|workbook)\b[^.?!\n]{0,40}\b(create|rfq|quote)\b/i;
-const DATA = /\b(rfqs?|boms?|cboms?|parts?|prices?|pricing|costs?|costed|uncosted|suppliers?|vendors?|moq|lead[- ]?times?|spend|a-class|go\s*\/?\s*no-?go|no-?go|status|reports?|manifest|quotes?|quantity|qty|stock|alternates?|exports?|exported|margin|total|summary|review|workbook|cells?|sheet|manufacturer|mpn|cpn)\b/i;
+const DATA = /\b(rfqs?|boms?|cboms?|parts?|prices?|pricing|costs?|costed|uncosted|suppliers?|vendors?|moq|lead[- ]?times?|spend|a-class|go\s*\/?\s*no-?go|no-?go|status|reports?|manifest|quotes?|quantity|qty|stock|alternates?|exports?|exported|margin|total|summary|review|workbook|cells?|sheet|manufacturer|mpn|cpn|dashboards?|charts?|graphs?|matrix|heat ?map|analytics)\b/i;
 // A part-number-like token: 6+ chars mixing a digit with a letter or hyphen (same shape as rfq-chat-grounded.ts).
 const PART_LIKE = /(?<![A-Za-z0-9])(?=[A-Za-z0-9._/-]*\d)(?=[A-Za-z0-9._/-]*[A-Za-z-])[A-Za-z0-9][A-Za-z0-9._/-]{5,}(?![A-Za-z0-9])/;
 
@@ -61,6 +65,14 @@ export function controlIntent(question: string): ControlIntent | null {
   }
   if (!hasId && MANIFEST.test(question)) {
     return 'manifest';
+  }
+  // The price-source gate: "price conflicts of RFQ-x", "use QuoteWin for the conflicts"; the controls read or propose from there.
+  if (PRICE_GATE.test(question)) {
+    return 'price_gate';
+  }
+  // "switch the BOM matrix to heat map": a dashboard word and a change phrase; "top 25 parts" alone is still a data question.
+  if (!hasId && DASHBOARD_NOUN.test(question) && DASHBOARD_CHANGE.test(question) && parseDashboardChange(question) !== null) {
+    return 'dashboard';
   }
   if (OPEN.test(question)) {
     return 'open';

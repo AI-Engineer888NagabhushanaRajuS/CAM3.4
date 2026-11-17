@@ -64,7 +64,14 @@ describe('fetchRfqStatus', () => {
 });
 
 describe('describeStatus', () => {
-  const base: RfqStatus = { rfqId: 'RFQ-00007', exists: true, customer: 'Centum', project: 'Alpha', started: true, stage: 3, reviewPending: false, finished: false, steps: [] };
+  const base: RfqStatus = { rfqId: 'RFQ-00007', exists: true, customer: 'Centum', project: 'Alpha', started: true, stage: 3, reviewPending: false, finished: false, steps: [], failure: null };
+
+  it('names an uncleared failure and the next step, the way the chat must say it', () => {
+    const text = describeStatus({ ...base, failure: { skill: 'Standardize QuoteWin', detail: 'No QuoteWin file uploaded for rfq_id=RFQ-00007' } });
+    expect(text).toContain('Failed: Standardize QuoteWin: No QuoteWin file uploaded');
+    expect(text).toContain('Upload the missing file, then resume the run.');
+    expect(describeStatus(base)).not.toContain('Failed:');
+  });
 
   it('says stage n of 9 with the stage name, review pending and the tagged rows', () => {
     const text = describeStatus({ ...base, steps: [{ name: 'Standardize BOM', state: 'done' }, { name: 'Fetch prices', state: 'running' }, { name: 'X', state: 'failed' }] });

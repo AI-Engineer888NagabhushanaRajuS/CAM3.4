@@ -11,17 +11,18 @@ import { resolveFiles, resolveParties } from './rfq-chat-actions-parse.js';
 import { planStartPipeline, runStartPipeline } from './rfq-chat-actions-pipeline.js';
 import { planEditValue, runEditValue } from './rfq-chat-actions-edit.js';
 import { runCreateRfq } from './rfq-chat-actions-run.js';
+import { planResolveConflicts, runResolveConflicts, type ResolveConflictsParams } from './rfq-chat-actions-gate.js';
 import { chatStagingId, hashParams, type ActionActor, type ActionDeps, type CreateRfqParams, type EditValueParams, type StartPipelineParams } from './rfq-chat-actions-types.js';
 
 export const TOKEN_TTL_MS = 5 * 60 * 1000;
 
 /** What "nothing was ..." says for each action when a card is refused or cancelled. */
-const NOTHING = { create_rfq: 'created', start_pipeline: 'started', edit_value: 'changed' } as const;
+const NOTHING = { create_rfq: 'created', start_pipeline: 'started', edit_value: 'changed', resolve_conflicts: 'recorded' } as const;
 
 interface Pending {
   sessionKey: string;
   action: keyof typeof NOTHING;
-  params: CreateRfqParams | StartPipelineParams | EditValueParams;
+  params: CreateRfqParams | StartPipelineParams | EditValueParams | ResolveConflictsParams;
   paramHash: string;
   expiresAt: number;
 }
@@ -150,6 +151,24 @@ export function makeChatActions(
       }
     },
 
+    async proposeResolveConflicts({ sessionKey, rfqId, source }) {
+      try {
+        const plan = await planResolveConflicts(rfqId, source);
+        if (!plan.params || !plan.summary) {
+          await audit(sessionKey, 'propose.refused', '-', `${rfqId}: ${plan.message}`);
+          return { message: plan.message };
+        }
+        const card = await issue(sessionKey, 'resolve_conflicts', plan.params, `card issued to record ${source} for ${plan.params.conflictIds.length} conflicts of ${rfqId}`);
+        return {
+          message: plan.message,
+          ui: { type: 'confirm_action', action: 'resolve_conflicts', summary: plan.summary, params: plan.params as unknown as Record<string, unknown>, ...card },
+        };
+      } catch (err) {
+        log.warn(`[RfqChatActions] conflict proposal failed: ${err}`);
+        return { message: `I can't reach the price-source gate of ${rfqId} right now (${err instanceof Error ? err.message : String(err)}). Nothing was changed.` };
+      }
+    },
+
     async confirm({ sessionKey, req, actor }: { sessionKey: string; req: ConfirmReq; actor?: ActionActor }) {
       const p = pending.get(req.confirmToken);
       if (!p) {
@@ -182,6 +201,9 @@ export function makeChatActions(
       const acting: ActionDeps = actor ? { ...deps, upload: (r, b, v) => deps.upload(r, b, v, actor), startPipeline: (r) => deps.startPipeline(r, actor) } : deps;
       if (p.action === 'edit_value') {
         return runEditValue(deps, p.params as EditValueParams, auditStep);
+      }
+      if (p.action === 'resolve_conflicts') {
+        return runResolveConflicts(p.params as ResolveConflictsParams, actor, auditStep);
       }
       return p.action === 'create_rfq' ? runCreateRfq(acting, p.params as CreateRfqParams, auditStep) : runStartPipeline(acting, p.params as StartPipelineParams, auditStep);
     },

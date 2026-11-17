@@ -18,6 +18,7 @@ uvicorn.Server instances -- see main() at the bottom.
 """
 
 import asyncio
+import inspect
 import logging
 import os
 
@@ -95,6 +96,14 @@ async def chat_retrieve(rfq_id: str, body: RetrieveRequest, token: dict = Depend
         top_k=body.top_k,
         node_set_filter=body.node_set_filter,
     )
+    # Company questions also read the masters, in their own search (see query.retrieve_company_masters). Never mixed into the
+    # RFQ's own chunks' tag filter: those chunks are cited to their masters rows, and the RFQ's rows are untouched.
+    masters = await query.retrieve_company_masters(body.question)
+    if masters:
+        # Masters first: the chat passes only the first few memory chunks to the model, and a company question is answered by them.
+        result["chunks"] = masters + list(result.get("chunks", []))
+        result["matched"] = True
+        result["warning"] = None
     return {"rfq_id": rfq_id, **result}
 
 
@@ -219,7 +228,99 @@ async def internal_reset(body: ResetRequest):
 async def internal_status():
     return {"writesEnabled": _llm_writes_enabled(),
             "provider": "openrouter" if getattr(config, "_USE_OPENROUTER", False) else "ollama",
-            "maxConcurrent": _MAX_CONCURRENT, "running": _running, "queued": _queued}
+            "maxConcurrent": _MAX_CONCURRENT, "running": _running, "queued": _queued,
+            "recent": list(ingest.RECENT_JOBS)[:20]}
+
+
+async def _cognee_call(fn, *args, **kwargs):
+    """Cognee's helpers are sync or async depending on the version: await only when they return an awaitable."""
+    result = fn(*args, **kwargs)
+    return await result if inspect.isawaitable(result) else result
+
+
+@internal_app.get("/internal/memory/graph")
+async def internal_graph(limit: int = 600, include_chunks: bool = False):
+    """The company knowledge graph as Cognee holds it: entities (parts, suppliers, assemblies, RFQs...), their types, and the
+    labelled relations between them. Text and embeddings are left out; chunks are included only when asked for."""
+    from cognee.infrastructure.databases.graph import get_graph_engine
+
+    limit = max(1, min(limit, 2000))
+    engine = await get_graph_engine()
+    nodes, edges = await engine.get_graph_data()
+    keep = {"Entity", "EntityType", "NodeSet"} | ({"TextSummary", "DocumentChunk", "TextDocument"} if include_chunks else set())
+    # The most connected nodes first: the core of the graph stays readable at any limit; the long tail is counted, not drawn.
+    degree: dict[str, int] = {}
+    for s, t, _rel, _props in edges:
+        degree[str(s)] = degree.get(str(s), 0) + 1
+        degree[str(t)] = degree.get(str(t), 0) + 1
+    candidates = [(str(node_id), props or {}) for node_id, props in nodes if (props or {}).get("type") in keep]
+    candidates.sort(key=lambda c: degree.get(c[0], 0), reverse=True)
+    kept: dict[str, dict] = {}
+    for node_id, props in candidates[:limit]:
+        kept[node_id] = {
+            "id": node_id,
+            "label": str(props.get("name") or (props.get("text") or "")[:60] or props.get("type")),
+            "type": props.get("type"),
+            "degree": degree.get(node_id, 0),
+            "properties": {k: v for k, v in props.items() if k not in ("text", "embedding") and isinstance(v, (str, int, float, bool, type(None)))},
+        }
+    out_edges = [
+        {"source": str(s), "target": str(t), "relation": str(rel)}
+        for s, t, rel, _ in edges
+        if str(s) in kept and str(t) in kept
+    ][: limit * 3]
+    counts: dict[str, int] = {}
+    for n in kept.values():
+        counts[n["type"]] = counts.get(n["type"], 0) + 1
+    return {"nodes": list(kept.values()), "edges": out_edges, "counts": counts, "total": {"nodes": len(nodes), "edges": len(edges)}}
+
+
+class MastersRequest(BaseModel):
+    sheets: list[dict] = Field(min_length=1, max_length=200)
+
+
+@internal_app.post("/internal/memory/ingest-masters", status_code=202)
+async def internal_ingest_masters(body: MastersRequest):
+    """Company masters, parsed in the browser, into Cognee in the background (one job; reported on memory:job)."""
+    _spawn(ingest.ingest_admin_masters(body.sheets))
+    return {"accepted": True, "sheets": len(body.sheets)}
+
+
+@internal_app.get("/internal/memory/datasets")
+async def internal_datasets():
+    """Every Cognee dataset with its document count, read from Cognee itself (the admin Cognee page shows these)."""
+    out = []
+    for d in await _cognee_call(cognee.datasets.list_datasets):
+        docs = await _cognee_call(cognee.datasets.list_data, d.id)
+        out.append({"name": d.name, "id": str(d.id), "documents": len(docs)})
+    return {"datasets": out}
+
+
+@internal_app.get("/internal/memory/datasets/{name}/documents")
+async def internal_dataset_documents(name: str):
+    datasets = await _cognee_call(cognee.datasets.list_datasets)
+    match = next((d for d in datasets if d.name == name), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail="no such dataset")
+    docs = await _cognee_call(cognee.datasets.list_data, match.id)
+    return {"dataset": name, "documents": [{"name": getattr(x, "name", ""), "mime": getattr(x, "mime_type", ""), "created": str(getattr(x, "created_at", "") or "")} for x in docs]}
+
+
+@internal_app.get("/internal/memory/datasets/{name}/inventory")
+async def internal_dataset_inventory(name: str):
+    """What Cognee's graph holds for the dataset: node types with counts and a few samples (empty until a cognify finished)."""
+    return {"dataset": name, "inventory": await _cognee_call(cognee.get_schema_inventory, dataset=name, samples_per_type=3)}
+
+
+class SearchRequest(BaseModel):
+    rfq_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_\-]+$")
+    question: str = Field(min_length=1, max_length=2000)
+
+
+@internal_app.post("/internal/memory/search")
+async def internal_search(body: SearchRequest):
+    """The admin search: what retrieval returns for one RFQ's memory (same path the chat uses; no token, loopback only)."""
+    return await query.retrieve_rfq_context(rfq_id=body.rfq_id, question=body.question, session_id="admin-search", top_k=8)
 
 
 @internal_app.get("/health")

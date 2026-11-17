@@ -5,6 +5,7 @@ import { authFetch } from '@/lib/apiAuth';
 import { downloadReports } from '../rfq/OpenDirectives';
 import { SupersetDashboardPanel } from './SupersetDashboardPanel';
 import { VolumeBars3D } from './VolumeBars3D';
+import { sectionShown, useDashboardPrefs } from '@/lib/dashboardPrefs';
 import { BomHeatmap, type MatrixPart } from './BomHeatmap';
 import { PortfolioDashboard } from './PortfolioDashboard';
 
@@ -51,6 +52,8 @@ function Empty({ what }: { what: string }) {
 
 export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; ready: boolean; onOpenRfq: (rfqId: string) => void }) {
   const [view, setView] = useState<'rfq' | 'all'>('rfq');
+  // Which cards show: the chat can hide or bring them back ("hide the 3D chart"); see lib/dashboardPrefs.ts.
+  const prefs = useDashboardPrefs();
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
@@ -168,14 +171,14 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
           ) : <Empty what="The summary" />}
         </section>
 
-        {data.bom_matrix && data.bom_matrix.parts.length > 0 && (
+        {data.bom_matrix && data.bom_matrix.parts.length > 0 && sectionShown(prefs, 'bom_matrix') && (
           <section className={`${CARD} xl:col-span-2`} aria-label="BOM matrix heat map">
             <h3 className="text-sm font-semibold text-foreground">BOM matrix: quantity of each part in each assembly</h3>
             <BomHeatmap assemblies={data.bom_matrix.assemblies} parts={data.bom_matrix.parts} />
           </section>
         )}
 
-        {s && s.fgs.length > 0 && (
+        {s && s.fgs.length > 0 && sectionShown(prefs, 'cost_3d') && (
           <section className={`${CARD} xl:col-span-2`} aria-label="Cost per set by assembly and volume, 3D">
             <h3 className="text-sm font-semibold text-foreground">Cost per set, every assembly and volume (3D)</h3>
             <p className="text-xs text-muted-foreground">Hover a bar for its figure; drag to turn the chart.</p>
@@ -240,7 +243,7 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
         </section>
       </div>
 
-      <section className={CARD} aria-label="Formula Engine check">
+      {sectionShown(prefs, 'formula_check') && <section className={CARD} aria-label="Formula Engine check">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Formula Engine check</h3>
@@ -285,7 +288,7 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
           </div>
         )}
         {verify.status === 'none' && <p className="mt-2 text-xs text-muted-foreground">No check has been run on this workbook yet.</p>}
-      </section>
+      </section>}
 
       <section className={CARD} aria-label="Superset">
         <div className="flex items-center justify-between gap-2">

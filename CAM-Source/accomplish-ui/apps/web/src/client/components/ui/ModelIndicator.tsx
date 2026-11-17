@@ -30,6 +30,8 @@ import { ProviderSubMenu } from '@/components/ui/ProviderSubMenu';
 import { useProviders } from '@/components/rfq/ProviderSwitch';
 import { cn } from '@/lib/utils';
 import { AUTO_MODE_CHANGE_EVENT, isAutoMode, setAutoMode } from '@/lib/auto-model';
+import { getAccomplish } from '@/lib/accomplish';
+import { setChatProvider, useChatProvider } from '@/lib/chatProvider';
 
 interface ModelIndicatorProps {
   /** Whether a task is currently running */
@@ -89,8 +91,14 @@ export function ModelIndicator({
   const activeProvider = activeProviderId ? settings?.connectedProviders[activeProviderId] : null;
   const selectedModelId = activeProvider?.selectedModelId;
 
+  // While the chat asks OpenRouter, the label names that model, not the local one the settings still hold.
+  const chatMode = useChatProvider();
+  const chat = useProviders();
+  const cloudModel = chat?.openrouter.model ? chat.openrouter.model.replace(/^openrouter\//, '') : null;
+  const onCloud = chatMode === 'openrouter' && cloudModel !== null;
+
   const hasModel = Boolean(activeProviderId && selectedModelId);
-  const modelDisplayName = selectedModelId ? getModelDisplayName(selectedModelId) : null;
+  const modelDisplayName = onCloud ? cloudModel : selectedModelId ? getModelDisplayName(selectedModelId) : null;
   const isWarning = !hasModel && !loading;
 
   const siblingModels: Array<{ id: string; displayName: string }> = (() => {
@@ -115,7 +123,6 @@ export function ModelIndicator({
 
   // The daemon has an OpenRouter key (Settings > Providers) but the app's provider list does not carry OpenRouter as connected:
   // offer it anyway, with the models OpenRouter returns, so the choice is never missing.
-  const chat = useProviders();
   const openRouterOffered = Boolean(chat?.openrouter.hasKey) && !otherProviders.some(([id]) => id === 'openrouter') && activeProviderId !== 'openrouter';
   const openRouterEntry = openRouterOffered
     ? ({ providerId: 'openrouter', connectionStatus: 'connected', selectedModelId: null, availableModels: [] } as unknown as ConnectedProvider)
@@ -142,7 +149,14 @@ export function ModelIndicator({
   const handleSelectProviderModel = useCallback(
     async (providerId: ProviderId, modelId: string) => {
       try {
-        await switchProviderModel(providerId, modelId);
+        // OpenRouter is not a connected provider in Settings, so a row-level update would save nothing. Its pick is the saved
+        // model the chat reads for OpenRouter (rfq-chat-models.ts: cloudModelOf).
+        if (providerId === 'openrouter') {
+          await getAccomplish().setSelectedModel({ provider: 'openrouter', model: modelId });
+          setChatProvider('openrouter'); // the chat asks OpenRouter now, so the label and the answers agree
+        } else {
+          await switchProviderModel(providerId, modelId);
+        }
         setAutoMode(false);
         setAuto(false);
         setOpen(false);

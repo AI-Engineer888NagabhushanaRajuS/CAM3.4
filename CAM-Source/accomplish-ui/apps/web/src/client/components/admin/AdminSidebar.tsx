@@ -1,7 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router';
-import { Buildings, Calculator, Kanban, X } from '@phosphor-icons/react';
+import { Buildings, Calculator, Database, Kanban, ShareNetwork, X } from '@phosphor-icons/react';
 import { BrandMark } from '@/components/BrandMark';
 
 const NAV_ITEMS = [
@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { to: '/cam-masters', label: 'CAM Masters', icon: Buildings },
   { to: '/project', label: 'Project Master', icon: Kanban },
   { to: '/costing', label: 'Quote Master', icon: Calculator },
+  { to: '/cognee', label: 'Cognee', icon: Database },
+  { to: '/knowledge-graph', label: 'Centum Knowledge Graph', icon: ShareNetwork },
 ] as const;
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
