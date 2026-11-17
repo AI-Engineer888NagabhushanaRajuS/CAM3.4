@@ -25,7 +25,8 @@ export function BomHeatmap({ assemblies, parts }: { assemblies: string[]; parts:
   // The view and the size live in the shared dashboard prefs, so the chat's "switch to heat map" and these selectors agree.
   const prefs = useDashboardPrefs();
   const top = prefs.matrixTop ?? 10;
-  const view: View = prefs.matrixView ?? 'line';
+  // A line runs across assemblies, so with a single assembly it is one dot: the heat map reads better there unless a view was chosen.
+  const view: View = prefs.matrixView ?? (assemblies.length < 2 ? 'heat' : 'line');
   const setTop = (n: number) => applyPrefs({ matrixTop: n as DashboardPrefs['matrixTop'] });
   const setView = (v: View) => applyPrefs({ matrixView: v });
   const host = useRef<HTMLDivElement>(null);

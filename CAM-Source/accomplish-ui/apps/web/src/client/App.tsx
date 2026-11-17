@@ -1772,15 +1772,18 @@ export function App() {
                 <div className="flex h-full min-h-0 flex-col overflow-y-auto">
                   {customRfqId.trim() && <ChangesPanel rfqId={customRfqId.trim()} />}
                   {/* The reporting steps stream here as they run (rfq:skill-progress), the same live feed the progress view shows. */}
-                  {sectionShown(dashboardPrefs, 'live_feed') && <div className="space-y-3 border-b border-border py-4">
-                    <p className="px-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">See your work, live</p>
-                    <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
-                    <FormulaEngine3D entries={rfqProgressLog} />
-                    <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
-                  </div>}
-                  <div className="min-h-0 flex-1">
+                  {/* The results come first; the live feed of the steps sits under them, collapsed, so nothing is pushed out of view. */}
+                  <div className="shrink-0">
                     {customRfqId.trim() ? <ReportsDashboard rfqId={customRfqId.trim()} ready={runCompleted} onOpenRfq={handleAssistantSelectRfq} /> : <PortfolioDashboard onOpenRfq={handleAssistantSelectRfq} />}
                   </div>
+                  {sectionShown(dashboardPrefs, 'live_feed') && (
+                    <details className="space-y-3 border-t border-border py-4">
+                      <summary className="cursor-pointer px-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">See your work, live</summary>
+                      <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
+                      <FormulaEngine3D entries={rfqProgressLog} />
+                      <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
+                    </details>
+                  )}
                 </div>
               ) : (
                 /* Continuous progress view -- keyed on broad mode only (not

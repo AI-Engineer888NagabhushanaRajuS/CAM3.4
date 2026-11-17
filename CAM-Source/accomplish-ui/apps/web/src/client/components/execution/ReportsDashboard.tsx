@@ -129,7 +129,8 @@ export function ReportsDashboard({ rfqId, ready, onOpenRfq }: { rfqId: string; r
   const maxCash = Math.max(1, ...(cash?.map((c) => c.final_buy ?? 0) ?? [1]));
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-5">
+    // No own scroll box and no fixed height: the reports column above it scrolls, so every card keeps its natural height.
+    <div className="flex flex-col gap-4 p-5">
       {tabs}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
