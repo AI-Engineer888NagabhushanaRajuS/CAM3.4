@@ -1000,7 +1000,7 @@ def report_insert_sqls(rfq_lit):
                 ex.total_excess_cost / NULLIF(SUM(c.ext_price_conv), 0) AS pct_moq_of_cost
             FROM input_db.scrub_bom_items s
             JOIN cbom_db.cbom c ON c.bom_item_id = s.bom_item_id AND c.rfq_id = {rfq_lit}
-            JOIN input_db.volume vol ON vol.fg = s.fg AND {_normalize_volume_sql('vol.volume_name')} = c.volume_no AND vol.rfq_id = {rfq_lit}
+            LEFT JOIN input_db.volume vol ON vol.fg = s.fg AND {_normalize_volume_sql('vol.volume_name')} = c.volume_no AND vol.rfq_id = {rfq_lit}
             LEFT JOIN (SELECT volume_no, SUM(net_excess_cost) AS total_excess_cost FROM ex_inv_calc GROUP BY volume_no) ex
                 ON ex.volume_no = c.volume_no
             WHERE s.rfq_id = {rfq_lit}
