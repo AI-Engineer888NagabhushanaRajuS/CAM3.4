@@ -1132,7 +1132,9 @@ export function App() {
   // toggled on. Without that manual override, collapsing the sidebar on this stage
   // would permanently hide the only way to navigate to a different stage.
   const isOnReportingAnalyticsStage = currentWorkflowStage === 'reportingAnalytics';
-  const isReportingAnalyticsCollapsed = isOnReportingAnalyticsStage && !reportingAnalyticsLayoutExpanded;
+  // A finished run gives the reports the whole screen: the pipeline and the chat shrink, and the caret button brings them back.
+  const finishedRunLayout = runCompleted && !reportingAnalyticsLayoutExpanded;
+  const isReportingAnalyticsCollapsed = (isOnReportingAnalyticsStage || runCompleted) && !reportingAnalyticsLayoutExpanded;
   const isLeftPanelCollapsed = isHitlCollapsed || isReportingAnalyticsCollapsed;
   // Collapsed states narrow column 1 to a fixed icon-only rail (64px) rather than
   // removing it entirely -- step icons stay visible/clickable, only the text labels
@@ -1140,6 +1142,8 @@ export function App() {
   // wouldn't mean anything.
   const gridTemplateColumns = isHitlCollapsed
     ? '64px 0px minmax(0, 20fr) 12px minmax(480px, 80fr)'
+    : finishedRunLayout
+      ? '64px 0px 0px 0px minmax(480px, 1fr)'
     : isReportingAnalyticsCollapsed
       ? `64px 0px minmax(360px, ${paneRatios[1]}fr) 12px minmax(480px, ${paneRatios[0] + paneRatios[2]}fr)`
       : `minmax(280px, ${paneRatios[0]}fr) 12px minmax(360px, ${paneRatios[1]}fr) 12px minmax(280px, ${paneRatios[2]}fr)`;
