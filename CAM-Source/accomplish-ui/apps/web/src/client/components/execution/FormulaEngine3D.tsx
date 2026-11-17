@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import type { RfqSkillHistoryEntry } from '@/lib/accomplish';
 
@@ -27,7 +28,18 @@ interface Node {
   status: string;
 }
 
-export function FormulaEngine3D({ entries }: { entries: RfqSkillHistoryEntry[] }) {
+export function FormulaEngine3D({ entries, expanded = false }: { entries: RfqSkillHistoryEntry[]; expanded?: boolean }) {
+  const [open, setOpen] = useState(false);
+  // Escape closes the full-screen view.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const host = useRef<HTMLDivElement>(null);
   const three = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -173,17 +185,44 @@ export function FormulaEngine3D({ entries }: { entries: RfqSkillHistoryEntry[] }
 
   const failed = entries.filter((e) => e.stepStatus === 'failed');
 
+  // Inline it is a picture: pointer events pass through, so it never traps the wheel or blocks the page under it.
+  // Full screen (expanded, in a portal) is the one place it takes the pointer.
+  const surface = (
+    <div className={`relative w-full overflow-hidden rounded-xl border border-border bg-card ${expanded ? 'h-full min-h-[60vh]' : 'h-[240px]'}`}>
+      <div ref={host} className="absolute inset-0" style={{ pointerEvents: expanded ? 'auto' : 'none' }} role="img" aria-label={`Formula engine: ${entries.length} steps, ${failed.length} failed`} />
+      {entries.length === 0 && (
+        <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">No steps have run yet.</p>
+      )}
+      {!webgl && (
+        <p role="alert" className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">The 3D view needs WebGL. The steps are listed below.</p>
+      )}
+    </div>
+  );
+
+  if (expanded) {
+    return <div className="h-full p-4" data-testid="formula-engine-3d-expanded">{surface}</div>;
+  }
   return (
-    <div className="space-y-3 px-5" data-testid="formula-engine-3d">
-      <div className="relative h-[240px] w-full overflow-hidden rounded-xl border border-border bg-card">
-        <div ref={host} className="absolute inset-0" role="img" aria-label={`Formula engine: ${entries.length} steps, ${failed.length} failed`} />
-        {entries.length === 0 && (
-          <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">No steps have run yet.</p>
-        )}
-        {!webgl && (
-          <p role="alert" className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">The 3D view needs WebGL. The steps are listed below.</p>
-        )}
+    <div className="space-y-2 px-5" data-testid="formula-engine-3d">
+      <div className="flex justify-end">
+        <button type="button" onClick={() => setOpen(true)} className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+          Full screen
+        </button>
       </div>
+      {surface}
+      {open &&
+        createPortal(
+          <div role="dialog" aria-modal="true" aria-label="Formula engine, full screen" className="fixed inset-0 z-[90] flex flex-col bg-background p-4" data-testid="formula-engine-fullscreen">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Formula engine: each pipeline step as a block</p>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">Close</button>
+            </div>
+            <div className="min-h-0 flex-1">
+              <FormulaEngine3D entries={entries} expanded />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
