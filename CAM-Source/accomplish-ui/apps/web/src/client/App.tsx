@@ -25,6 +25,7 @@ import { OAuthProviderId } from '@accomplish_ai/agent-core/common';
 import { StageExecutionOutput } from './components/execution/StageExecutionOutput';
 import { FormulaEngine3D } from './components/execution/FormulaEngine3D';
 import { OutputButton } from './components/execution/OutputButton';
+import { ProcessingChip } from './components/execution/ProcessingChip';
 import { OutputPage, type OutputDownload } from './components/execution/OutputPage';
 import { sectionShown, useDashboardPrefs } from './lib/dashboardPrefs';
 import { PortfolioDashboard } from './components/execution/PortfolioDashboard';
@@ -1785,7 +1786,14 @@ export function App() {
                 <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-5">
                   {customRfqId.trim() ? (
                     <>
-                      {runCompleted && (
+                      {!(runCompleted && exportStatus?.cbom) && (
+                        <ProcessingChip
+                          step={rfqProgressLog.find((e) => e.stepStatus === 'running')?.skillName ?? null}
+                          done={rfqProgressLog.filter((e) => e.stepStatus === 'completed').length}
+                          total={rfqProgressLog.length}
+                        />
+                      )}
+                      {runCompleted && exportStatus?.cbom && (
                         <OutputButton
                           onOpen={() => {
                             // Pressing Output is the request: the CBOM workbook is saved, and the Output page opens.
