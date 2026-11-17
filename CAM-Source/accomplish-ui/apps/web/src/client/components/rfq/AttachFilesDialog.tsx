@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PYTHON_BRIDGE_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
-import { intakeReadiness, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
+import { fixQueueOf, intakeReadiness, MAX_PICK, planWaves, REJECT_TEXT, triageFiles, type ScanResponse } from '@/lib/rfqAttachments';
 import { scanInWaves, type WaveOutcome } from '@/lib/scanWaves';
 import { stageInput, type StagedRole } from '@/lib/intakeInputs';
 import { IntakeDashboard } from './IntakeDashboard';
@@ -45,7 +45,11 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const [error, setError] = useState<string | null>(null);
   const [wave, setWave] = useState({ n: 1, of: 1 });
   const [failure, setFailure] = useState<WaveOutcome['failure']>(null);
-  const [fixTarget, setFixTarget] = useState<{ attachmentId: string; name: string } | null>(null);
+  // The files that need a workbook fix, one popup each, back to back: one file = one popup, three = three, all = all.
+  // A file leaves the queue once its popup is closed or its corrected copy is saved (previousId marks it done).
+  const [fixDone, setFixDone] = useState<Set<string>>(new Set());
+  const fixQueue = phase === 'result' && response ? fixQueueOf(response.results, fixDone) : [];
+  const fixTarget = fixQueue[0] ?? null;
   const [assignment, setAssignment] = useState<Assignment>({});
   const [kept, setKept] = useState<{ names: string[]; failed: string[] } | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -258,7 +262,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
           </p>
         )}
         {phase === 'result' && readiness?.fix && (
-          <Button variant="outline" onClick={() => setFixTarget({ attachmentId: readiness.fix!.attachmentId, name: readiness.fix!.name })} className="w-fit">
+          <Button variant="outline" onClick={() => setFixDone((s) => { const n = new Set(s); n.delete(readiness.fix!.attachmentId); return n; })} className="w-fit">
             Fix {readiness.fix.errors} {readiness.fix.errors === 1 ? 'cell' : 'cells'} in {readiness.fix.name}
           </Button>
         )}
@@ -296,15 +300,20 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
             rfqId={rfqId}
             attachmentId={fixTarget.attachmentId}
             name={fixTarget.name}
-            onClose={() => setFixTarget(null)}
+            report={undefined}
+            onClose={() => setFixDone((s) => new Set(s).add(fixTarget.attachmentId))}
             onFixed={(fixed, previousId) => {
-              // the corrected copy replaced the original: the result row and the readiness follow it
+              // the corrected copy replaced the original: the result row and the readiness follow it; the next file's popup opens
+              setFixDone((s) => new Set(s).add(previousId));
               setResponse((r) => r && ({ ...r, results: r.results.map((x) => (x.attachment_id === previousId
                 ? { ...x, attachment_id: fixed.attachment_id, name: fixed.name, sha256: fixed.sha256, check: fixed.check }
                 : x)) }));
               onReleased();
             }}
-            onForced={(unresolved) => setKept({ names: [], failed: [`The run was started with ${unresolved} cell${unresolved === 1 ? '' : 's'} left as they are; the output is marked as a forced run.`] })}
+            onForced={(unresolved) => {
+              setFixDone((s) => new Set(s).add(fixTarget.attachmentId));
+              setKept({ names: [], failed: [`The run was started with ${unresolved} cell${unresolved === 1 ? '' : 's'} left as they are; the output is marked as a forced run.`] });
+            }}
           />
         )}
     </>

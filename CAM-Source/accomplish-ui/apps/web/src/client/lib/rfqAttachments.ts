@@ -233,3 +233,11 @@ export async function deleteAttachment(rfqId: string, attachmentId: string): Pro
   const res = await authFetch(`${base(rfqId)}/${encodeURIComponent(attachmentId)}`, rfqId, { method: 'DELETE' });
   if (!res.ok) throw await failure(res);
 }
+
+/** The workbook popups still to show after a scan, in upload order: each released file whose cells would give errors, not yet
+ *  closed or saved (`done` holds the attachment ids already handled). One popup per entry, opened back to back. */
+export function fixQueueOf(results: ScanResult[], done: ReadonlySet<string>): Array<{ attachmentId: string; name: string }> {
+  return results
+    .filter((r) => r.decision === 'released' && r.attachment_id && r.check?.checked && r.check.errors > 0 && !done.has(r.attachment_id))
+    .map((r) => ({ attachmentId: r.attachment_id as string, name: r.name }));
+}
