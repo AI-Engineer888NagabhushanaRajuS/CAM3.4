@@ -149,10 +149,9 @@ def main():
     files.append(write("11-app-keys.template.yaml", {
         "apiVersion": "v1",
         "kind": "Secret",
-        "metadata": meta("cam-app-keys"),
+        "metadata": {**meta("cam-app-keys"), "annotations": {"cam/note": "fill in at deploy time; never commit real values"}},
         "type": "Opaque",
         "stringData": {
-            "# fill in at deploy time; never commit real values": "",
             "JWT_SECRET": "REPLACE_ME",
             "OPENROUTER_API_KEY": "REPLACE_ME",
             "DIGIKEY_CLIENT_ID": "REPLACE_ME",
