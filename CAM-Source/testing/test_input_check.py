@@ -209,5 +209,6 @@ def test_the_real_step_breaks_on_text_quantity_exactly_where_the_check_says(tmp_
     header = list(pd.read_excel(p, sheet_name="SCRUB BOM").columns)
     mapping = {t: next((h for h in header if ic._norm(h) in ic._ALIASES.get(t, set())), None) for t in real.SCRUB_BOM_TEMPLATE_HEADERS}
     df = real.standardize_scrub_bom(pd.read_excel(p, sheet_name="SCRUB BOM"), mapping)
-    # the text quantity reaches the output untouched (not a number): the check is the only thing standing in front of it
-    assert df["quantity"].map(lambda v: isinstance(v, str)).sum() == 1
+    # the text quantity becomes a blank, not a failed insert: a forced run ("Run anyway") goes on, and the output marks the gap
+    assert df["quantity"].isna().sum() == 1
+    assert df["quantity"].notna().sum() == len(df) - 1

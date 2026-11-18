@@ -258,6 +258,9 @@ def standardize_scrub_bom(df, mapping):
 
     standardized_df["item_number"] = standardized_df["item_number"].apply(_coerce_item_number)
     standardized_df["ltb_date"] = _coerce_ltb_date(standardized_df["ltb_date"])
+    # A text quantity ("abc") becomes NULL here, not a failed insert: a forced run ("Run anyway") goes on and the output shows the
+    # line's error, with its input problem as a comment. A clean BOM is unchanged (the pre-check refuses text quantities first).
+    standardized_df["quantity"] = _coerce_numeric(standardized_df["quantity"])
     standardized_df["hierarchy_multiplier"] = _build_hierarchy_multipliers(standardized_df)
 
     return standardized_df

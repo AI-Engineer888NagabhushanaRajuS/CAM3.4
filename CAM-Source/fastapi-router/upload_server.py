@@ -371,8 +371,9 @@ async def start_dify_workflow(rfq_id: str, token: dict = Depends(auth.verify_tok
     }
 
 
-async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forced: bool = False) -> int:
-    """Returns the number of cells still in error. A forced run ("Force Run Anyway") is let through with them; the count is kept on the run."""
+async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forced: bool = False) -> tuple[int, list]:
+    """Returns (cells still in error, their issues). A forced run ("Force Run Anyway") is let through with them; the count and every
+    issue (with its part) are kept on the run, so the output can say why each error cell is in error."""
     """SPEC-023: a BOM that would give NaN / errors in the output (or that the first step rejects) is refused HERE, before a
     version or a run exists, with every offending cell, instead of failing minutes later or finishing with NaN. Only for the
     SCRUB BOM pipeline (the default profile); another profile reads other files."""
@@ -380,7 +381,7 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forc
     import input_check
     chosen = profile if isinstance(profile, str) and profile else os.environ.get("CAM_DEFAULT_PROFILE", "Standard_BOM_Flow")
     if chosen != "Standard_BOM_Flow":
-        return 0
+        return 0, []
     ext = os.path.splitext(bom_file.filename or "")[1].lower()
     data = await bom_file.read()
     await bom_file.seek(0)
@@ -388,7 +389,7 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forc
         path = os.path.join(tmp, f"bom{ext}")
         with open(path, "wb") as f:
             f.write(data)
-        report = await asyncio.to_thread(input_check.check, path)
+        report = await asyncio.to_thread(input_check.check, path, forced)
     if not report["ok"] and not forced:
         raise HTTPException(status_code=422, detail={
             "code": "input_invalid",
@@ -396,11 +397,18 @@ async def _refuse_invalid_bom(bom_file: UploadFile, profile: Optional[str], forc
             "errors": report["errors"], "warnings": report["warnings"],
             "issues": [i for i in report["issues"] if i["severity"] == "error"][:30],
         })
-    return int(report["errors"]) if not report["ok"] else 0
+    if report["ok"]:
+        return 0, []
+    return int(report["errors"]), [i for i in report["issues"] if i["severity"] == "error"]
 
 
-def _mark_forced_run(rfq_id: str, version: int, unresolved: int) -> None:
-    """A run started with "Force Run Anyway" keeps the count of cells it went ahead with, on its BOM row (execution_logs)."""
+# Shared with the reporting service (its ./database mount): the forced run's issues, read when its output workbook is built.
+FORCED_RUNS_DIR = os.environ.get("CAM_FORCED_RUNS_DIR", os.path.join(os.getcwd(), "..", "database", "forced_runs"))
+
+
+def _mark_forced_run(rfq_id: str, version: int, unresolved: int, issues: list) -> None:
+    """A run started with "Force Run Anyway" keeps the count of cells it went ahead with, on its BOM row (execution_logs), and its
+    issues in a file the output workbook reads (see reports/forced_run.py)."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -412,6 +420,10 @@ def _mark_forced_run(rfq_id: str, version: int, unresolved: int) -> None:
         conn.commit()
     finally:
         conn.close()
+    os.makedirs(FORCED_RUNS_DIR, exist_ok=True)
+    path = os.path.join(FORCED_RUNS_DIR, db.versioned_key(rfq_id, version) + ".json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"rfq_id": rfq_id, "version": version, "unresolved_cells": unresolved, "issues": issues}, f, ensure_ascii=False)
 
 
 # ── Staged inputs ──────────────────────────────────────────────────────────────
@@ -682,7 +694,7 @@ async def upload_rfq_file(
     x_cam_user_email: Optional[str] = Header(None),
 ):
     forced = force_run.strip().lower() in ("1", "true", "yes") if isinstance(force_run, str) else False
-    unresolved = await _refuse_invalid_bom(bom_file, profile, forced)
+    unresolved, forced_issues = await _refuse_invalid_bom(bom_file, profile, forced)
     # The SCRUB BOM pipeline (default profile) takes its volumes from the workbook's own Settings sheet and never reads this file;
     # RFQ_Flow's import_bom does need it. So it is optional for the default profile only.
     has_volume = volume_file is not None and bool(volume_file.filename)
@@ -761,7 +773,7 @@ async def upload_rfq_file(
         # the BOM row before it can run; there is no graceful-skip for it.
         file_path = await process_file_upload(rfq_id, bom_file, "BOM", version=new_version)
         if forced and unresolved:
-            _mark_forced_run(rfq_id, new_version, unresolved)
+            _mark_forced_run(rfq_id, new_version, unresolved, forced_issues)
         saved_paths = {"BOM": file_path}
         if has_volume:
             saved_paths["VOLUME"] = await process_file_upload(rfq_id, volume_file, "VOLUME", version=new_version)

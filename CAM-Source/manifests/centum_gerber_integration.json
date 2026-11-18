@@ -12,9 +12,18 @@
     {
       "name": "centum_gerber_integration__extract_features",
       "description": "Extract PCB features from the uploaded Gerber archive for one rfq_id. Feeds layer count and board area into pcb_nre_fai_charge_report.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"layer_count": "integer", "board_area_cm2": "number", "features": "object"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "layer_count": "integer",
+        "board_area_cm2": "number",
+        "features": "object"
+      },
+      "status": "NOT_REGISTERED"
     }
   ],
-  "dependencies": ["postgresql:logic_db"]
+  "dependencies": [
+    "postgresql:logic_db"
+  ]
 }

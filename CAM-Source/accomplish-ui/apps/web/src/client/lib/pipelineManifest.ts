@@ -6,12 +6,13 @@
 import { useEffect, useState } from 'react';
 import { fetchManifestTree, type ManifestTree, type SkillNode } from './manifestsApi';
 
-/** Stage of the left pane -> the manifest skill that backs it. SKILL_05 (supplier RFQ tools) has no stage: it is not wired to the pipeline. */
+/** Stage of the left pane -> the manifest skill that backs it. supplierRfq (SKILL_05) has no backend step yet: it shows its manifest sub-skills and reads "Not in this pipeline". */
 export const STAGE_SKILL: Record<string, string> = {
   intake: 'SKILL_01',
   extraction: 'SKILL_02',
   risk: 'SKILL_03',
   pricing: 'SKILL_04',
+  supplierRfq: 'SKILL_05',
   erpDataSync: 'SKILL_06',
   pricingConsolidation: 'SKILL_07',
   priceDecision: 'SKILL_08',

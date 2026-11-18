@@ -4,7 +4,7 @@ import { clearSession, getSessionToken } from '@/lib/session';
 
 export type ManifestKind = 'agent' | 'skill' | 'reporting' | 'approved';
 
-export interface SubSkill { id: string; name: string; type: string; stepCount: number; /** false = switched off in the manifest (SPEC-023); absent on an older daemon. */ enabled?: boolean }
+export interface SubSkill { id: string; name: string; type: string; stepCount: number; /** Steps the manifest marks Human: a sub-skill with one shows the person icon, otherwise the agent's. */ humanSteps?: number; /** false = switched off in the manifest (SPEC-023); absent on an older daemon. */ enabled?: boolean }
 export interface SkillNode {
   path: string; id: string; name: string; sequence: number; version: string; status: string; hash: string;
   missing?: boolean; subSkills: SubSkill[]; /** SPEC-025: the pane's buttons for this stage; absent = the built-in ones. */ uiActions?: Array<{ label: string; action: string }>; /** false = switched off in the manifest: the left pane disables the stage. */ enabled?: boolean;

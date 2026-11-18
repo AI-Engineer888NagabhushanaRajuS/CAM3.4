@@ -26,52 +26,123 @@
       "macro_category_name": "risk",
       "macro_category": 5,
       "description": "Feasibility & Risk (SKILL_03): a Can-Build / Cannot-Build verdict with reasons for every SCRUB BOM line (EOL, no price, long lead time, NRFND, NCNR, expired quotes), from the SCRUB BOM and the QuoteWin quotes. Machine constraints are not evaluated (no EMS capability template).",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"lines": "integer", "can_build": "integer", "cannot_build": "integer", "high": "integer", "medium": "integer", "low": "integer"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "lines": "integer",
+        "can_build": "integer",
+        "cannot_build": "integer",
+        "high": "integer",
+        "medium": "integer",
+        "low": "integer"
+      }
     },
     {
       "name": "centum_reporting__cbom",
       "description": "Regenerate only the CBOM table for one rfq_id, from the existing (read-only) input tables. Does not touch the 16 downstream reports.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"cbom_row_count": "integer", "detected_volumes": "array", "warnings": "array"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "cbom_row_count": "integer",
+        "detected_volumes": "array",
+        "warnings": "array"
+      },
+      "skill_index": 4,
+      "skill_name": "Build CBOM Structure + QuoteWin Pricing",
+      "macro_category": 6
     },
     {
       "name": "centum_reporting__enrich_erp",
       "description": "Fill the _erp columns on the existing CBOM rows for one rfq_id, from erp master data.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"cbom_row_count": "integer", "rows_matched_erp": "integer"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "cbom_row_count": "integer",
+        "rows_matched_erp": "integer"
+      },
+      "status": "APPROVED_INACTIVE"
     },
     {
       "name": "centum_reporting__enrich_costing_sheet",
       "description": "Fill the _costing columns on the existing CBOM rows for one rfq_id, from costing_sheet data.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"cbom_row_count": "integer", "rows_matched_costing": "integer"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "cbom_row_count": "integer",
+        "rows_matched_costing": "integer"
+      },
+      "skill_index": 5,
+      "skill_name": "Enrich CBOM with Costing Sheet Data",
+      "macro_category": 6
     },
     {
       "name": "centum_reporting__resolve_final_selection",
       "description": "HITL gate: auto-resolve final_* for single-source rows, flag multi-source conflicts for human review. When hitl=1, caller must not advance past this step.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"hitl": "integer", "pending_conflicts": "integer", "auto_resolved": "integer"},
-      "hitl_gate": true
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "hitl": "integer",
+        "pending_conflicts": "integer",
+        "auto_resolved": "integer"
+      },
+      "hitl_gate": true,
+      "skill_index": 6,
+      "skill_name": "Resolve Final Cost Selection (HITL gate)",
+      "macro_category": 6
     },
     {
       "name": "centum_reporting__generate_reports",
       "description": "Regenerate all 16 report tables for one rfq_id from the already-generated CBOM.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"report_row_counts": "object", "issues": "array", "validation_results": "object"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "report_row_counts": "object",
+        "issues": "array",
+        "validation_results": "object"
+      },
+      "skill_index": 7,
+      "skill_name": "Generate CBOM Reports",
+      "macro_category": 9
     },
     {
       "name": "centum_reporting__validate_reports",
       "description": "Run all per-tab business-rule validators for one rfq_id. Read-only. Returns passed/failed counts and per-table check details.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"total": "integer", "passed": "integer", "failed": "integer", "details": "array"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "total": "integer",
+        "passed": "integer",
+        "failed": "integer",
+        "details": "array"
+      },
+      "status": "NOT_REGISTERED"
     },
     {
       "name": "centum_reporting__export_reports",
       "description": "Export the already-generated CBOM + 16 reports for one rfq_id into a single consolidated Excel workbook.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"file_path": "string", "tab_count": "integer"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "file_path": "string",
+        "tab_count": "integer"
+      },
+      "skill_index": 8,
+      "skill_name": "Export CBOM Reports to Excel",
+      "macro_category": 9
     }
   ],
-  "dependencies": ["postgresql:logic_db", "duckdb:cbom.duckdb", "duckdb:reports.duckdb", "duckdb:input.duckdb"]
+  "dependencies": [
+    "postgresql:logic_db",
+    "duckdb:cbom.duckdb",
+    "duckdb:reports.duckdb",
+    "duckdb:input.duckdb"
+  ]
 }

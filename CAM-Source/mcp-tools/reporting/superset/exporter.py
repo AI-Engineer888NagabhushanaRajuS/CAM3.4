@@ -50,6 +50,10 @@ from reports.cbom_vl import (
 )
 from reports.ex_inv_vl import build_ex_inv_vl_sheet, ex_inv_vl_rows
 from reports.internal_review import build_internal_review_sheet
+from reports.checks import build_checks_sheet
+from reports import forced_run
+from reports.drills_sheets import build_drills_sheets
+from currency import get_currency_rates
 
 
 def _build_cbom_raw_sheet(wb, cbom_df):
@@ -280,6 +284,11 @@ def _export_excel(rfq_id, con):
     build_internal_review_sheet(wb, cbom_df, quote_df)
     worksheet_names.append("Internal Review")
 
+    build_checks_sheet(wb, con, rfq_id, cbom_df)
+    worksheet_names.append("Checks")
+
+    worksheet_names.extend(build_drills_sheets(wb, con, rfq_id, rates=get_currency_rates()))
+
     # detected_volumes is a List[str] ("proto", "1", "2", ...); the tree/payload builders
     # above (to_cbom_tree_payload/to_excess_inventory_payload) key their "volume" field on
     # "proto" (string) or a real Python int for numbered volumes (see their _norm_vol()) --
@@ -374,7 +383,12 @@ def _export_excel(rfq_id, con):
     manifest.append([])
     manifest.append(["Error cells (all tabs)", "=" + "+".join(error_terms)])
     error_row = manifest.max_row
-    manifest.append(["Go / no-go", f'=IF(B{error_row}=0,"GO","NO-GO")'])
+    # A forced run ("Run anyway") carries the input problems it went ahead with: the output is not GO while any remain, even where
+    # the bad input reaches the output as a blank rather than an error (see reports/forced_run.py).
+    forced = forced_run.load_run(rfq_id)
+    manifest.append(["Input problems carried by a forced run", len(forced.get("issues", [])) if forced else 0])
+    forced_row = manifest.max_row
+    manifest.append(["Go / no-go", f'=IF(AND(B{error_row}=0,B{forced_row}=0),"GO","NO-GO")'])
     # Excel shows "########" for a number wider than its column. The tabs at the default width (8.4) hold currency and totals: give every column
     # that carries numbers or formulas at least 15 characters (only widens; a column the tab set itself stays as it is).
     for sheet in wb.worksheets:

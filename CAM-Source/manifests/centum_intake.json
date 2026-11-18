@@ -12,15 +12,29 @@
     {
       "name": "centum_intake__scan_local_file",
       "description": "Scan the local staged upload area for an RFQ's uploaded files and register them in the workflow.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"files_found": "array", "status": "string"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "files_found": "array",
+        "status": "string"
+      },
+      "status": "NOT_REGISTERED"
     },
     {
       "name": "centum_intake__import_bom",
       "description": "Import and validate the BOM file for one rfq_id from the staged upload area into the intake pipeline.",
-      "inputs": {"rfq_id": "string"},
-      "outputs": {"row_count": "integer", "warnings": "array"}
+      "inputs": {
+        "rfq_id": "string"
+      },
+      "outputs": {
+        "row_count": "integer",
+        "warnings": "array"
+      },
+      "status": "NOT_REGISTERED"
     }
   ],
-  "dependencies": ["postgresql:logic_db"]
+  "dependencies": [
+    "postgresql:logic_db"
+  ]
 }

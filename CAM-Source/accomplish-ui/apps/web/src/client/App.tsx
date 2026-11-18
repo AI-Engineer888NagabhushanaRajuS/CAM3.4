@@ -48,6 +48,13 @@ import {
   Calculator,
   ClipboardText,
   CheckCircle,
+  Envelope,
+  Tray,
+  Gauge,
+  Truck,
+  PaperPlaneTilt,
+  Database,
+  Table,
   ChartLineUp,
   CaretLeft,
   CaretRight,
@@ -100,6 +107,12 @@ type AppStatus = 'loading' | 'ready' | 'error';
 // flow, 'jump' just navigates to that stage (the macro header used to do this
 // directly; it now only expands/collapses), and 'info' is a non-interactive
 // line describing an automatic pipeline step (e.g. virus scanning).
+// Each manifest skill's icon in the left pane (presentation only: the skills, their order and their sub-skills come from the manifests).
+const SKILL_ICON: Record<string, typeof Tray> = {
+  SKILL_01: Tray, SKILL_02: Scan, SKILL_03: Gauge, SKILL_04: Truck, SKILL_05: PaperPlaneTilt,
+  SKILL_06: Database, SKILL_07: ClipboardText, SKILL_08: Table, SKILL_09: ChartLineUp, SKILL_10: Envelope,
+};
+
 const WORKFLOW_STAGES = [
   {
     id: 'intake', mainHeading: 'Upload file', name: 'Intake & Normalization', icon: CloudArrowUp, color: 'emerald', tag: 'INTAKE',
@@ -117,6 +130,8 @@ const WORKFLOW_STAGES = [
     id: 'pricing', mainHeading: 'Get online pricing', name: 'Distributor Pricing', icon: Tag, color: 'amber', tag: 'PRICE',
     subSkills: [{ label: 'Fetch Prices', action: 'jump' }],
   },
+  // SKILL_05 in the manifests. No backend step carries it yet, so the stage reads "Not in this pipeline"; its sub-skills come from the manifest.
+  { id: 'supplierRfq', mainHeading: 'Supplier RFQ/Quoting Tools', name: 'Supplier RFQ/Quoting Tools', icon: Envelope, color: 'blue', tag: 'SUPPLIER', subSkills: [] },
   // No longer comingSoon -- Standard_BOM_Flow runs enrich_erp and enrich_costing_sheet
   // (macro_category 4), so this stage has real backend progress to show.
   { id: 'erpDataSync', mainHeading: 'ERP & Quoting tools', name: 'ERP & QuoteWin Data Sync', icon: Briefcase, color: 'cyan', tag: 'SYNC', subSkills: [] },
@@ -1043,6 +1058,17 @@ export function App() {
   const runCompleted = rfqProgressLog.some(
     (entry) => /export_?reports$/i.test(entry.skillCode) && entry.stepStatus === 'completed',
   );
+  // The live progress feed can miss the final export event. The run history (Temporal) says 'passed' once the run is done, so a
+  // finished run counts as finished either way.
+  const runDone = runCompleted || latestRun?.status === 'passed';
+  // The export status is read when the RFQ opens and when the export event arrives. A run that finishes while the page is open
+  // can leave the workbook unlisted; read it again until it is.
+  useEffect(() => {
+    const id = customRfqId.trim();
+    if (!id || !runDone || exportStatus?.cbom) return undefined;
+    const timer = setInterval(() => void refreshExportStatus(id), 5000);
+    return () => clearInterval(timer);
+  }, [customRfqId, runDone, exportStatus?.cbom, refreshExportStatus]);
 
   // Per-stage status label (Left Pane) -- derived entirely from the existing
   // rfqProgressLog SSE data, no new state or backend calls. A stage is
@@ -1294,6 +1320,8 @@ export function App() {
           <span className="inline-flex items-center rounded-md bg-[#1f1f1f] px-3 py-1.5">
             <img src="/assets/centum-logo.png" alt="Centum" className="h-5 w-auto object-contain" />
           </span>
+          {/* CAM BOM Automation mark: one image; it is inverted to white on the dark theme. */}
+          <img src="/assets/cam-bom-automation-black.png" alt="CAM BOM Automation" className="h-7 w-auto object-contain dark:invert" />
           {/* Only once real processing has actually started -- either rfqProgressLog
               has its first entry (a live SSE skill-progress event or a resumed
               history), or the user has actually dispatched the BOM/Volume upload
@@ -1462,6 +1490,11 @@ export function App() {
                   </div>
                   <div className="wf-pbar"><span style={{ width: `${(stages.filter((st) => getStageStatus(st.id as WorkflowStageId) === 'completed').length / Math.max(stages.length, 1)) * 100}%` }} /></div>
                 </div>
+                {manifestTree?.agent && !isLeftPanelCollapsed && (
+                  <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="agent-name">
+                    Agent - {manifestTree.agent.name}
+                  </p>
+                )}
                 <div className="space-y-0 wf-rail" role="tree" aria-label="RFQ Pipeline macro-skills">
                   {stages.map((stage, idx) => {
                     const isSelected = currentWorkflowStage === stage.id;
@@ -1479,6 +1512,8 @@ export function App() {
                     const offInManifest = skill?.enabled === false;
                     const isLocked = isSkippedByToggle || offInManifest;
                     const manifestSubs = skill?.subSkills ?? [];
+                    // The node icon is the manifest skill's own icon (the stage's built-in one when no skill is linked).
+                    const NodeIcon = (skill && SKILL_ICON[skill.id]) || stage.icon;
                     // SPEC-025: the buttons come from the manifest's ui_actions; the built-in ones only when it lists none.
                     const actions = stageActions(skill, stage.subSkills);
                     const hasSubSkills = actions.length > 0 || manifestSubs.length > 0;
@@ -1530,8 +1565,8 @@ export function App() {
                           <button
                             type="button"
                             disabled={isLocked}
-                            title={stage.mainHeading}
-                            aria-label={stage.mainHeading}
+                            title={skill?.name ?? stage.mainHeading}
+                            aria-label={skill?.name ?? stage.mainHeading}
                             onClick={() => {
                               if (isLocked) { return; }
                               // Navigating is the only click behavior now -- expansion
@@ -1551,7 +1586,7 @@ export function App() {
                             {!isLocked && stageStatus === 'completed' ? (
                               <CheckCircle weight="fill" className="h-4 w-4" />
                             ) : (
-                              <stage.icon className="h-4 w-4" weight="regular" />
+                              <NodeIcon className="h-4 w-4" weight="regular" />
                             )}
                           </button>
                           {!isLast && (
@@ -1583,7 +1618,7 @@ export function App() {
                               }`}
                             >
                               <span className="min-w-0 flex-1 flex flex-col">
-                                <span className={`truncate text-[15px] ${isSelected ? 'font-semibold' : 'font-medium'}`}>{stage.mainHeading}</span>
+                                <span className={`truncate text-[15px] ${isSelected ? 'font-semibold' : 'font-medium'}`}>{skill?.name ?? stage.mainHeading}</span>
                                 <span className={`truncate text-[13px] ${stageStatusTextClass}`}>{stageStatusLabel}</span>
                               </span>
                               {/* Trailing slot -- exactly one of: lock, failed dot, or
@@ -1600,7 +1635,7 @@ export function App() {
                             </button>
 
                             {isExpanded && (
-                              <div id={panelId} role="group" aria-label={`${stage.mainHeading} sub-skills`} className="wf-subs" data-testid={`sub-skills-${stage.id}`}>
+                              <div id={panelId} role="group" aria-label={`${skill?.name ?? stage.mainHeading} sub-skills`} className="wf-subs" data-testid={`sub-skills-${stage.id}`}>
                                 {actions.map((sub) => (
                                   sub.action === 'info' ? (
                                     <div key={sub.label} className="flex items-center gap-2 rounded px-2 py-1 text-[13px] text-muted-foreground/70">
@@ -1629,14 +1664,6 @@ export function App() {
                                 ))}
                                 {manifestSubs.length > 0 && (
                                   <div className="mt-1 border-t border-border/50 pt-1" data-testid={`manifest-subs-${stage.id}`}>
-                                    <a
-                                      href={`#/manifests?path=${encodeURIComponent(skill?.path ?? '')}`}
-                                      className="flex items-center justify-between rounded px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground/80 hover:text-foreground"
-                                      title="Open this skill's manifest"
-                                    >
-                                      <span className="truncate">{skill?.name ?? 'Manifest'}</span>
-                                      <span aria-hidden>JSON</span>
-                                    </a>
                                     {manifestSubs.map((sub) => (
                                       <div
                                         key={sub.id}
@@ -1645,7 +1672,10 @@ export function App() {
                                         title={`${sub.name}: ${sub.stepCount} step${sub.stepCount === 1 ? '' : 's'}${sub.type ? ` · ${sub.type}` : ''}${sub.enabled === false ? ' · off in the manifest' : ''}`}
                                         className={`flex items-center gap-2 rounded px-2 py-1 text-[13px] ${sub.enabled === false ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}
                                       >
-                                        <span className="w-6 shrink-0 text-[11px] tabular-nums text-muted-foreground/60">{sub.id}</span>
+                                        {/* A sub-skill with a Human step shows the person; the rest are the agent's (the bull). */}
+                                        {(sub.humanSteps ?? 0) > 0
+                                          ? <UserIcon className="h-3.5 w-3.5 shrink-0" weight="regular" aria-label="Human step" />
+                                          : <img src="/assets/bull-head.png" alt="" aria-label="Agent step" className="h-3.5 w-3.5 shrink-0 object-contain" />}
                                         <span className="min-w-0 flex-1 truncate">{sub.name}</span>
                                         {sub.enabled === false && <LockSimple className="h-3 w-3 shrink-0" aria-label="Off in the manifest" />}
                                       </div>
@@ -1787,7 +1817,7 @@ export function App() {
                 <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-5">
                   {customRfqId.trim() ? (
                     <>
-                      {!(runCompleted && exportStatus?.cbom) && (
+                      {!(runDone && exportStatus?.cbom) && (
                         <ProcessingChip
                           step={rfqProgressLog.find((e) => e.stepStatus === 'running')?.skillName ?? null}
                           done={rfqProgressLog.filter((e) => e.stepStatus === 'completed').length}
@@ -1797,9 +1827,9 @@ export function App() {
                       <ReportingSteps
                         rfqId={customRfqId.trim()}
                         entries={rfqProgressLog}
-                        outputReady={Boolean(runCompleted && exportStatus?.cbom)}
+                        outputReady={Boolean(runDone && exportStatus?.cbom)}
                       />
-                      {runCompleted && exportStatus?.cbom && (
+                      {runDone && exportStatus?.cbom && (
                         <OutputButton
                           onOpen={() => {
                             // Pressing Output is the request: the CBOM workbook is saved, and the Output page opens.
@@ -1812,7 +1842,14 @@ export function App() {
                       {sectionShown(dashboardPrefs, 'live_feed') && (
                         <div className="space-y-3">
                           <FailedRunNotice run={latestRun} onOpenHistory={() => setRightView('history')} />
-                          <FormulaEngine3D entries={rfqProgressLog} />
+                          <FormulaEngine3D
+                            entries={rfqProgressLog}
+                            skillOf={(entry) => {
+                              // A standardize step is Input Standardization whatever its macro category (QuoteWin shares one with the ERP step).
+                              const stage = /standardize/i.test(entry.skillCode) ? 'intake' : MACRO_CATEGORY_TO_STAGE[entry.macroCategory];
+                              return stage ? (skillForStage(manifestTree, stage)?.name ?? null) : null;
+                            }}
+                          />
                           <RfqProgressTimeline entries={latestRun?.status === 'failed' ? rfqProgressLog.map((e) => (e.stepStatus === 'running' ? { ...e, stepStatus: 'failed' as const } : e)) : rfqProgressLog} />
                         </div>
                       )}

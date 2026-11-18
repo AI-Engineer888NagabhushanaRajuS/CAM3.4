@@ -43,7 +43,10 @@ const TEXT: Record<Status, string> = {
   skipped: 'text-muted-foreground',
 };
 
-function StepList({ entries, expanded }: { entries: RfqSkillHistoryEntry[]; expanded: boolean }) {
+/** The manifest skill a step belongs to (its name, as the left pane shows it), or null when no skill is linked. */
+type SkillOf = (entry: RfqSkillHistoryEntry) => string | null;
+
+function StepList({ entries, expanded, skillOf }: { entries: RfqSkillHistoryEntry[]; expanded: boolean; skillOf?: SkillOf }) {
   const counts = entries.reduce<Record<Status, number>>(
     (acc, e) => {
       acc[statusOf(e)] += 1;
@@ -77,6 +80,7 @@ function StepList({ entries, expanded }: { entries: RfqSkillHistoryEntry[]; expa
               <li key={e.skillCode} className="grid grid-cols-[1.5rem_1fr_auto] items-start gap-3 px-4 py-2.5">
                 <span className="pt-0.5 text-xs tabular-nums text-muted-foreground">{String(i + 1).padStart(2, '0')}</span>
                 <div className="min-w-0">
+                  {skillOf?.(e) && <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground/80">{skillOf(e)}</p>}
                   <p className="truncate text-sm text-foreground">{e.skillName}</p>
                   {note && (
                     <p className={`mt-0.5 break-words text-xs ${st === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>{note}</p>
@@ -98,7 +102,7 @@ function StepList({ entries, expanded }: { entries: RfqSkillHistoryEntry[]; expa
   );
 }
 
-export function FormulaEngine3D({ entries, expanded = false }: { entries: RfqSkillHistoryEntry[]; expanded?: boolean }) {
+export function FormulaEngine3D({ entries, expanded = false, skillOf }: { entries: RfqSkillHistoryEntry[]; expanded?: boolean; skillOf?: SkillOf }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -113,7 +117,7 @@ export function FormulaEngine3D({ entries, expanded = false }: { entries: RfqSki
   if (expanded) {
     return (
       <div className="h-full p-4" data-testid="formula-engine-3d-expanded">
-        <StepList entries={entries} expanded />
+        <StepList entries={entries} expanded skillOf={skillOf} />
       </div>
     );
   }
@@ -129,7 +133,7 @@ export function FormulaEngine3D({ entries, expanded = false }: { entries: RfqSki
           <ArrowsOut className="h-3.5 w-3.5" aria-hidden /> Full screen
         </button>
       </div>
-      <StepList entries={entries} expanded={false} />
+      <StepList entries={entries} expanded={false} skillOf={skillOf} />
       {open &&
         createPortal(
           <div role="dialog" aria-modal="true" aria-label="Formula engine, full screen" className="fixed inset-0 z-[90] flex flex-col bg-background p-6" data-testid="formula-engine-fullscreen">
@@ -144,7 +148,7 @@ export function FormulaEngine3D({ entries, expanded = false }: { entries: RfqSki
               </button>
             </div>
             <div className="min-h-0 flex-1">
-              <FormulaEngine3D entries={entries} expanded />
+              <FormulaEngine3D entries={entries} expanded skillOf={skillOf} />
             </div>
           </div>,
           document.body,

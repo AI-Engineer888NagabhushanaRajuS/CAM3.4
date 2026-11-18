@@ -45,7 +45,7 @@ function skillNode(root: string, entry: Doc) {
     return { ...base, invalid: true, hash: l.hash, subSkills: [] };
   }
   const m = metaOf(l.doc);
-  const subSkills = objects(l.doc.sub_skills).map((s) => ({ id: String(s.sub_skill_id ?? ''), name: String(s.sub_skill_name ?? ''), type: String(s.type ?? ''), stepCount: Array.isArray(s.steps) ? s.steps.length : 0, enabled: on(s.enabled) }));
+  const subSkills = objects(l.doc.sub_skills).map((s) => ({ id: String(s.sub_skill_id ?? ''), name: String(s.sub_skill_name ?? ''), type: String(s.type ?? ''), stepCount: Array.isArray(s.steps) ? s.steps.length : 0, humanSteps: Array.isArray(s.steps) ? s.steps.filter((x: { mode?: unknown }) => x?.mode === 'Human').length : 0, enabled: on(s.enabled) }));
   // SPEC-023: `enabled: false` in the agent's skill_sequence entry or in the skill's own skill_metadata switches the skill off in the left pane.
   // SPEC-025: `ui_actions` lists the pane's buttons for this stage; an absent list leaves the pane's built-in buttons, an unknown action is dropped.
   const uiActions = Array.isArray(l.doc.ui_actions) ? objects(l.doc.ui_actions).filter((a) => typeof a.label === 'string' && UI_ACTIONS.includes(String(a.action))).map((a) => ({ label: String(a.label), action: String(a.action) })) : undefined;

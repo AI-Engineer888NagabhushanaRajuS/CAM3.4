@@ -18,28 +18,65 @@
     {
       "name": "centum_intake__standardize_scrub_bom",
       "description": "Parse and standardize the Scrub BOM Excel file into DuckDB scrub_bom_items table. HITL gate: halts to collect QuoteWin/Costing Sheet if not yet uploaded.",
-      "inputs": {"rfq_id": "string", "version": "integer"},
-      "outputs": {"row_count": "integer", "warnings": "array"},
-      "hitl_gate": true
+      "inputs": {
+        "rfq_id": "string",
+        "version": "integer"
+      },
+      "outputs": {
+        "row_count": "integer",
+        "warnings": "array"
+      },
+      "hitl_gate": true,
+      "skill_index": 1,
+      "skill_name": "Standardize SCRUB BOM Workbook",
+      "macro_category": 1
     },
     {
       "name": "centum_intake__standardize_quote_win",
       "description": "Parse and standardize the QuoteWin Excel file into DuckDB quote_win table.",
-      "inputs": {"rfq_id": "string", "version": "integer"},
-      "outputs": {"row_count": "integer", "warnings": "array"}
+      "inputs": {
+        "rfq_id": "string",
+        "version": "integer"
+      },
+      "outputs": {
+        "row_count": "integer",
+        "warnings": "array"
+      },
+      "skill_index": 2,
+      "skill_name": "Standardize QuoteWin Report",
+      "macro_category": 4
     },
     {
       "name": "centum_intake__standardize_erp",
       "description": "Parse and standardize the ERP master data extract into DuckDB erp table.",
-      "inputs": {"rfq_id": "string", "version": "integer"},
-      "outputs": {"row_count": "integer", "warnings": "array"}
+      "inputs": {
+        "rfq_id": "string",
+        "version": "integer"
+      },
+      "outputs": {
+        "row_count": "integer",
+        "warnings": "array"
+      },
+      "status": "APPROVED_INACTIVE"
     },
     {
       "name": "centum_intake__standardize_costing_sheet",
       "description": "Parse and standardize the Costing Sheet Excel file into DuckDB costing_sheet table.",
-      "inputs": {"rfq_id": "string", "version": "integer"},
-      "outputs": {"row_count": "integer", "warnings": "array"}
+      "inputs": {
+        "rfq_id": "string",
+        "version": "integer"
+      },
+      "outputs": {
+        "row_count": "integer",
+        "warnings": "array"
+      },
+      "skill_index": 3,
+      "skill_name": "Standardize Costing Sheet (optional)",
+      "macro_category": 4
     }
   ],
-  "dependencies": ["duckdb:input.duckdb", "postgresql:logic_db"]
+  "dependencies": [
+    "duckdb:input.duckdb",
+    "postgresql:logic_db"
+  ]
 }

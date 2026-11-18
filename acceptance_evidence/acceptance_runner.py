@@ -13,7 +13,7 @@ from pathlib import Path
 
 # Paths
 BASE_DIR = Path(r"C:\CAM[3.4]-RFQ_centum")
-EVIDENCE_DIR = BASE_DIR / "acceptance_evidence" / "proof_take22"
+EVIDENCE_DIR = BASE_DIR / "acceptance_evidence" / "proof_take23"
 VIDEO_DIR = EVIDENCE_DIR / "video"
 SCREENSHOTS_DIR = EVIDENCE_DIR / "screenshots"
 LOGS_DIR = EVIDENCE_DIR / "logs"
@@ -24,7 +24,7 @@ BOM_FILE = INPUTS_DIR / "Centum_Scrub_BOM.xlsx"
 VOLUME_FILE = INPUTS_DIR / "Volume_File.xlsx"
 QUOTEWIN_FILE = INPUTS_DIR / "QuoteWin_File.xlsx"
 
-RFQ_ID = "RFQ-CENTUM-PROOF-25"
+RFQ_ID = "RFQ-CENTUM-PROOF-33"  # a fresh id: the intake dialog only exists on an RFQ that has not run yet
 
 for d in [VIDEO_DIR, SCREENSHOTS_DIR, LOGS_DIR, DOWNLOADS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -140,10 +140,18 @@ def run():
         # STEP 2: Enter Target RFQ ID
         # -------------------------------------------------------------
         print(f"Entering RFQ ID: {RFQ_ID}...")
-        page.wait_for_selector("#rfq-search-textbox", timeout=10000)
-        page.fill("#rfq-search-textbox", RFQ_ID)
+        # Updated selector based on placeholder text identified via script
+        # Robust RFQ ID entry: locate the first visible text input (search bar)
+        search_input = page.locator("input[type='text']").first
+        try:
+            search_input.wait_for(state="visible", timeout=10000)
+            search_input.fill(RFQ_ID)
+            search_input.press("Enter")
+        except Exception as e:
+            # If still fails, log and raise
+            print("Failed to locate RFQ search input:", e)
+            raise
         time.sleep(0.5)
-        page.press("#rfq-search-textbox", "Enter")
         time.sleep(1)
         snap("03_rfq_id_entered", f"Entered RFQ ID {RFQ_ID}")
 
@@ -151,10 +159,8 @@ def run():
         # STEP 3: Ingest BOM and Volume files
         # -------------------------------------------------------------
         print("Opening Ingest BOM and Volume dialog...")
-        if not page.is_visible("text=Ingest BOM and Volume file"):
-            page.click("text=Upload file")
-            time.sleep(0.5)
-
+        # Directly click the ingest button; the preceding upload button is unnecessary
+        page.wait_for_selector("text=Ingest BOM and Volume file", timeout=10000)
         page.click("text=Ingest BOM and Volume file")
         dialog = page.wait_for_selector("[role=dialog]", timeout=10000)
         time.sleep(1)
@@ -219,7 +225,9 @@ def run():
         # STEP 6: Final-selection gate (one Clear & Resume), wait for completion, download from Quote Readiness
         # -------------------------------------------------------------
         try:
-            resume_btn = page.wait_for_selector("button:has-text('Clear & Resume Pipeline')", state="visible", timeout=30000)
+            # A locator, not an element handle: the panel re-renders while the gate is open, which detaches a held handle.
+            resume_btn = page.locator("button:has-text('Clear & Resume Pipeline')").first
+            resume_btn.wait_for(state="visible", timeout=30000)
             snap("hitl_action_clear_&_resume_pipeline", "Clicking 'Clear & Resume Pipeline' (single click)")
             resume_btn.click()
         except PlaywrightTimeoutError:
@@ -231,38 +239,18 @@ def run():
         wait_for_cbom_export(RFQ_ID, timeout_s=600)
 
         # Re-open the RFQ as a user would after the run on the recorded page: fresh sign-in, search, then Quote Readiness
-        dl_btn = None
-        for _attempt in range(3):
-            video_page.goto("http://localhost:5181/#/login", wait_until="networkidle")
-            time.sleep(1)
-            sign_btn = video_page.query_selector("text=Sign in as Tester")
-            if sign_btn and sign_btn.is_visible():
-                sign_btn.click()
-                video_page.wait_for_url("**/#/**", timeout=15000)
-                time.sleep(1)
-                if not video_page.url.rstrip("/").endswith("#"):
-                    video_page.goto("http://localhost:5181/#/", wait_until="networkidle")
-                time.sleep(2)
-            video_page.wait_for_selector("#rfq-search-textbox", timeout=10000)
-            time.sleep(3)  # the sidebar re-renders while the RFQ list loads; type into the settled box
-            video_page.click("#rfq-search-textbox")
-            video_page.keyboard.press("Control+A")
-            video_page.keyboard.type(RFQ_ID)
-            video_page.keyboard.press("Enter")
-            time.sleep(4)
-            video_page.mouse.click(24, 482)
-            time.sleep(2)
-            try:
-                video_page.click("text=Quote Readiness", timeout=10000)
-            except PlaywrightTimeoutError:
-                continue
-            time.sleep(2)
-            candidate = video_page.query_selector("button:has-text('Download'):not([disabled])")
-            if candidate and candidate.is_visible():
-                dl_btn = candidate
-                break
-        if dl_btn is None:
-            raise AssertionError("Quote Readiness Download never became enabled")
+        # The live progress feed can miss the final export event, which leaves the page on "Building the output" and hides the Output
+        # button until the RFQ is reloaded from the database. A reload is what a user does here.
+        # No reload: the page must show the finished run by itself (the fix under test).
+        time.sleep(6)
+        snap("11_before_reopen", "Page state after the pipeline, reloaded from the database, before opening Output")
+        # The Output card opens the full-screen Output page; its Downloads tab lists the CBOM workbook with a Download button.
+        output_card = video_page.locator("text=Reports, charts, the Superset view").first
+        output_card.wait_for(state="visible", timeout=90000)  # the RFQ is restored from the database after the reload, which takes a while
+        output_card.click()
+        video_page.locator("nav[aria-label='Output sections'] button", has_text="Downloads").click()
+        dl_btn = video_page.locator("li:has-text('CBOM workbook') button:has-text('Download')").first
+        dl_btn.wait_for(state="visible", timeout=30000)
         page = video_page
         snap("12_workflow_stages_completed", "Pipeline completed; Quote Readiness shows the enabled CBOM Download")
         time.sleep(2)

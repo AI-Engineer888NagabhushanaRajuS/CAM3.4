@@ -93,8 +93,10 @@ def _letter(i: int) -> str:
 class _Issues:
     """Collects issues with exact counts per code and a cap on what is listed."""
 
-    def __init__(self):
+    def __init__(self, all_items=False):
         self.items, self.counts, self.errors, self.warnings, self.per_code = [], {}, 0, 0, {}
+        self.all_items = all_items
+        self.part = None  # the CPN of the row being checked, so an issue names the part it belongs to
 
     def add(self, severity, code, sheet, row, col, header, value, message, fixable=True, suggestion=None):
         self.counts[code] = self.counts.get(code, 0) + 1
@@ -104,10 +106,10 @@ class _Issues:
             self.warnings += 1
         shown = self.per_code.get(code, 0)
         self.per_code[code] = shown + 1
-        if shown < PER_CODE_CELLS and len(self.items) < MAX_ISSUES:
+        if self.all_items or (shown < PER_CODE_CELLS and len(self.items) < MAX_ISSUES):
             self.items.append({
                 "severity": severity, "code": code, "sheet": sheet, "row": row, "col": col, "column": header,
-                "value": None if value is None else str(value)[:120], "message": message, "fixable": fixable,
+                "value": None if value is None else str(value)[:120], "message": message, "fixable": fixable, "part": self.part,
                 **({"suggestion": suggestion} if suggestion else {}),
             })
 
@@ -226,6 +228,7 @@ def _check_scrub(wb, wf, name, issues: _Issues, out: dict):
             c = cols.get(field)
             return (v[c] if c is not None and c < len(v) else None, f[c] if c is not None and c < len(f) else None)
 
+        issues.part = _text(g("cpn")[0]).strip() or None if "cpn" in cols else None
         if "fg" in cols:
             fv, ff = g("fg")
             if at(i, "fg", fv, ff, "error", "fg_blank", "FG"):
@@ -259,6 +262,7 @@ def _check_scrub(wb, wf, name, issues: _Issues, out: dict):
             if at(i, "ltb_date", lv, lf) and not _is_date(lv):
                 issues.add("warning", "ltb_date_unreadable", name, i, _letter(cols["ltb_date"]), str(header[cols["ltb_date"]]), lv,
                            f"LTB date \"{_text(lv)}\" is not a date the step can read (DD-MM-YYYY is expected), so it would be empty.")
+    issues.part = None  # the rows are done: later checks on other sheets name no part
     return fgs
 
 
@@ -300,10 +304,11 @@ def _check_volumes(wb, wf, name, issues: _Issues, fgs: set, blank_severity: str,
                        f"FG {fg} is in the SCRUB BOM but has no row in {name}, so it has no volume. Add a row for it in Excel.", fixable=False)
 
 
-def check(path: str) -> dict:
-    """The pre-flight report for a workbook path. Never raises."""
+def check(path: str, all_items: bool = False) -> dict:
+    """The pre-flight report for a workbook path. Never raises. all_items: keep every issue, not the first MAX_ISSUES (a forced run
+    needs each part's problems, because its output comments name them)."""
     ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
-    issues = _Issues()
+    issues = _Issues(all_items)
     out = {"checked": False, "ok": False, "errors": 0, "warnings": 0, "rows": 0, "issues": [], "truncated": False, "counts": {}, "sheets": []}
     if ext not in ("xlsx", "xlsm"):
         out["message"] = f".{ext} files are not pre-checked; save the workbook as .xlsx for the check."
