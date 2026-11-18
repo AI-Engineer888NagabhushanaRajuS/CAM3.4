@@ -444,13 +444,24 @@ def _find_fg_column(columns):
     )
 
 
+def _value_columns(columns, fg_col):
+    """The quantity columns: every column but FG that has a real header. pandas names a column with a blank header
+    'Unnamed: N'; found 2026-11-18 (batch-04 Settings: a stray 21.33 in E3, no header, no FG) it became volume
+    'Unnamed: 4' and the export failed on it."""
+    return [c for c in columns if c != fg_col and c and not c.startswith("Unnamed:") and c.lower() not in ("nan", "none")]
+
+
+def _has_fg(value):
+    return not (value is None or (isinstance(value, float) and pd.isna(value)) or str(value).strip() == "")
+
+
 def process_volume_sheet(volume_df):
 
     volume_df = volume_df.copy()
     volume_df.columns = volume_df.columns.astype(str).str.strip()
 
     fg_col = _find_fg_column(volume_df.columns)
-    value_cols = [col for col in volume_df.columns if col != fg_col]
+    value_cols = _value_columns(volume_df.columns, fg_col)
 
     if not value_cols:
         raise ValueError(
@@ -462,6 +473,8 @@ def process_volume_sheet(volume_df):
     for _, row in volume_df.iterrows():
 
         fg = row[fg_col]
+        if not _has_fg(fg):
+            continue  # a row without an assembly cannot carry a quantity for one
 
         for col in value_cols:
 
@@ -487,7 +500,7 @@ def process_batch_sheet(batch_df):
     batch_df.columns = batch_df.columns.astype(str).str.strip()
 
     fg_col = _find_fg_column(batch_df.columns)
-    value_cols = [col for col in batch_df.columns if col != fg_col]
+    value_cols = _value_columns(batch_df.columns, fg_col)
 
     if not value_cols:
         raise ValueError(
@@ -499,6 +512,8 @@ def process_batch_sheet(batch_df):
     for _, row in batch_df.iterrows():
 
         fg = row[fg_col]
+        if not _has_fg(fg):
+            continue  # a row without an assembly cannot carry a quantity for one
 
         for col in value_cols:
 

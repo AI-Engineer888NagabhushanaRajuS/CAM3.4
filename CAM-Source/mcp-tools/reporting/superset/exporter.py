@@ -91,6 +91,18 @@ def _reference_cbom_sheet(bounds_by_sheet):
 
 
 def export_excel(rfq_id):
+    """The export, with its DuckDB connection closed on every path. Found 2026-11-18: an export that raised (batch-04,
+    a volume named 'Unnamed: 4') left its connection open; the next export in this process then failed with "Cannot
+    attach cbom_db - already attached" (batch-06), and the open read handle on input_db.duckdb blocked the intake
+    service's writes ("Conflicting lock is held")."""
+    con = database.connect()
+    try:
+        return _export_excel(rfq_id, con)
+    finally:
+        con.close()
+
+
+def _export_excel(rfq_id, con):
     """Reads only -- never writes to any persisted cbom/report table (per the "export
     must not regenerate data" requirement; TEMP VIEWs computed fresh in-session, e.g. for
     Batchwise Cashflow below, don't count -- nothing persisted is touched). If cbom for
@@ -99,7 +111,6 @@ def export_excel(rfq_id):
     is computed live from cbom/scrub/quote_win at export time.
     """
     start = time.time()
-    con = database.connect()
     rfq_lit = helpers.sql_quote(rfq_id)
 
     cbom_df = mappings.load_cbom_df(con, rfq_id)

@@ -222,3 +222,31 @@ def test_is_mpn_same_compares_exactly():
     src = open(os.path.join(ROOT, "mcp-tools", "reporting", "superset", "reports", "cbom_vl.py"), encoding="utf-8").read()
     assert 'COUNTIFS($G$' not in src       # a "<>"&G criterion is date-coerced by Excel ("3-1953" -> March 1953)
     assert src.count("SUMPRODUCT(($C${first_data_row}:$C${last_data_row}=$C") == 2
+
+
+# ---- 6. a Settings / Batch sheet column without a header is not a volume ---------------------------------------------------
+
+def test_blank_header_columns_and_rows_without_fg_are_ignored():
+    import pandas as pd
+    sys.path.insert(0, os.path.join(ROOT, "mcp-tools", "scrub-intake"))
+    try:
+        sys.modules.setdefault("ollama", types.ModuleType("ollama"))
+        import scrub_bom_processing as sp
+    finally:
+        sys.path.pop(0)
+    # batch-04's Settings sheet: FG / V1 Qty, plus a stray 21.33 in E3 with no header and no FG
+    vol = pd.DataFrame({"FG": ["681H33271", None], "V1 Qty": [256.0, None], "Unnamed: 2": [None, None], "Unnamed: 4": [None, 21.33]})
+    out = sp.process_volume_sheet(vol)
+    assert out.to_dict("records") == [{"fg": "681H33271", "volume_name": "V1", "batch_qty": 256.0}]
+    bat = pd.DataFrame({"FG": ["681H33271", ""], "V1 Batch Qty": [256.0, 9], "Unnamed: 3": [None, 5]})
+    assert sp.process_batch_sheet(bat).to_dict("records") == [{"fg": "681H33271", "volume": "V1", "batch_qty": 256.0}]
+
+
+# ---- 7. an export that raises closes its DuckDB connection ----------------------------------------------------------------
+
+def test_export_closes_its_connection_when_it_raises(monkeypatch):
+    src = open(os.path.join(ROOT, "mcp-tools", "reporting", "superset", "exporter.py"), encoding="utf-8").read()
+    head = src.split("def export_excel(rfq_id):", 1)[1].split("\ndef ", 1)[0]
+    assert "try:" in head and "finally:" in head and "con.close()" in head
+    db = open(os.path.join(ROOT, "mcp-tools", "reporting", "superset", "database.py"), encoding="utf-8").read()
+    assert db.count("ATTACH IF NOT EXISTS") == 2

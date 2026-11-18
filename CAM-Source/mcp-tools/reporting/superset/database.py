@@ -69,8 +69,8 @@ def _open_with_lock_wait():
         con = None
         try:
             con = duckdb.connect(config.REPORTS_DB_PATH)
-            con.execute(f"ATTACH '{config.CBOM_DB_PATH}' AS cbom_db")
-            con.execute(f"ATTACH '{config.INPUT_DB_PATH}' AS input_db (READ_ONLY)")
+            con.execute(f"ATTACH IF NOT EXISTS '{config.CBOM_DB_PATH}' AS cbom_db")  # another connection of this process may hold the instance
+            con.execute(f"ATTACH IF NOT EXISTS '{config.INPUT_DB_PATH}' AS input_db (READ_ONLY)")
             return con
         except duckdb.IOException as e:
             if con is not None:

@@ -68,8 +68,21 @@ def q(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def retry(fn, what, seconds=240):
+    """A service restarting (a deploy, a rebuilt image) drops connections for a few seconds; wait it out instead of failing the batch.
+    Only for calls that are safe to repeat (token mint, reads, the idempotent review submission)."""
+    deadline = time.time() + seconds
+    while True:
+        try:
+            return fn()
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if time.time() > deadline:
+                raise RuntimeError(f"{what}: service unreachable for {seconds} s ({type(e).__name__})")
+            time.sleep(5)
+
+
 def token(rfq):
-    return requests.post(f"{BR}/auth/token", json={"rfq_id": rfq}, timeout=60).json()["token"]
+    return retry(lambda: requests.post(f"{BR}/auth/token", json={"rfq_id": rfq}, timeout=60).json()["token"], "token")
 
 
 def H(rfq):
@@ -138,8 +151,8 @@ def resolve_gate(rfq):
     """The review screen's own calls: list the pending conflicts, submit a decision for each (or the empty confirm when nothing conflicts)."""
     hdr, items, cursor = H(rfq), [], None
     while True:
-        r = requests.get(f"{HITL}/api/rfq/{rfq}/final-selection/pending", headers=hdr, timeout=120,
-                         params={"limit": 500, **({"cursor": cursor} if cursor else {})})
+        r = retry(lambda: requests.get(f"{HITL}/api/rfq/{rfq}/final-selection/pending", headers=hdr, timeout=120,
+                                       params={"limit": 500, **({"cursor": cursor} if cursor else {})}), "conflict list")
         r.raise_for_status()
         body = r.json()
         items += body["items"]
@@ -147,7 +160,8 @@ def resolve_gate(rfq):
         if not cursor:
             break
     decisions = [{"conflict_id": i["conflict_id"], "resolved_source": pick(i["available_sources"]), "resolved_by": POLICY[:60]} for i in items]
-    r = requests.post(f"{HITL}/api/rfq/{rfq}/final-selection", headers=hdr, json={"resolutions": decisions}, timeout=900)
+    r = retry(lambda: requests.post(f"{HITL}/api/rfq/{rfq}/final-selection", headers=hdr, json={"resolutions": decisions}, timeout=900),
+              "review submission")  # repeat-safe: an already-resolved conflict is skipped, a passed review is a no-op
     if r.status_code != 200:
         raise RuntimeError(f"final-selection answered HTTP {r.status_code}: {r.text[:200]}")
     body = r.json()
@@ -193,6 +207,7 @@ def drive(folder_name, root, prefix, mon, timeout_min, retries):
                 up = r.json()
                 out["upload"] = {k: up.get(k) for k in ("version", "staged_inputs")}
                 time.sleep(2)
+                mon.t = 0  # the cached snapshot still shows the previous run (often Failed): read the new one
             gate_done, gate_rows, state, t0 = False, [], "", time.time()
             while True:
                 s = mon.get(rfq)
@@ -248,7 +263,7 @@ def collect(out, folder, rfq, gate_rows, t_start):
     s = psql(f"SELECT version FROM rfq_process_tracking WHERE rfq_id={q(rfq)} AND is_active")
     ver = int(s)
     # 1. The workbook through the app's own download route (what the browser's report button gets), checked against the exporter's file.
-    r = requests.get(f"{BR}/api/bom/export/{rfq}/download", timeout=900)
+    r = retry(lambda: requests.get(f"{BR}/api/bom/export/{rfq}/download", timeout=900), "workbook download")
     r.raise_for_status()
     name = re.search(r'filename="?([^";]+)"?', r.headers.get("content-disposition", "")).group(1)
     data = r.content
@@ -265,7 +280,7 @@ def collect(out, folder, rfq, gate_rows, t_start):
     except OSError:
         pass
     # 2. The numbers behind the app's Reports & Analytics screen.
-    a = requests.get(f"{BR}/api/rfq/{rfq}/analytics", headers=hdr, timeout=300)
+    a = retry(lambda: requests.get(f"{BR}/api/rfq/{rfq}/analytics", headers=hdr, timeout=300), "analytics")
     if a.status_code == 200:
         with open(W(os.path.join(op, "analytics.json")), "w", encoding="utf-8") as fh:
             json.dump(a.json(), fh, indent=1, default=str)
@@ -278,7 +293,7 @@ def collect(out, folder, rfq, gate_rows, t_start):
     wb.close()
     mixed = rfq not in head
     # 4. Flags and the review decisions.
-    forced = psql(f"SELECT coalesce(execution_logs->'forced_run'::text,'') FROM rfq_file_telemetry WHERE rfq_id={q(rfq)} AND version={ver} AND file_role='BOM' AND is_active")
+    forced = psql(f"SELECT coalesce((execution_logs->'forced_run')::text,'') FROM rfq_file_telemetry WHERE rfq_id={q(rfq)} AND version={ver} AND file_role='BOM' AND is_active")
     forced = json.loads(forced) if forced.startswith("{") else None
     files = psql(f"SELECT string_agg(file_role || ' = ' || regexp_replace(file_path,'^.*[/\\\\]',''), '; ') FROM rfq_file_telemetry WHERE rfq_id={q(rfq)} AND version={ver} AND is_active")
     timeline = steps_timeline(rfq, ver)
