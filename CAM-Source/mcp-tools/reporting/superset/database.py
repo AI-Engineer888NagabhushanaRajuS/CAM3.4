@@ -58,15 +58,35 @@ def _rebuild_table_with_new_ddl(con, table, create_ddl):
         raise
 
 
+def _open_with_lock_wait():
+    """reports.duckdb with cbom.duckdb (read-write) and input_db.duckdb (read-only) attached. Waits out a file lock held by a
+    process outside CAM's advisory lock (a dashboard reader, a host script): DuckDB answers 'Conflicting lock is held' at once
+    instead of queueing, which failed a batch run's step on 2026-11-18. After CAM_DUCKDB_LOCK_WAIT seconds it raises as before."""
+    import os
+    import time
+    deadline = time.monotonic() + float(os.environ.get("CAM_DUCKDB_LOCK_WAIT", "90"))
+    while True:
+        con = None
+        try:
+            con = duckdb.connect(config.REPORTS_DB_PATH)
+            con.execute(f"ATTACH '{config.CBOM_DB_PATH}' AS cbom_db")
+            con.execute(f"ATTACH '{config.INPUT_DB_PATH}' AS input_db (READ_ONLY)")
+            return con
+        except duckdb.IOException as e:
+            if con is not None:
+                con.close()
+            if "lock" not in str(e).lower() or time.monotonic() >= deadline:
+                raise
+            time.sleep(2)
+
+
 def connect():
     """One connection: reports.duckdb as the main catalog, cbom.duckdb attached
     read-write (it's our own generated artifact), input_db.duckdb attached STRICTLY
     READ-ONLY (the four input tables are prepared once by migrations.py / an external
     loader, never by this module).
     """
-    con = duckdb.connect(config.REPORTS_DB_PATH)
-    con.execute(f"ATTACH '{config.CBOM_DB_PATH}' AS cbom_db")
-    con.execute(f"ATTACH '{config.INPUT_DB_PATH}' AS input_db (READ_ONLY)")
+    con = _open_with_lock_wait()
     # cbom.volume_no's SMALLINT -> VARCHAR migration (now holding "proto" alongside
     # numbered volumes "1"/"2"/... -- see queries.py's PROTO support) must happen BEFORE
     # the CREATE TABLE IF NOT EXISTS below (a no-op against an already-existing table) --

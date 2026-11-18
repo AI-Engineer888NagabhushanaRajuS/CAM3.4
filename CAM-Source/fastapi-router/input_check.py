@@ -339,6 +339,15 @@ def check(path: str) -> dict:
     return out
 
 
+def _part_text(value) -> str:
+    """A part number as text, the way the pipeline stores it (scrub_bom_processing: a whole-number float loses its '.0').
+    Found 2026-11-18: Idemia's numeric CPNs read as 143608336.0 from the BOM and '143608336' from the QuoteWin, so a QuoteWin
+    sharing 175 of 208 parts was refused as 'none of the parts' and the run stopped waiting for a QuoteWin."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).strip().upper()
+
+
 def _part_ids(path: str, sheet_wanted, header_ok, columns) -> set:
     """Upper-cased, trimmed values of the wanted columns of the first sheet (or the named one) whose header row passes `header_ok`."""
     wb, wf = _open_pair(path)
@@ -353,7 +362,7 @@ def _part_ids(path: str, sheet_wanted, header_ok, columns) -> set:
                     header = [_norm(c) for c in row]
                     if header_ok(header):
                         idx = [j for j, h in enumerate(header) if h in columns]
-                        return {str(r[j]).strip().upper() for r in vals for j in idx if j < len(r) and r[j] not in (None, "")}
+                        return {_part_text(r[j]) for r in vals for j in idx if j < len(r) and r[j] not in (None, "")}
             finally:
                 vals.close()
         return set()

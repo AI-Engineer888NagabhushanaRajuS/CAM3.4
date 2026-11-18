@@ -38,7 +38,7 @@ async def execute_tool(rfq_id: str, tool_name: str, arguments: dict) -> dict:
         resp = await client.post(
             f"{config.FASTAPI_ROUTER_URL}/tool/execute",
             json=payload,
-            timeout=600.0,  # 10 min max for heavy report generation
+            timeout=config.TOOL_HTTP_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()

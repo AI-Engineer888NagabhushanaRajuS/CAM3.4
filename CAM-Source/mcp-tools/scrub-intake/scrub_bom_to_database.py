@@ -20,6 +20,24 @@ DB_PATH = Path(
     )
 )
 
+LOCK_WAIT_SECONDS = float(os.environ.get("CAM_DUCKDB_LOCK_WAIT", "90"))
+
+
+def connect_db(path=None, read_only=False):
+    """duckdb.connect that waits out a file lock held by a process outside CAM's advisory lock (db.duckdb_file_lock).
+    Found 2026-11-18 in a batch run: 'Could not set lock on file input_db.duckdb: Conflicting lock is held in PID 0', the
+    SCRUB BOM step failed and the run lost its BOM. A reader such as a dashboard holds the file for seconds, so waiting is
+    the right answer; after LOCK_WAIT_SECONDS the error is raised as before."""
+    import time
+    deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    while True:
+        try:
+            return duckdb.connect(str(path or DB_PATH), read_only=read_only)
+        except duckdb.IOException as e:
+            if "lock" not in str(e).lower() or time.monotonic() >= deadline:
+                raise
+            time.sleep(2)
+
 
 # ==========================================================
 # SCHEMA — scrub_bom_items
@@ -125,7 +143,7 @@ def process_scrub_bom_to_database(rfq_id, standardized_df):
     # Preserve the standardized output's original row order.
     df["display_order"] = range(1, len(df) + 1)
 
-    with duckdb.connect(DB_PATH) as conn:
+    with connect_db(DB_PATH) as conn:
 
         _ensure_schema(conn)
 
@@ -268,7 +286,7 @@ def process_volume_to_database(rfq_id, volume_df):
 
     df = volume_df.copy()
 
-    with duckdb.connect(DB_PATH) as conn:
+    with connect_db(DB_PATH) as conn:
 
         _ensure_volume_schema(conn)
 
@@ -363,7 +381,7 @@ def process_batch_to_database(rfq_id, batch_df):
 
     df = batch_df.copy()
 
-    with duckdb.connect(DB_PATH) as conn:
+    with connect_db(DB_PATH) as conn:
 
         _ensure_batch_schema(conn)
 

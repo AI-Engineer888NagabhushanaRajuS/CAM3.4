@@ -66,6 +66,7 @@ from db import (
     duckdb_file_lock,
     get_logic_connection, increment_skill_index, advance_skill_index_to_at_least,
     get_active_version, versioned_key, get_routing_sequence, set_hitl_required,
+    get_current_skill_index,
 )
 
 _RESOLVE_FINAL_SELECTION_TOOL = "centum_reporting__resolve_final_selection"
@@ -241,6 +242,22 @@ def _signal_resolve_approved(rfq_id: str):
         return False
 
 
+def _gate_position(rfq_id: str):
+    """Where the active version's run stands against the price-source review: 'at', 'before' or 'past' (with a reason),
+    or None when it cannot be told (lookup failure: callers keep the old behaviour, fail open)."""
+    try:
+        sequence = get_routing_sequence("Standard_BOM_Flow")
+        gate = sequence.index(_RESOLVE_FINAL_SELECTION_TOOL)
+        stage = get_current_skill_index(rfq_id)
+    except Exception as e:
+        print(f"[FINAL-SELECTION] gate position unknown for {rfq_id!r}, not checked: {e}")
+        return None
+    if stage is None or stage < gate:
+        step = sequence[stage] if isinstance(stage, int) and 0 <= stage < len(sequence) else f"step {stage}"
+        return "before", f"the run is at {step}, not at the price-source review"
+    return ("at", "") if stage == gate else ("past", "the price-source review was already passed")
+
+
 @app.post("/api/rfq/{rfq_id}/final-selection")
 def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = Depends(auth.verify_token)):
     """Batch/incremental resolution submission -- a reviewer can submit any subset of
@@ -250,7 +267,18 @@ def submit_resolutions(rfq_id: str, request: ResolveBatchRequest, token: dict = 
     rfq_process_stage past the resolve_final_selection skill -- letting a later
     GET /api/dify/start/{rfq_id} (upload_server.py) resume the Dify run past the
     HITL gate.
+
+    Only while the run is AT that review. Found 2026-11-18: an empty "no conflicts, proceed" posted while a run waited
+    at the EARLIER intake gate (QuoteWin missing) advanced the stage past the review, the resume then started the
+    pipeline at generate_reports, and CBOM, enrichment and the review itself were skipped ("No cbom rows found").
+    Before the review: 409, nothing recorded. After it: a no-op (a retried confirm is harmless).
     """
+    position = _gate_position(rfq_id)
+    if position and position[0] == "before":
+        raise HTTPException(status_code=409, detail=f"Nothing recorded: {position[1]}.")
+    if position and position[0] == "past":
+        return {"status": "success", "rfq_id": rfq_id, "resolved_count": 0, "remaining": 0,
+                "fully_approved": True, "signal_delivered": None, "note": position[1]}
     cbom_key = _resolve_cbom_key(rfq_id)
     print(f"[FINAL-SELECTION] rfq_id={rfq_id!r} cbom_key={cbom_key!r} resolutions={request.resolutions!r}")
 

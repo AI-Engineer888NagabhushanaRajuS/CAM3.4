@@ -52,8 +52,8 @@ _VALIDATION_LABELS = [
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
-_DATA_FILL = PatternFill("solid", fgColor="F2F6FC")
 _TOTAL_FILL = PatternFill("solid", fgColor="FFD966")
+_NO_FILL = PatternFill(fill_type=None)  # grid borders only, no colour on data cells
 # Explicit 8-digit ARGB (not a bare 6-digit RGB string) -- openpyxl otherwise defaults
 # the alpha channel to 00 (fully transparent) for a conditional-formatting dxf fill,
 # which renders as invisible in Excel even though the color is technically "set".
@@ -372,7 +372,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
 
     _style_range(ws, summary_header_row, summary_header_row, 3, 8, _HEADER_FILL, _HEADER_FONT)
     if summary_data_end >= summary_data_start:
-        _style_range(ws, summary_data_start, summary_data_end, 3, 8, _DATA_FILL)
+        _style_range(ws, summary_data_start, summary_data_end, 3, 8, _NO_FILL)
     _style_range(ws, total_row, total_row, 3, 8, _TOTAL_FILL)
 
     # total_row == top_section_count (both equal 10 + len(summary)) -- so this
@@ -475,7 +475,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     # parameter, so the two counts can never diverge, same reasoning as scrap_last_row.
     batch_settings_last_row = 1 + sum(len(item.get("volumes") or []) for item in data.get("summary", []))
     _style_range(ws, 1, 1, 10, 11, _HEADER_FILL, _HEADER_FONT)
-    _style_range(ws, 2, max(4, currency_table_last_row), 10, 10, _DATA_FILL)
+    _style_range(ws, 2, max(4, currency_table_last_row), 10, 10, _NO_FILL)
     _style_range(ws, 2, max(4, currency_table_last_row), 11, 11, _TOTAL_FILL)
 
     # Validation/Status (J9:K17) and MOQ Cost (M9:M11) -- live formulas,
@@ -489,7 +489,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     _style_range(ws, 9, 9, 10, 11, _HEADER_FILL, _HEADER_FONT)
     for i, label in enumerate(_VALIDATION_LABELS):
         ws.cell(row=10 + i, column=10, value=label)
-    _style_range(ws, 10, 9 + len(_VALIDATION_LABELS), 10, 10, _DATA_FILL)
+    _style_range(ws, 10, 9 + len(_VALIDATION_LABELS), 10, 10, _NO_FILL)
     _style_range(ws, 10, 9 + len(_VALIDATION_LABELS), 11, 11, _TOTAL_FILL)
 
     # start_data_row/first_data_row/last_data_row were already computed above (needed
@@ -672,8 +672,8 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     while r < len(rows):
         label = rows[r][0] if rows[r] else ""
         if isinstance(label, str) and label.startswith("*** Assembly:"):
-            _style_range(ws, r + 1, r + 1, 1, 1, _DATA_FILL)  # title row: only column A is populated
             header_row = r + 2
+            _style_range(ws, r + 1, r + 1, 1, 1, _NO_FILL)  # title row: only column A is populated
             _style_range(ws, header_row, header_row, 1, NUM_COLS, _HEADER_FILL, _HEADER_FONT)
 
             data_r = header_row + 1
@@ -686,7 +686,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
                         break
                 else:
                     empty_count = 0
-                    _style_range(ws, data_r, data_r, 1, NUM_COLS, _DATA_FILL)
+                    _style_range(ws, data_r, data_r, 1, NUM_COLS, _NO_FILL)
                     _r = data_r
                     # Part Qty / FG Part Qty / Ext Vol Qty -- business rule: LITERAL values,
                     # not formulas -- see note above for why a live formula here would be
@@ -880,9 +880,12 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
                         f'$K${first_data_row}:$K${last_data_row},$C${first_data_row}:$C${last_data_row},$C{_r})/'
                         f'COUNTIFS($C${first_data_row}:$C${last_data_row},$C{_r}),3)=ROUND($K{_r},3)),"")'
                     )
+                    # Is MPN Same: an exact compare, not COUNTIFS(G, "<>"&G): Excel reads a criterion such as "3-1953" as a DATE, so
+                    # an MPN that looks like a date counted as different and Excel showed FALSE where LibreOffice and the engine
+                    # showed TRUE (B17 row 30, found 2026-11-18 against a native Excel recalculation).
                     ws.cell(row=_r, column=40).value = (
-                        f'=IF($AF{_r}, IF(COUNTIFS($G${first_data_row}:$G${last_data_row}, "<>"&$G{_r}, '
-                        f'$C${first_data_row}:$C${last_data_row}, $C{_r}) > 0, FALSE, TRUE), "")'
+                        f'=IF($AF{_r}, IF(SUMPRODUCT(($C${first_data_row}:$C${last_data_row}=$C{_r})*'
+                        f'($G${first_data_row}:$G${last_data_row}<>$G{_r})) > 0, FALSE, TRUE), "")'
                     )
                     ws.cell(row=_r, column=41).value = f'=IF($AF{_r}, AND($K{_r}<>0, $K{_r}<>""), "")'
                     ws.cell(row=_r, column=42).value = f'=IF($C{_r}<>"", COUNTIF($C$1:$C{_r}, $C{_r}), "")'
@@ -1027,8 +1030,8 @@ def _demo():
         f'COUNTIFS($C${first_data_row}:$C${last_data_row},$C{data_row_num}),3)=ROUND($K{data_row_num},3)),"")'
     )
     assert ws.cell(row=data_row_num, column=40).value == (
-        f'=IF($AF{data_row_num}, IF(COUNTIFS($G${first_data_row}:$G${last_data_row}, "<>"&$G{data_row_num}, '
-        f'$C${first_data_row}:$C${last_data_row}, $C{data_row_num}) > 0, FALSE, TRUE), "")'
+        f'=IF($AF{data_row_num}, IF(SUMPRODUCT(($C${first_data_row}:$C${last_data_row}=$C{data_row_num})*'
+        f'($G${first_data_row}:$G${last_data_row}<>$G{data_row_num})) > 0, FALSE, TRUE), "")'
     )
     assert ws.cell(row=data_row_num, column=42).value == (
         f'=IF($C{data_row_num}<>"", COUNTIF($C$1:$C{data_row_num}, $C{data_row_num}), "")'

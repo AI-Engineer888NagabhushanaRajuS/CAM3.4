@@ -48,8 +48,13 @@ def same(fe, engine_value, stored):
         return engine_value is stored or (isinstance(engine_value, bool) and isinstance(stored, bool) and engine_value == stored)
     if isinstance(engine_value, (int, float)) and isinstance(stored, (int, float)):
         return math.isclose(float(engine_value), float(stored), rel_tol=1e-9, abs_tol=1e-9)
-    if fe.is_blank(engine_value) or engine_value == "":
-        # Excel shows a formula that refers to an empty cell as 0 (the file stores 0), while the engine keeps it empty so the
+    if isinstance(engine_value, str) and engine_value == "":
+        # A formula whose result is empty TEXT ("" from IF/IFERROR, or INDEX of a cell holding "") shows nothing in Excel, never 0.
+        # Found 2026-11-18 (B17 BOM MATRIX I70, A CLASS PARTS H8): LibreOffice stored 0, the engine said "", Excel says "", and
+        # the old rule counted 0 as agreeing, so the wrong 0 was delivered.
+        return stored in (None, "")
+    if fe.is_blank(engine_value):
+        # Excel shows a formula that refers to an EMPTY CELL as 0 (the file stores 0), while the engine keeps it empty so the
         # comparisons that use it (for example BI6<>"") behave as in Excel. Same value, different representation.
         return stored in (None, "", 0, 0.0)
     return engine_value == stored

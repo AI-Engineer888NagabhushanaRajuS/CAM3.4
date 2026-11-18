@@ -1,6 +1,6 @@
 import duckdb
 
-from scrub_bom_to_database import DB_PATH
+from scrub_bom_to_database import DB_PATH, connect_db
 
 
 # ==========================================================
@@ -56,7 +56,7 @@ def process_costing_sheet_to_database(rfq_id, standardized_df):
 
     df = standardized_df.copy()
 
-    with duckdb.connect(DB_PATH) as conn:
+    with connect_db(DB_PATH) as conn:
 
         _ensure_schema(conn)
 
