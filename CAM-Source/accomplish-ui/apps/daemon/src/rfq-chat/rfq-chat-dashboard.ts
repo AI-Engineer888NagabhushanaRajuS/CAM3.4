@@ -9,7 +9,7 @@ export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
 export const MATRIX_TOP = [10, 25, 50, 100, 0] as const; // 0 = all parts
 
 export interface DashboardPrefs {
-  matrixView?: 'line' | 'heat';
+  matrixView?: 'line' | 'heat' | 'bubble' | 'triangle';
   matrixTop?: (typeof MATRIX_TOP)[number];
   sections?: Partial<Record<DashboardSection, boolean>>;
 }

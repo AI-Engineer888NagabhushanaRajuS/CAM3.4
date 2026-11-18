@@ -14,3 +14,7 @@ node_modules/
 
 # Note: .gitignore files that already exist inside CAM-Source and the source snapshots keep their own rules
 # (for example CAM-Source/.gitignore excludes client BOM uploads, *.duckdb, dist/, logs).
+
+acceptance_evidence/proof_take*/
+acceptance_evidence/recordings/
+acceptance_evidence/video/

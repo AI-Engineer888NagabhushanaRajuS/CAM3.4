@@ -31,7 +31,6 @@ _HEADER_COLORS = ["74B2E6", "F56767", "75D975", "AD92F8", "FFE06D"]
 _LIGHT_COLORS = ["D9EAF7", "FDE2E2", "E2F7E2", "E9E2FD", "FFF7D9"]
 _BLUE = "2F5496"
 _WHITE = "FFFFFF"
-_DATA_FILL_COLOR = "F2F6FC"
 _CENTER = Alignment(horizontal="center")
 _THIN_SIDE = Side(style="thin", color="000000")
 _THICK_SIDE = Side(style="medium", color="000000")
@@ -259,23 +258,6 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
             for fi, field in enumerate(EXCESS_FIELDS):
                 ws.cell(row=r, column=ex_cols[(vi, fi)]).value = ex_entry.get(field, "-")
 
-    # === Step A: F2F6FC fill on the early data-row columns ===
-    early_cols = [part_number_col, *fg_count_cols.values(), grand_total_col, *eau_cols.values(),
-                  description_col, commodity_col]
-    if has_proto:
-        early_cols += [proto_qty_col, proto_price_col]
-    for col in early_cols:
-        _style_range(ws, col, 9, col, last_data_row, fill=_fill(_DATA_FILL_COLOR))
-
-    # === Step C/D: light-color fill on FG price matrix + FG Grand Totals data rows ===
-    for fi in range(len(fg_keys)):
-        for vi in range(len(volume_keys)):
-            col = fg_price_cols[(fi, vi)]
-            _style_range(ws, col, 9, col, last_data_row, fill=_fill(_LIGHT_COLORS[vi % 5]))
-    for vi in range(len(volume_keys)):
-        col = fg_grand_cols[vi]
-        _style_range(ws, col, 9, col, last_data_row, fill=_fill(_LIGHT_COLORS[vi % 5]))
-
     # === Step E: row 8 static header labels ===
     ws.cell(row=8, column=part_number_col).value = "Part Number"
     _style_range(ws, part_number_col, 8, part_number_col, 8, alignment=_CENTER)
@@ -304,7 +286,6 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
         ws.merge_cells(start_row=7, start_column=start, end_row=7, end_column=end)
         ws.cell(row=7, column=start).value = vl
         _style_range(ws, start, 7, end, 7, fill=_fill(_HEADER_COLORS[vi % 5]), alignment=_CENTER)
-        _style_range(ws, start, 9, end, last_data_row, fill=_fill(_LIGHT_COLORS[vi % 5]))
 
         ws.cell(row=8, column=mfg_name_cols[vi]).value = "Mfg Name"
         _style_range(ws, mfg_name_cols[vi], 8, mfg_name_cols[vi], 8, alignment=_CENTER)
@@ -376,7 +357,6 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
             ws.cell(row=8, column=col).value = field
             _style_range(ws, col, 8, col, 8, fill=_fill(_BLUE), font=Font(color=_WHITE), alignment=_CENTER)
             _border_all(ws, col, 8, col, 8, _THIN_SIDE)
-        _style_range(ws, start, 9, end, last_data_row, fill=_fill(_LIGHT_COLORS[vi % 5]))
 
     # === Final thin-border reapply pass over row 6/7 cells that hold a value ===
     for col in range(1, last_col + 1):
@@ -384,6 +364,8 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
             _border_all(ws, col, 6, col, 6, _THIN_SIDE)
         if ws.cell(row=7, column=col).value not in (None, ""):
             _border_all(ws, col, 7, col, 7, _THIN_SIDE)
+    # Grid lines on the data body, as in the reference workbook: the quantity matrix reads as a table, not a colour block.
+    _border_all(ws, 1, 9, last_col, last_data_row, _THIN_SIDE)
 
     # === Number formats (currency) ===
     currency_format = '"$"#,##0.0000'  # exactly 4 decimal places

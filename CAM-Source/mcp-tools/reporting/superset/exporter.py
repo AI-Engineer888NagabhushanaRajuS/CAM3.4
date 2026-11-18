@@ -49,6 +49,7 @@ from reports.cbom_vl import (
     build_batch_settings_sheet, build_cbom_vl_sheet, build_scrap_factor_sheet, cbom_vl_bounds, cbom_vl_rows,
 )
 from reports.ex_inv_vl import build_ex_inv_vl_sheet, ex_inv_vl_rows
+from reports.internal_review import build_internal_review_sheet
 
 
 def _build_cbom_raw_sheet(wb, cbom_df):
@@ -264,6 +265,9 @@ def export_excel(rfq_id):
         wb, mappings.to_batchwise_cashflow_payload(ex_inv_report_df), ex_inv_row_counts, include_proto=has_proto,
     )
     worksheet_names.append("Batchwise Cashflow")
+
+    build_internal_review_sheet(wb, cbom_df, quote_df)
+    worksheet_names.append("Internal Review")
 
     # detected_volumes is a List[str] ("proto", "1", "2", ...); the tree/payload builders
     # above (to_cbom_tree_payload/to_excess_inventory_payload) key their "volume" field on

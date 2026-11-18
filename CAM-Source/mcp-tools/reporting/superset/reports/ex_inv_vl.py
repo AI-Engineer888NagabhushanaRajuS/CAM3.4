@@ -48,7 +48,6 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
-_DATA_FILL = PatternFill("solid", fgColor="F2F6FC")
 _YELLOW_FILL = PatternFill("solid", fgColor="FFD966")
 _THIN_SIDE = Side(style="thin", color="000000")
 _THIN_BORDER = Border(left=_THIN_SIDE, right=_THIN_SIDE, top=_THIN_SIDE, bottom=_THIN_SIDE)
@@ -305,7 +304,6 @@ def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, ex
     for r in range(data_start_row, last_data_row + 1):
         for col in range(1, last_col + 1):
             cell = ws.cell(row=r, column=col)
-            cell.fill = _DATA_FILL
             cell.border = _THIN_BORDER
 
     currency_cols = ["O", "P", "Y", "Z", "AC", "AD"] + (["AH"] if suffix != "P" else [])

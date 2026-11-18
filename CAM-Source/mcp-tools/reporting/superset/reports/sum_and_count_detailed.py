@@ -155,7 +155,6 @@ _END_ROW_REF = "$AK$1"
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
-_DATA_FILL = PatternFill("solid", fgColor="F2F6FC")
 _DATA_FONT = Font(color="000000")
 # Explicit 8-digit ARGB (not a bare 6-digit RGB string) -- openpyxl otherwise defaults
 # the alpha channel to 00 (fully transparent) for a conditional-formatting dxf fill,
@@ -296,7 +295,6 @@ def build_sum_and_count_detailed_sheet(wb, rows, cbom_bounds, include_proto=True
         data_range = f"A2:{last_col_letter}{last_row}"
         for row_cells in ws[data_range]:
             for cell in row_cells:
-                cell.fill = _DATA_FILL
                 cell.font = _DATA_FONT
 
         if is_sum_same_meta and is_count_same_meta:

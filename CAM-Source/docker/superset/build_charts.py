@@ -60,8 +60,11 @@ with app.app_context():
               {"x_axis": "lead_time", "metrics": [metric("cpn_count", "SUM", "Parts")], "groupby": [], "orientation": "vertical", "show_legend": False, "order_desc": False, "x_axis_sort_asc": True, "x_axis_sort_series": "name"}),
         chart("Final buy by payment term", "echarts_timeseries_bar", cash,
               {"x_axis": "volume_no", "metrics": [metric("sum_final_buy_value", "SUM", "Final buy")], "groupby": ["supplier_type"], "orientation": "vertical", "show_legend": True}),
-        chart("Value by ABC class", "pie", abc,
-              {"metric": metric("ext_price_conv", "SUM", "Value"), "groupby": ["abc_classification"], "donut": True, "show_labels": True, "label_type": "key_percent"}),
+        # Matrix, not a pie: ABC class down the side, commodity across, each cell the value of the parts in it.
+        chart("Value by ABC class and commodity", "heatmap_v2", abc,
+              {"x_axis": "commodity", "groupby": "abc_classification", "metric": metric("ext_price_conv", "SUM", "Value"),
+               "linear_color_scheme": "blue_white_yellow", "normalize_across": "heatmap", "show_values": True,
+               "sort_x_axis": "value_desc", "sort_y_axis": "alpha_asc", "show_legend": True}),
     ]
     table = db.session.query(Slice).filter_by(slice_name="Reports: summary by RFQ").first()
     if table is not None:

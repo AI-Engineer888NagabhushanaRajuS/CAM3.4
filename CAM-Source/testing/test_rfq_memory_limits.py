@@ -100,7 +100,7 @@ def test_status_route_reports_settings_and_counts(stubs, monkeypatch):
     svc = service(monkeypatch, limit="3")
     with TestClient(svc.internal_app) as client:
         assert client.get("/internal/memory/status").json() == {
-            "writesEnabled": True, "provider": "ollama", "maxConcurrent": 3, "running": 0, "queued": 0}
+            "writesEnabled": True, "provider": "ollama", "maxConcurrent": 3, "running": 0, "queued": 0, "recent": []}
         svc.config._USE_OPENROUTER = True
         assert client.get("/internal/memory/status").json()["provider"] == "openrouter"
 

@@ -171,7 +171,7 @@ function buildCosting(rows: PortfolioRow[], cfg: Config): Built {
   ];
   return {
     option: {
-      tooltip: { trigger: 'item', formatter: (p: { name: string; value: number; percent: number }) => `${p.name}: ${money(p.value)} lines (${p.percent}%)` },
+      tooltip: { trigger: 'item', formatter: (p: any) => `${p.name}: ${money(p.value)} lines (${p.percent}%)` },
       legend: { bottom: 0, icon: 'roundRect' },
       series: [{
         type: 'pie',
@@ -181,7 +181,7 @@ function buildCosting(rows: PortfolioRow[], cfg: Config): Built {
         label: { formatter: '{b}\n{d}%' },
         data: pieData,
       }],
-      graphic: all ? [{ type: 'text', left: 'center', top: '43%', style: { text: `${money(all)}\nCBOM lines`, textAlign: 'center', fill: '#475569', fontSize: 14, fontWeight: 600 } }] : [],
+      graphic: all ? [{ type: 'text', left: 'center', top: '43%', style: ({ text: `${money(all)}\nCBOM lines`, fill: '#475569', fontSize: 14, fontWeight: 600, align: 'center' } as any) }] : [],
     },
     columns: ['Status', 'CBOM lines'],
     table: [['Costed', priced], ['Not costed', notCosted], ['Total', all]],

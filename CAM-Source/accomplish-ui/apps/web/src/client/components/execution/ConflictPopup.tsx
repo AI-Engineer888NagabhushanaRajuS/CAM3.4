@@ -174,7 +174,7 @@ export function ConflictPopup({ open, rfqId, onResumed, onClose }: ConflictPopup
           <WarningCircle className="h-4 w-4 text-destructive" /> {error}
         </p>
       )}
-      <div className="min-h-0 flex-1 p-2">
+      <div className="min-h-0 flex-1 p-2" style={{ height: '100%', width: '100%' }}>
         {rows.length > 0 && (
           <AgGridReact<Row>
             theme={myTheme}
@@ -185,7 +185,6 @@ export function ConflictPopup({ open, rfqId, onResumed, onClose }: ConflictPopup
             singleClickEdit
             stopEditingWhenCellsLoseFocus
             onCellValueChanged={onChoice}
-            style={{ height: '100%', width: '100%' }}
           />
         )}
       </div>

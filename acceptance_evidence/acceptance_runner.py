@@ -13,7 +13,7 @@ from pathlib import Path
 
 # Paths
 BASE_DIR = Path(r"C:\CAM[3.4]-RFQ_centum")
-EVIDENCE_DIR = BASE_DIR / "acceptance_evidence" / "proof_take21"
+EVIDENCE_DIR = BASE_DIR / "acceptance_evidence" / "proof_take22"
 VIDEO_DIR = EVIDENCE_DIR / "video"
 SCREENSHOTS_DIR = EVIDENCE_DIR / "screenshots"
 LOGS_DIR = EVIDENCE_DIR / "logs"
@@ -24,7 +24,7 @@ BOM_FILE = INPUTS_DIR / "Centum_Scrub_BOM.xlsx"
 VOLUME_FILE = INPUTS_DIR / "Volume_File.xlsx"
 QUOTEWIN_FILE = INPUTS_DIR / "QuoteWin_File.xlsx"
 
-RFQ_ID = "RFQ-CENTUM-PROOF-24"
+RFQ_ID = "RFQ-CENTUM-PROOF-25"
 
 for d in [VIDEO_DIR, SCREENSHOTS_DIR, LOGS_DIR, DOWNLOADS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -129,7 +129,10 @@ def run():
 
         print("Clicking 'Sign in as Tester'...")
         page.click("text=Sign in as Tester")
-        page.wait_for_url("**/#/", timeout=15000)
+        page.wait_for_url("**/#/**", timeout=15000)
+        time.sleep(1)
+        if not page.url.rstrip("/").endswith("#"):
+            page.goto("http://localhost:5181/#/", wait_until="networkidle")
         time.sleep(2)
         snap("02_home_page", "Signed in, home page loaded with workflow stages")
 
@@ -227,38 +230,43 @@ def run():
         print("Waiting for the bridge to report the CBOM export (backend readiness check)...")
         wait_for_cbom_export(RFQ_ID, timeout_s=600)
 
-        # Re-open the RFQ as a user would after the run: fresh sign-in, search, then Quote Readiness
+        # Re-open the RFQ as a user would after the run on the recorded page: fresh sign-in, search, then Quote Readiness
         dl_btn = None
         for _attempt in range(3):
-            # a new browser context, as the probes used: re-signing in on the stored session never showed the search box
-            page = browser.new_context(viewport={"width": 1400, "height": 900}, accept_downloads=True).new_page()
-            page.goto("http://localhost:5181/#/login", wait_until="networkidle")
-            page.click("text=Sign in as Tester")
-            page.wait_for_url("**/#/", timeout=15000)
-            page.wait_for_selector("#rfq-search-textbox", timeout=10000)
+            video_page.goto("http://localhost:5181/#/login", wait_until="networkidle")
+            time.sleep(1)
+            sign_btn = video_page.query_selector("text=Sign in as Tester")
+            if sign_btn and sign_btn.is_visible():
+                sign_btn.click()
+                video_page.wait_for_url("**/#/**", timeout=15000)
+                time.sleep(1)
+                if not video_page.url.rstrip("/").endswith("#"):
+                    video_page.goto("http://localhost:5181/#/", wait_until="networkidle")
+                time.sleep(2)
+            video_page.wait_for_selector("#rfq-search-textbox", timeout=10000)
             time.sleep(3)  # the sidebar re-renders while the RFQ list loads; type into the settled box
-            page.click("#rfq-search-textbox")
-            page.keyboard.press("Control+A")
-            page.keyboard.type(RFQ_ID)
-            page.keyboard.press("Enter")
+            video_page.click("#rfq-search-textbox")
+            video_page.keyboard.press("Control+A")
+            video_page.keyboard.type(RFQ_ID)
+            video_page.keyboard.press("Enter")
             time.sleep(4)
-            page.mouse.click(24, 482)
+            video_page.mouse.click(24, 482)
             time.sleep(2)
             try:
-                page.click("text=Quote Readiness", timeout=10000)
+                video_page.click("text=Quote Readiness", timeout=10000)
             except PlaywrightTimeoutError:
                 continue
             time.sleep(2)
-            candidate = page.query_selector("button:has-text('Download'):not([disabled])")
+            candidate = video_page.query_selector("button:has-text('Download'):not([disabled])")
             if candidate and candidate.is_visible():
                 dl_btn = candidate
                 break
         if dl_btn is None:
             raise AssertionError("Quote Readiness Download never became enabled")
+        page = video_page
         snap("12_workflow_stages_completed", "Pipeline completed; Quote Readiness shows the enabled CBOM Download")
-        snap("12_workflow_stages_completed", "Pipeline completed; Quote Readiness shows the CBOM Download")
         time.sleep(2)
-        with page.expect_download(timeout=60000) as download_info:
+        with video_page.expect_download(timeout=60000) as download_info:
             dl_btn.click()
         download = download_info.value
         downloaded_file_path = DOWNLOADS_DIR / download.suggested_filename

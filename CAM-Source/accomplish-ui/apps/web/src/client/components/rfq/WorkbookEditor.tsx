@@ -261,7 +261,7 @@ export function WorkbookEditor({ open, rfqId, attachmentId, file, name, report, 
         ))}
       </nav>
 
-      <div className="min-h-0 flex-1 p-2">
+      <div className="min-h-0 flex-1 p-2" style={{ height: '100%', width: '100%' }}>
         {!wb && !error && <p role="status" className="p-4 text-sm text-muted-foreground">Opening the workbook…</p>}
         {wb && sheet && (
           <AgGridReact
@@ -272,7 +272,6 @@ export function WorkbookEditor({ open, rfqId, attachmentId, file, name, report, 
             onCellValueChanged={onCellChanged}
             singleClickEdit
             stopEditingWhenCellsLoseFocus
-            style={{ height: '100%', width: '100%' }}
           />
         )}
       </div>

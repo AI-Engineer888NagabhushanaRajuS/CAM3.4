@@ -62,7 +62,14 @@ function saveToServer(convo: string) {
   clearTimeout(pendingSave.get(convo));
   pendingSave.set(convo, setTimeout(() => {
     pendingSave.delete(convo);
-    void getAccomplish().chatSaveHistory({ rfqId: convo, messages: load(convo) }).catch(() => undefined);
+    try {
+      const api = getAccomplish();
+      if (typeof api?.chatSaveHistory === 'function') {
+        void api.chatSaveHistory({ rfqId: convo, messages: load(convo) }).catch(() => undefined);
+      }
+    } catch {
+      /* ignore mock/network error */
+    }
   }, 800));
 }
 
@@ -81,7 +88,9 @@ function save(convo: string, messages: ChatMsg[]) {
 async function restoreFromServer(convo: string): Promise<ChatMsg[] | null> {
   if (convo === '__all__' || load(convo).length > 0) return null;
   try {
-    const { messages } = await getAccomplish().chatLoadHistory({ rfqId: convo });
+    const api = getAccomplish();
+    if (typeof api?.chatLoadHistory !== 'function') return null;
+    const { messages } = await api.chatLoadHistory({ rfqId: convo });
     return messages.length > 0 ? (messages as ChatMsg[]) : null;
   } catch {
     return null; // signed out or daemon down: the chat starts empty, as before

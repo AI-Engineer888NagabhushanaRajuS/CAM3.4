@@ -16,7 +16,7 @@ export function VolumeBars3D({ assemblies, volumes, values, unit }: { assemblies
     values.forEach((row, i) => row.forEach((v, j) => { if (Number.isFinite(v)) data.push([i, j, v]); }));
     chart.setOption({
       tooltip: {
-        formatter: (p: { value: [number, number, number] }) =>
+        formatter: (p: any) =>
           `${assemblies[p.value[0]]}<br/>${volumes[p.value[1]]}: ${p.value[2].toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ''}`,
       },
       visualMap: { min: 0, max: Math.max(1, ...data.map((d) => d[2])), inRange: { color: ['#c7e9f7', '#22a8c9', '#3300aa'] }, dimension: 2, show: true, right: 0, top: 'center' },
@@ -25,7 +25,7 @@ export function VolumeBars3D({ assemblies, volumes, values, unit }: { assemblies
       zAxis3D: { type: 'value', name: unit ? `Cost per set (${unit})` : 'Cost per set' },
       grid3D: { boxWidth: 140, boxDepth: 80, viewControl: { autoRotate: false, alpha: 22, beta: 30 }, light: { main: { intensity: 1.2 } } },
       series: [{ type: 'bar3D', data, shading: 'lambert', barSize: 18, label: { show: false } }],
-    } as echarts.EChartsOption);
+    } as unknown as echarts.EChartsOption);
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(host.current);
     return () => { ro.disconnect(); chart.dispose(); };

@@ -9,7 +9,7 @@ export const DASHBOARD_SECTIONS = ['bom_matrix', 'cost_3d', 'live_feed', 'formul
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
 
 export interface DashboardPrefs {
-  matrixView?: 'line' | 'heat';
+  matrixView?: 'line' | 'heat' | 'bubble' | 'triangle';
   matrixTop?: 10 | 25 | 50 | 100 | 0;
   sections?: Partial<Record<DashboardSection, boolean>>;
 }

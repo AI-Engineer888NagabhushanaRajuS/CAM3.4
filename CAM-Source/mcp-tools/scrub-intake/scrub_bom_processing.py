@@ -318,6 +318,8 @@ def process_scrub_bom(bom_file, sheet_name=0):
     }
 
     critical_overrides = {
+        "cpn": "CPN",
+        "mpn": "MPN",
         "quantity": "QUANTITY",
         "commodity": "COMMODITY",
         "part_status": "PART STATUS",
@@ -342,10 +344,12 @@ def process_scrub_bom(bom_file, sheet_name=0):
         "quantity"
     ]
 
+    # A mapping that names a header the sheet does not have leaves the column empty without an error,
+    # so a required field counts as missing unless its source header is really in the sheet.
     missing = [
         field
         for field in required_fields
-        if mapping.get(field) is None
+        if mapping.get(field) not in bom_df.columns
     ]
 
     if missing:

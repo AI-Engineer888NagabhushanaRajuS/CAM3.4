@@ -681,7 +681,7 @@ async def upload_rfq_file(
     x_cam_user: Optional[str] = Header(None),
     x_cam_user_email: Optional[str] = Header(None),
 ):
-    forced = (force_run or "").strip().lower() in ("1", "true", "yes")
+    forced = force_run.strip().lower() in ("1", "true", "yes") if isinstance(force_run, str) else False
     unresolved = await _refuse_invalid_bom(bom_file, profile, forced)
     # The SCRUB BOM pipeline (default profile) takes its volumes from the workbook's own Settings sheet and never reads this file;
     # RFQ_Flow's import_bom does need it. So it is optional for the default profile only.

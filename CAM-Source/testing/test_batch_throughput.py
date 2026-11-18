@@ -106,17 +106,20 @@ def test_the_four_standardizers_use_the_cached_call():
 
 def test_worker_cap_default_and_override(monkeypatch):
     monkeypatch.delenv("CAM_WORKER_MAX_ACTIVITIES", raising=False)
-    import config
-    assert importlib.reload(config).MAX_CONCURRENT_ACTIVITIES == 4
+    import temporal_worker.config as worker_config
+    sys.modules["config"] = worker_config
+    assert importlib.reload(worker_config).MAX_CONCURRENT_ACTIVITIES == 4
     monkeypatch.setenv("CAM_WORKER_MAX_ACTIVITIES", "2")
-    assert importlib.reload(config).MAX_CONCURRENT_ACTIVITIES == 2
+    assert importlib.reload(worker_config).MAX_CONCURRENT_ACTIVITIES == 2
     monkeypatch.delenv("CAM_WORKER_MAX_ACTIVITIES")
-    importlib.reload(config)
+    importlib.reload(worker_config)
 
 
 def test_worker_passes_the_cap_to_temporal(monkeypatch):
     pytest.importorskip("temporalio")
-    import worker
+    import temporal_worker.config as worker_config
+    sys.modules["config"] = worker_config
+    import temporal_worker.worker as worker
 
     seen = {}
 

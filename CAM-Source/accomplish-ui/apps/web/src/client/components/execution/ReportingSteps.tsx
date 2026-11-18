@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { CheckCircle, Circle, CircleNotch } from '@phosphor-icons/react';
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
@@ -14,7 +14,7 @@ import type { RfqSkillHistoryEntry } from '@/lib/accomplish';
 
 type RowState = 'done' | 'ready' | 'waiting';
 
-const STATE_ICON: Record<RowState, JSX.Element> = {
+const STATE_ICON: Record<RowState, ReactNode> = {
   done: <CheckCircle weight="fill" className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />,
   ready: <CircleNotch className="h-4 w-4 animate-spin text-primary" aria-hidden />,
   waiting: <Circle className="h-4 w-4 text-muted-foreground/60" aria-hidden />,
