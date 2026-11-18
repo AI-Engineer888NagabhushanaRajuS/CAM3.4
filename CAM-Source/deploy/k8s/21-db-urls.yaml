@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cam-db-urls
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: cam-db-urls
+type: Opaque
+stringData:
+  LOGIC_DB_URL: postgresql://centum:verify-local-only@postgres:5432/logic_db_2
+  FILE_METADATA_DB_URL: postgresql://centum:verify-local-only@postgres:5432/file_metadata_db_2
+  STAGING_LOGIC_DB_URL: postgresql://centum:verify-local-only@postgres:5432/staging_logic_db_2
+  STAGING_FILE_METADATA_DB_URL: postgresql://centum:verify-local-only@postgres:5432/staging_file_metadata_db_2

@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-bridge
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: python-bridge
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: python-bridge
+  template:
+    metadata:
+      labels:
+        app: python-bridge
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: python-bridge
+        image: REGISTRY/cam-python-bridge:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 3110
+        command:
+        - sh
+        - -c
+        - cd /app/fastapi-router && exec python duck_db_api.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

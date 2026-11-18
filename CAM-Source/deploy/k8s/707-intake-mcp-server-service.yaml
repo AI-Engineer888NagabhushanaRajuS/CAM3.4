@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: intake-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: intake-mcp-server
+spec:
+  selector:
+    app: intake-mcp-server
+  ports:
+  - name: p8002
+    port: 8002
+    targetPort: 8002

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: scrub-intake-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: scrub-intake-mcp-server
+spec:
+  selector:
+    app: scrub-intake-mcp-server
+  ports:
+  - name: p8004
+    port: 8004
+    targetPort: 8004

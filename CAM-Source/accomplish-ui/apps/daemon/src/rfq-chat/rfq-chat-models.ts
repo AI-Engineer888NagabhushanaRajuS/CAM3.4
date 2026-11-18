@@ -54,6 +54,37 @@ export function localModel(timeoutMs = 120_000): ChatModel {
         return null;
       }
     },
+    /** One turn with tools (the agent). Ollama's tool calls arrive as objects; the turn goes back as the assistant message. */
+    async callTools(messages: unknown[], tools: unknown[], signal?: AbortSignal) {
+      try {
+        const res = await fetch(`${OLLAMA}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: LOCAL_MODEL, messages, tools, stream: false, think: false, keep_alive: '30m',
+            options: { temperature: 0.1, num_ctx: 8192, num_predict: 600 },
+          }),
+          signal: within(150_000, signal),
+        });
+        if (!res.ok) {
+          log.warn(`[RfqChat] Ollama tools HTTP ${res.status}`);
+          return null;
+        }
+        const data = (await res.json()) as {
+          message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: Record<string, unknown> } }> };
+        };
+        const message = data.message ?? {};
+        return {
+          text: stripThink(message.content ?? ''),
+          toolCalls: (message.tool_calls ?? []).map((c, i) => ({ id: `call_${i}`, name: c.function?.name ?? '', args: c.function?.arguments ?? {} })),
+          model: label,
+          assistant: message,
+        };
+      } catch (err) {
+        log.warn(`[RfqChat] Ollama tools failed: ${err}`);
+        return null;
+      }
+    },
   };
 }
 
@@ -96,6 +127,45 @@ export function openRouterModel(apiKey: string, model: string, timeoutMs = 60_00
         return null;
       }
     },
+    /** One turn with tools (the agent). OpenRouter's tool calls carry JSON-text arguments and an id the tool result must return. */
+    async callTools(messages: unknown[], tools: unknown[], signal?: AbortSignal) {
+      try {
+        const res = await fetch(`${OPENROUTER}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({ model: id, messages, tools, stream: false, temperature: 0.1 }),
+          signal: within(150_000, signal),
+        });
+        if (!res.ok) {
+          log.warn(`[RfqChat] OpenRouter tools HTTP ${res.status}`);
+          lastOpenRouterFailure = describeOpenRouterStatus(res.status);
+          return null;
+        }
+        lastOpenRouterFailure = null;
+        const data = (await res.json()) as {
+          choices?: { message?: { content?: string | null; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> } }[];
+        };
+        const message = data.choices?.[0]?.message ?? {};
+        return {
+          text: stripThink(message.content ?? ''),
+          toolCalls: (message.tool_calls ?? []).map((c, i) => {
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(c.function?.arguments ?? '{}') as Record<string, unknown>;
+            } catch {
+              args = {};
+            }
+            return { id: c.id ?? `call_${i}`, name: c.function?.name ?? '', args };
+          }),
+          model: label,
+          assistant: message,
+        };
+      } catch (err) {
+        log.warn(`[RfqChat] OpenRouter tools failed: ${err}`);
+        lastOpenRouterFailure = "OpenRouter could not be reached from this computer (network or timeout).";
+        return null;
+      }
+    },
   };
 }
 
@@ -108,6 +178,15 @@ export function firstAvailable(models: ChatModel[]): ChatModel {
         if (signal?.aborted) return null;
         const reply = await m.complete(messages, signal);
         if (reply !== null) return reply;
+      }
+      return null;
+    },
+    async callTools(messages, tools, signal) {
+      for (const m of models) {
+        if (signal?.aborted) return null;
+        if (!m.callTools) continue;
+        const turn = await m.callTools(messages, tools, signal);
+        if (turn !== null) return turn;
       }
       return null;
     },

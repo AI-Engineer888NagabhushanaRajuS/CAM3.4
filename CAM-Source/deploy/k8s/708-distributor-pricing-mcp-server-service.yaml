@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: distributor-pricing-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: distributor-pricing-mcp-server
+spec:
+  selector:
+    app: distributor-pricing-mcp-server
+  ports:
+  - name: p8003
+    port: 8003
+    targetPort: 8003

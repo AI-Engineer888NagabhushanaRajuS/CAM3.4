@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Never commit real values.
+registry        = "registry.example.com/cam"
+image_tag       = "latest"
+kubeconfig_path = "~/.kube/config"
+kube_context    = null
+
+app_keys = {
+  JWT_SECRET            = "REPLACE_ME"
+  OPENROUTER_API_KEY    = "REPLACE_ME"
+  DIGIKEY_CLIENT_ID     = "REPLACE_ME"
+  DIGIKEY_CLIENT_SECRET = "REPLACE_ME"
+  MOUSER_API_KEY        = "REPLACE_ME"
+  ELEMENT14_API_KEY     = "REPLACE_ME"
+}

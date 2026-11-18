@@ -7,6 +7,16 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 export interface ChatModel {
   label: string;
   complete(messages: ChatMessage[], signal?: AbortSignal): Promise<{ text: string; model: string } | null>;
+  /** Tool calling (the agent): one model turn. `messages` are in the provider's own shape; `assistant` is the turn to append back. */
+  callTools?(messages: unknown[], tools: unknown[], signal?: AbortSignal): Promise<ToolTurn | null>;
+}
+
+/** One model turn that may ask for tools. `toolCalls` empty = the final answer in `text`. */
+export interface ToolTurn {
+  text: string;
+  toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }>;
+  model: string;
+  assistant: unknown;
 }
 
 export interface Turn {

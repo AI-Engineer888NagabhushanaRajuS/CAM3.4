@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hitl-router
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: hitl-router
+spec:
+  selector:
+    app: hitl-router
+  ports:
+  - name: p5102
+    port: 5102
+    targetPort: 5102

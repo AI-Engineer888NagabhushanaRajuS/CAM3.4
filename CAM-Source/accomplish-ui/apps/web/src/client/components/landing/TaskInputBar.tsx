@@ -129,7 +129,7 @@ export function TaskInputBar({
 
       <div
         className={cn(
-          'group relative overflow-hidden rounded-[20px] border bg-card transition-all duration-200 cursor-text focus-within:border-transparent focus-within:ring-2 focus-within:ring-blue-500',
+          'group relative overflow-hidden rounded-[20px] border bg-card transition-colors duration-200 cursor-text focus-within:border-foreground',
           isDragOver ? 'border-primary/40 ring-1 ring-primary/30 bg-primary/5' : 'border-border',
         )}
         onClick={() => !isDragOver && textareaRef.current?.focus()}
@@ -138,7 +138,6 @@ export function TaskInputBar({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        <div className="srim-composer-line pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100" />
 
         {isDragOver && (
           <div className="px-4 py-4 text-center">

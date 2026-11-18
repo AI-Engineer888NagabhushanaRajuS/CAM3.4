@@ -198,26 +198,46 @@ def machine_note(settings=None):
     return "Machine rules checked (Settings > Feasibility): " + "; ".join(f"{_rule_text(c)} -> {c['effect'].replace('_', ' ')}" for c in rules) + "."
 
 
+LEGEND = ("Legend: Can build / Cannot build = the verdict (Cannot build if any cannot-build reason applies). Risk High = cannot build, a last-time-buy date, "
+          "or a price with no lead time. Risk Medium = a medium reason (Part Status, lead time over the limit, NCNR, expired validity). Risk Low = none.")
+
+
 def build_feasibility_sheet(wb, rows, settings=None, title="Feasibility & Risk"):
-    """Plain values, no formulas: the verdicts are decided here, not by Excel, so every viewer shows the same."""
+    """The verdicts are plain values, decided here, not by Excel, so every viewer shows the same. The summary counts are live COUNTIF formulas over the table."""
     from openpyxl.styles import Alignment, Font, PatternFill
     ws = wb.create_sheet(title=title)
     s = summary(rows, settings)
+    head = 7                                              # rows: title, rule set, machine note, legend, summary labels, summary counts, header
+    first, last = head + 1, head + max(len(rows), 1)
+    verdict_rng, risk_rng = f"$J${first}:$J${last}", f"$K${first}:$K${last}"
     ws.append([f"Feasibility & Risk: {s['lines']} lines, {s['can_build']} can build, {s['cannot_build']} cannot build, risk High {s['high']} / Medium {s['medium']} / Low {s['low']}"])
     ws.append([rule_set_text(settings)])
     ws.append([machine_note(settings)])
-    ws.append([])
+    ws.append([LEGEND])
+    ws.append(["Lines", "Can build", "Cannot build", "Risk High", "Risk Medium", "Risk Low"])
+    ws.append([f"=COUNTA($C${first}:$C${last})", f'=COUNTIF({verdict_rng},"Can build")', f'=COUNTIF({verdict_rng},"Cannot build")',
+               f'=COUNTIF({risk_rng},"High")', f'=COUNTIF({risk_rng},"Medium")', f'=COUNTIF({risk_rng},"Low")'])
+    for c in ws[head - 2]:
+        c.font = Font(bold=True)
+        c.alignment = Alignment(wrap_text=True, horizontal="center", vertical="center")
+    for c in ws[head - 1]:
+        c.font = Font(bold=True, size=12)
+        c.alignment = Alignment(horizontal="center")
+    ws.row_dimensions[head - 2].height = 30
     ws.append(HEADERS)
-    head = ws.max_row
     for c in ws[head]:
         c.font = Font(bold=True)
         c.fill = PatternFill("solid", fgColor="D9E1F2")
+        c.alignment = Alignment(wrap_text=True, vertical="center")
+    ws.row_dimensions[head].height = 30
     colour = {"High": "F8CBAD", "Medium": "FFE699", "Low": "C6E0B4"}
     for r in rows:
         ws.append([r["fg"], r["assembly"], r["cpn"], r["mpn"], r["description"], r["commodity"], r["quantity"], r["part_status"], r["lead_time"], r["verdict"], r["risk"], r["reasons"]])
+        ws.cell(row=ws.max_row, column=9).number_format = "0.0"
         ws.cell(row=ws.max_row, column=11).fill = PatternFill("solid", fgColor=colour[r["risk"]])
         ws.cell(row=ws.max_row, column=12).alignment = Alignment(wrap_text=True, vertical="top")
     for letter, width in zip("ABCDEFGHIJKL", (14, 14, 22, 22, 36, 14, 8, 14, 12, 14, 8, 70)):
         ws.column_dimensions[letter].width = width
+    ws.auto_filter.ref = f"A{head}:L{last}"
     ws.freeze_panes = ws.cell(row=head + 1, column=1)
     return ws

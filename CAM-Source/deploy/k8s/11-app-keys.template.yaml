@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cam-app-keys
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: cam-app-keys
+type: Opaque
+stringData:
+  '# fill in at deploy time; never commit real values': ''
+  JWT_SECRET: REPLACE_ME
+  OPENROUTER_API_KEY: REPLACE_ME
+  DIGIKEY_CLIENT_ID: REPLACE_ME
+  DIGIKEY_CLIENT_SECRET: REPLACE_ME
+  MOUSER_API_KEY: REPLACE_ME
+  ELEMENT14_API_KEY: REPLACE_ME

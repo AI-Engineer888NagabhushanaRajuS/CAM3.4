@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-gate-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: price-gate-mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: price-gate-mcp-server
+  template:
+    metadata:
+      labels:
+        app: price-gate-mcp-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: price-gate-mcp-server
+        image: REGISTRY/cam-price-gate-mcp-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 8110
+        command:
+        - sh
+        - -c
+        - cd /app/mcp-tools/price-gate && exec python mcp_server.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

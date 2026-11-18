@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cam-config
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: cam-config
+data:
+  REPORTING_DATABASE_DIR: /app/database
+  CENTUM_INPUT_DB: /app/database/input_db.duckdb
+  REPORTING_INPUT_DB: /app/database/input_db.duckdb
+  BOM_STORAGE_DB: /app/database/bom_storage.duckdb
+  CAM_TEMPORAL_HOST: temporal:7233
+  CAM_FASTAPI_ROUTER_URL: http://fastapi-router:5100
+  CAM_HITL_ROUTER_URL: http://hitl-router:5102
+  RFQ_MEMORY_INTERNAL_URL: http://rfq-memory-server:8109

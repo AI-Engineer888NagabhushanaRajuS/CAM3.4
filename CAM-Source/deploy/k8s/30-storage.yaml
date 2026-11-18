@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cam-database
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: cam-database
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi

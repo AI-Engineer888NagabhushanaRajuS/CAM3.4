@@ -57,3 +57,13 @@ database/cognee_data/
 manifests/.history/
 
 database/mapping_cache/
+
+# Terraform: local state and real variable values
+**/.terraform/
+*.tfstate
+*.tfstate.*
+CAM-Source/deploy/terraform/terraform.tfvars
+
+# Local tool installs (node_modules, venvs)
+tools/**/node_modules/
+tools/browser-use-env/

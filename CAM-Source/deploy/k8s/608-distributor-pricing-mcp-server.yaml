@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distributor-pricing-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: distributor-pricing-mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: distributor-pricing-mcp-server
+  template:
+    metadata:
+      labels:
+        app: distributor-pricing-mcp-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: distributor-pricing-mcp-server
+        image: REGISTRY/cam-distributor-pricing-mcp-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 8003
+        command:
+        - sh
+        - -c
+        - cd /app/mcp-tools/distributor-pricing && exec python mcp_server.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

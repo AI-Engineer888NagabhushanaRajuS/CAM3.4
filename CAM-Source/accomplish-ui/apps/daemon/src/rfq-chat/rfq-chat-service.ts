@@ -16,6 +16,7 @@ import { openRouterFailureReason } from './rfq-chat-models.js';
 import { answerFromResults, type GroundedDeps } from './rfq-chat-grounded.js';
 import { answerFromGuide, loadGuide } from './rfq-chat-guide.js';
 import { converse } from './rfq-chat-general.js';
+import { runAgent } from './rfq-chat-agent.js';
 import { controlReply, quoted, unknownRfqReply } from './rfq-chat-controls.js';
 import { classify, classifyBase, CREATE_PENDING, filesIntent, mentionsSettings, rfqMentions } from './rfq-chat-intent.js';
 import { answerAcrossRfqs, MAX_RFQS, pickRfqDirective } from './rfq-chat-multi.js';
@@ -122,6 +123,14 @@ export async function chatReply(p: ChatParams, deps: ChatServiceDeps): Promise<C
     }
     const r = await deps.actions.proposeCreateRfq({ sessionKey: deps.sessionKey ?? 'local', request, fileRefs: files });
     return talk(r.message, { ui: r.ui });
+  }
+  // Free questions and RFQ-data questions go to the agent first: the model calls the tools and answers from what they return.
+  // When no model can take tool calls, the older path below answers as before.
+  if (intent === 'unsure' || intent === 'data') {
+    const agent = await runAgent(question, history, deps.model(), deps, deps.signal).catch(() => null);
+    if (agent) {
+      return talk(agent.message, { model: agent.model });
+    }
   }
   if (intent === 'unsure') {
     const g = await converse({ question, history, attached: files.map((f) => f.name) }, { model: deps.model(), signal: deps.signal });

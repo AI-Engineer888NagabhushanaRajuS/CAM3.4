@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gerber-integration-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: gerber-integration-mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gerber-integration-mcp-server
+  template:
+    metadata:
+      labels:
+        app: gerber-integration-mcp-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: gerber-integration-mcp-server
+        image: REGISTRY/cam-gerber-integration-mcp-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 8007
+        command:
+        - sh
+        - -c
+        - cd /app/mcp-tools/gerber-integration && exec python mcp_server.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

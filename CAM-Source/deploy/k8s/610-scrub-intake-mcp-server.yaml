@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrub-intake-mcp-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: scrub-intake-mcp-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: scrub-intake-mcp-server
+  template:
+    metadata:
+      labels:
+        app: scrub-intake-mcp-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: scrub-intake-mcp-server
+        image: REGISTRY/cam-scrub-intake-mcp-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 8004
+        command:
+        - sh
+        - -c
+        - cd /app/mcp-tools/scrub-intake && exec python scrub_mcp_server.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

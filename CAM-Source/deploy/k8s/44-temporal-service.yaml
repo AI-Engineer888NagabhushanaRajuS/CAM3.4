@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: temporal
+spec:
+  selector:
+    app: temporal
+  ports:
+  - name: p7233
+    port: 7233
+    targetPort: 7233

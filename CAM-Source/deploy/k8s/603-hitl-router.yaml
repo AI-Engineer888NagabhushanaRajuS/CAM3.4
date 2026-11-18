@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hitl-router
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: hitl-router
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hitl-router
+  template:
+    metadata:
+      labels:
+        app: hitl-router
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: hitl-router
+        image: REGISTRY/cam-hitl-router:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 5102
+        command:
+        - sh
+        - -c
+        - cd /app/fastapi-router && exec python hitl_router.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

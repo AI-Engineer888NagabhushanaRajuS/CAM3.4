@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cam-logins
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: cam-logins
+type: Opaque
+stringData:
+  POSTGRES_USER: centum
+  POSTGRES_DB: postgres
+  POSTGRES_PASSWORD: verify-local-only
+  CAM_PG_APP_USER: solutions@digibull.ai
+  CAM_PG_APP_PASSWORD: change-me
+  CAM_PG_SUPERUSER_PASSWORD: change-me

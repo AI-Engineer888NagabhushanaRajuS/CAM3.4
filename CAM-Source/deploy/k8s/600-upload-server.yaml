@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: upload-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: upload-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: upload-server
+  template:
+    metadata:
+      labels:
+        app: upload-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: upload-server
+        image: REGISTRY/cam-upload-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 3100
+        command:
+        - sh
+        - -c
+        - cd /app/fastapi-router && exec python upload_server.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox

@@ -97,6 +97,29 @@ const SettingsDialog = lazy(() => import('./components/layout/SettingsDialog'));
 
 type AppStatus = 'loading' | 'ready' | 'error';
 
+// The three panes across the screen: the pipeline (left), the chat and the output. Only their order changes; the dividers and the
+// ratios are positional, so every arrangement keeps the same drag behaviour. Saved per browser.
+type PaneId = 'left' | 'chat' | 'output';
+const PANE_ORDERS: Array<{ id: string; label: string; order: PaneId[] }> = [
+  { id: 'pipeline-chat-output', label: 'Pipeline | Chat | Output', order: ['left', 'chat', 'output'] },
+  { id: 'pipeline-output-chat', label: 'Pipeline | Output | Chat', order: ['left', 'output', 'chat'] },
+  { id: 'chat-pipeline-output', label: 'Chat | Pipeline | Output', order: ['chat', 'left', 'output'] },
+  { id: 'chat-output-pipeline', label: 'Chat | Output | Pipeline', order: ['chat', 'output', 'left'] },
+  { id: 'output-pipeline-chat', label: 'Output | Pipeline | Chat', order: ['output', 'left', 'chat'] },
+  { id: 'output-chat-pipeline', label: 'Output | Chat | Pipeline', order: ['output', 'chat', 'left'] },
+];
+const PANE_ORDER_KEY = 'cam.paneOrder';
+
+function readPaneOrder(): PaneId[] {
+  try {
+    const saved = PANE_ORDERS.find((p) => p.id === localStorage.getItem(PANE_ORDER_KEY));
+    if (saved) return saved.order;
+  } catch {
+    // storage unavailable (private window): the default order
+  }
+  return PANE_ORDERS[0].order;
+}
+
 // Full 9-stage RFQ pipeline shown in Column 1 and the Column 3 badge.
 // `mainHeading` is the short action phrase shown as the card's primary title;
 // `name` is the formal stage name shown underneath as the secondary heading.
@@ -442,6 +465,20 @@ export function App() {
   // rfq.getSkillHistory in resumeRfq, kept current by live SSE events.
   const [rfqProgressLog, setRfqProgressLog] = useState<RfqSkillHistoryEntry[]>([]);
   const [paneRatios, setPaneRatios] = useState<[number, number, number]>([30, 40, 30]);
+  const [paneOrder, setPaneOrder] = useState<PaneId[]>(readPaneOrder);
+  const paneOrderId = PANE_ORDERS.find((p) => p.order.join() === paneOrder.join())?.id ?? PANE_ORDERS[0].id;
+  // Grid children are: slot 0, divider, slot 1, divider, slot 2. A pane's order is the slot it sits in, times two.
+  const slotOrder = (pane: PaneId) => paneOrder.indexOf(pane) * 2;
+  const choosePaneOrder = (id: string) => {
+    const choice = PANE_ORDERS.find((p) => p.id === id);
+    if (!choice) return;
+    setPaneOrder(choice.order);
+    try {
+      localStorage.setItem(PANE_ORDER_KEY, choice.id);
+    } catch {
+      // not saved: the choice still applies for this visit
+    }
+  };
   const splitWrapperRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<null | {
     side: 'control' | 'output';
@@ -1194,13 +1231,24 @@ export function App() {
   // removing it entirely -- step icons stay visible/clickable, only the text labels
   // hide. The resize gutter still collapses to 0px since dragging a fixed rail
   // wouldn't mean anything.
-  const gridTemplateColumns = isHitlCollapsed
-    ? '64px 0px minmax(0, 20fr) 12px minmax(480px, 80fr)'
-    : finishedRunLayout
-      ? '64px 0px 0px 0px minmax(480px, 1fr)'
-    : isReportingAnalyticsCollapsed
-      ? `64px 0px minmax(360px, ${paneRatios[1]}fr) 12px minmax(480px, ${paneRatios[0] + paneRatios[2]}fr)`
-      : `minmax(280px, ${paneRatios[0]}fr) 12px minmax(360px, ${paneRatios[1]}fr) 12px minmax(280px, ${paneRatios[2]}fr)`;
+  // Columns follow the pane order: each column is sized by the pane in it. The collapsed states keep the widths they always had,
+  // whichever column the pipeline sits in. Dividers touching a collapsed pipeline (and every divider after a finished run) are 0px.
+  const widthOf = (pane: PaneId): string => {
+    if (finishedRunLayout) return pane === 'left' ? '64px' : pane === 'chat' ? '0px' : 'minmax(480px, 1fr)';
+    if (isHitlCollapsed) return pane === 'left' ? '64px' : pane === 'chat' ? 'minmax(0, 20fr)' : 'minmax(480px, 80fr)';
+    if (isReportingAnalyticsCollapsed) {
+      return pane === 'left' ? '64px' : pane === 'chat' ? `minmax(360px, ${paneRatios[1]}fr)` : `minmax(480px, ${paneRatios[0] + paneRatios[2]}fr)`;
+    }
+    // The ratios are positional (the dividers resize the columns they sit between), so a column takes the ratio of its slot.
+    return `minmax(${pane === 'chat' ? 360 : 280}px, ${paneRatios[paneOrder.indexOf(pane)]}fr)`;
+  };
+  const dividerWidth = (a: PaneId, b: PaneId): string =>
+    finishedRunLayout || (isLeftPanelCollapsed && (a === 'left' || b === 'left')) ? '0px' : '12px';
+  const gridTemplateColumns = [
+    widthOf(paneOrder[0]), dividerWidth(paneOrder[0], paneOrder[1]),
+    widthOf(paneOrder[1]), dividerWidth(paneOrder[1], paneOrder[2]),
+    widthOf(paneOrder[2]),
+  ].join(' ');
 
   return (
     <div
@@ -1348,6 +1396,17 @@ export function App() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <select
+            value={paneOrderId}
+            onChange={(e) => choosePaneOrder(e.target.value)}
+            aria-label="Pane order"
+            title="Order of the three panes"
+            className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground focus:border-foreground focus:outline-none"
+          >
+            {PANE_ORDERS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
           <ThemeToggle />
           <button
             type="button"
@@ -1396,7 +1455,7 @@ export function App() {
         style={{ gridTemplateColumns }}
       >
         {/* COLUMN 1: SIDEBAR CONTAINER & WORKFLOW MANAGER */}
-        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden">
+        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden" style={{ order: slotOrder('left') }}>
           <motion.div
             className={`srim-panel srim-panel-left srim-theme-panel relative h-full flex flex-col justify-between py-4 bg-card transition-[padding] duration-300 ${isLeftPanelCollapsed ? 'px-2' : 'px-4'}`}
             style={{ minWidth: 0, width: '100%' }}
@@ -1701,18 +1760,18 @@ export function App() {
           </motion.div>
         </div>
 
-        <div className="srim-pane-gutter" role="separator" aria-label="Resize control plane and chat">
+        <div className="srim-pane-gutter" style={{ order: 1 }} role="separator" aria-label="Resize control plane and chat">
           <button
             type="button"
             disabled={isLeftPanelCollapsed}
-            className={`srim-splitter-handle transition-opacity duration-300 ${isLeftPanelCollapsed ? 'opacity-0 pointer-events-none' : ''}`}
+            className={`srim-splitter-handle transition-opacity duration-300 ${isLeftPanelCollapsed ?'opacity-0 pointer-events-none' : ''}`}
             onPointerDown={(event) => startPanelDrag('control', event)}
             aria-label="Resize control plane and chat"
           />
         </div>
 
         {/* COLUMN 2: CENTRAL AI ASSISTANT CHAT CONTAINER — narrows to ~20% width when HITL is active, stays visible/usable */}
-        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden">
+        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden" style={{ order: slotOrder('chat') }}>
           <motion.div
             className="srim-panel srim-chat srim-theme-shell h-full flex flex-col overflow-hidden bg-card"
             style={{ minWidth: 0, width: '100%' }}
@@ -1750,18 +1809,18 @@ export function App() {
           </motion.div>
         </div>
 
-        <div className="srim-pane-gutter" role="separator" aria-label="Resize chat and stage output">
+        <div className="srim-pane-gutter" style={{ order: 3 }} role="separator" aria-label="Resize chat and stage output">
           <button
             type="button"
             disabled={!!hitlContext}
-            className={`srim-splitter-handle transition-opacity duration-300 ${hitlContext ? 'opacity-0 pointer-events-none' : ''}`}
+            className={`srim-splitter-handle transition-opacity duration-300 ${hitlContext ?'opacity-0 pointer-events-none' : ''}`}
             onPointerDown={(event) => startPanelDrag('output', event)}
             aria-label="Resize chat and stage output"
           />
         </div>
 
         {/* COLUMN 3: REAL-TIME OUTPUT STREAM WORKSPACE — expands to ~80% width on HITL */}
-        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden">
+        <div className="srim-column-shell relative h-full min-w-0 overflow-hidden" style={{ order: slotOrder('output') }}>
           <motion.div
             className="srim-panel srim-output srim-theme-panel relative h-full flex flex-col overflow-hidden bg-card p-6"
             style={{ minWidth: 0, width: '100%' }}

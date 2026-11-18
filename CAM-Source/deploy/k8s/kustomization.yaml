@@ -1,0 +1,78 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cam
+resources:
+- 00-namespace.yaml
+- 10-logins.yaml
+- 20-config.yaml
+- 21-db-urls.yaml
+- 30-storage.yaml
+- 31-exports.yaml
+- 32-inbox.yaml
+- 40-postgres-data.yaml
+- 41-postgres.yaml
+- 42-postgres-service.yaml
+- 43-temporal.yaml
+- 44-temporal-service.yaml
+- 45-temporal-ui.yaml
+- 46-temporal-ui-service.yaml
+- 600-upload-server.yaml
+- 601-fastapi-router.yaml
+- 602-python-bridge.yaml
+- 603-hitl-router.yaml
+- 604-temporal-worker.yaml
+- 605-reporting-mcp-server.yaml
+- 606-price-gate-mcp-server.yaml
+- 607-intake-mcp-server.yaml
+- 608-distributor-pricing-mcp-server.yaml
+- 609-gerber-integration-mcp-server.yaml
+- 610-scrub-intake-mcp-server.yaml
+- 611-rfq-memory-server.yaml
+- 700-upload-server-service.yaml
+- 701-fastapi-router-service.yaml
+- 702-python-bridge-service.yaml
+- 703-hitl-router-service.yaml
+- 705-reporting-mcp-server-service.yaml
+- 706-price-gate-mcp-server-service.yaml
+- 707-intake-mcp-server-service.yaml
+- 708-distributor-pricing-mcp-server-service.yaml
+- 709-gerber-integration-mcp-server-service.yaml
+- 710-scrub-intake-mcp-server-service.yaml
+- 711-rfq-memory-server-service.yaml
+images:
+- name: REGISTRY/cam-upload-server
+  newName: REPLACE_WITH_REGISTRY/cam-upload-server
+  newTag: latest
+- name: REGISTRY/cam-fastapi-router
+  newName: REPLACE_WITH_REGISTRY/cam-fastapi-router
+  newTag: latest
+- name: REGISTRY/cam-python-bridge
+  newName: REPLACE_WITH_REGISTRY/cam-python-bridge
+  newTag: latest
+- name: REGISTRY/cam-hitl-router
+  newName: REPLACE_WITH_REGISTRY/cam-hitl-router
+  newTag: latest
+- name: REGISTRY/cam-temporal-worker
+  newName: REPLACE_WITH_REGISTRY/cam-temporal-worker
+  newTag: latest
+- name: REGISTRY/cam-reporting-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-reporting-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-price-gate-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-price-gate-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-intake-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-intake-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-distributor-pricing-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-distributor-pricing-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-gerber-integration-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-gerber-integration-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-scrub-intake-mcp-server
+  newName: REPLACE_WITH_REGISTRY/cam-scrub-intake-mcp-server
+  newTag: latest
+- name: REGISTRY/cam-rfq-memory-server
+  newName: REPLACE_WITH_REGISTRY/cam-rfq-memory-server
+  newTag: latest

@@ -324,10 +324,11 @@
   box-shadow: 0 0 14px hsl(var(--primary) / 0.75);
   animation: srim-progress-pulse 1.8s ease-in-out infinite;
 }
+/* The composer's own border is the only focus indication: no second (blue) ring inside it. */
 .srim-chat textarea:focus,
 .srim-chat input:focus {
-  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.55), 0 0 32px hsl(var(--primary) / 0.16);
-  transition: box-shadow 220ms ease;
+  box-shadow: none;
+  outline: none;
 }
 .srim-composer {
   animation: srim-composer-breathe 4.5s ease-in-out infinite;
@@ -383,7 +384,7 @@
 @keyframes srim-sweep { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
 @keyframes srim-button-sweep { to { transform: translateX(120%); } }
 @keyframes srim-progress-pulse { 0%, 100% { opacity: .45; transform: scaleX(.65); } 50% { opacity: 1; transform: scaleX(1); } }
-@keyframes srim-composer-breathe { 0%, 100% { box-shadow: 0 18px 60px -32px hsl(var(--foreground) / .28); } 50% { box-shadow: 0 22px 78px -34px hsl(var(--primary) / .38); } }
+@keyframes srim-composer-breathe { 0%, 100% { box-shadow: 0 18px 60px -32px hsl(var(--foreground) / .28); } 50% { box-shadow: 0 22px 78px -34px hsl(var(--foreground) / .3); } }
 @keyframes srim-composer-line { 0%, 100% { transform: translateX(-18%); opacity: .25; } 50% { transform: translateX(18%); opacity: 1; } }
 @keyframes srim-status-glow { 0%, 100% { border-color: hsl(var(--primary) / .15); } 50% { border-color: hsl(var(--primary) / .42); } }
 @keyframes srim-status-sweep { 0% { transform: translateX(-100%); } 35%, 100% { transform: translateX(100%); } }

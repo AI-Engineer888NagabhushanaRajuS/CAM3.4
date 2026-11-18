@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rfq-memory-server
+  namespace: cam
+  labels:
+    app.kubernetes.io/part-of: cam
+    app: rfq-memory-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rfq-memory-server
+  template:
+    metadata:
+      labels:
+        app: rfq-memory-server
+        app.kubernetes.io/part-of: cam
+    spec:
+      containers:
+      - name: rfq-memory-server
+        image: REGISTRY/cam-rfq-memory-server:latest
+        envFrom:
+        - secretRef:
+            name: cam-db-urls
+        - secretRef:
+            name: cam-app-keys
+        - configMapRef:
+            name: cam-config
+        ports:
+        - containerPort: 8108
+        - containerPort: 8109
+        command:
+        - sh
+        - -c
+        - cd /app/mcp-tools/rfq-memory && exec python memory_service.py
+        volumeMounts:
+        - name: database
+          mountPath: /app/database
+        - name: exports
+          mountPath: /app/exports
+        - name: inbox
+          mountPath: /app/fastapi-router/staged/inbox
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: cam-database
+      - name: exports
+        persistentVolumeClaim:
+          claimName: cam-exports
+      - name: inbox
+        persistentVolumeClaim:
+          claimName: cam-inbox
