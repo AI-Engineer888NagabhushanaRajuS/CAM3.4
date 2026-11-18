@@ -272,7 +272,8 @@ def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, ex
     ws["A1"].fill = _HEADER_FILL
     ws["A1"].font = _HEADER_FONT
 
-    ws["A2"] = f"=SUM(AC{data_start_row}:AC{last_data_row})"
+    # No supplier rows: the range would run backwards (AC5:AC4) and include its own cell, so the total is 0.
+    ws["A2"] = f"=SUM(AC{data_start_row}:AC{last_data_row})" if last_data_row >= data_start_row else 0
     ws["A2"].fill = _YELLOW_FILL
     ws["A2"].number_format = _CURRENCY_FORMAT
 
@@ -314,7 +315,9 @@ def build_ex_inv_vl_sheet(wb, json_data, volume, cbom_bounds, has_proto=True, ex
 
     summary_row = last_data_row + 1
     for col_letter in ("Y", "Z", "AC", "AD"):
-        ws[f"{col_letter}{summary_row}"] = f"=SUM({col_letter}{data_start_row}:{col_letter}{last_data_row})"
+        ws[f"{col_letter}{summary_row}"] = (
+            f"=SUM({col_letter}{data_start_row}:{col_letter}{last_data_row})" if last_data_row >= data_start_row else 0
+        )
         ws[f"{col_letter}{summary_row}"].number_format = _CURRENCY_FORMAT
 
     # AK1/AL1 define the row bounds ($AK$1/$AL$1) that every single
