@@ -88,7 +88,9 @@ def style_sheet(ws):
                 font.name = "Calibri"
                 font.sz = font.sz or 11
                 cell.font = font
-            if not cell.border.left.style and cell.coordinate not in merged_coords:
+            # openpyxl gives no left Side for some cells (a border can be None); no side means no border yet.
+            left = cell.border.left if cell.border is not None else None
+            if (left is None or not left.style) and cell.coordinate not in merged_coords:
                 cell.border = THIN_BORDER
             if is_header:
                 if cell.fill is None or cell.fill.fill_type is None:
