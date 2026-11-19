@@ -585,8 +585,12 @@ def to_sum_and_count_payload(scrub_df, selected_quote_all_df, detected_volumes):
 # ------------------------------------------------------------------
 
 def to_revision_history_payload(rfq_id, scrub_df, quote_df):
-    bom_data = _records(scrub_df[["cpn", "fg", "description", "mpn"]].rename(
-        columns={"cpn": "CPN", "fg": "Assembly", "description": "Description", "mpn": "MPN"}
+    # Assembly is the part's PARENT assembly (scrub `assembly`), the key '7.0 CBOM VL-n' column B holds and the Description /
+    # Commodity / Manufacturer / MPN / New Unit Price lookups match on. It was the FG: on a multi-level BOM every part under a
+    # sub-assembly then matched nothing and those columns came out empty (batch-05: 340 of 365 rows, 2026-11-18).
+    src = scrub_df.assign(_asm=scrub_df["assembly"].where(scrub_df["assembly"].notna() & (scrub_df["assembly"].astype(str).str.strip() != ""), scrub_df["fg"]))         if "assembly" in scrub_df.columns else scrub_df.assign(_asm=scrub_df["fg"])
+    bom_data = _records(src[["cpn", "_asm", "description", "mpn"]].rename(
+        columns={"cpn": "CPN", "_asm": "Assembly", "description": "Description", "mpn": "MPN"}
     ))
     rfqs = []
     for r in _records(quote_df):

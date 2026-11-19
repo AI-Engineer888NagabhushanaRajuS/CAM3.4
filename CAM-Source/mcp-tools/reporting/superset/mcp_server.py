@@ -32,7 +32,7 @@ if _THIS_DIR not in sys.path:
 from fastmcp import FastMCP
 
 import cached_values
-from reports import forced_run
+from reports import forced_run, xlsx_rels
 import exporter
 import reporting_pipeline
 from logging_utils import logger
@@ -243,6 +243,8 @@ def export_reports(rfq_id: str) -> dict:
             result["forced_run"] = forced_run.annotate_error_cells(result["workbook_path"], rfq_id)
             if result["forced_run"].get("error_cells_commented") or result["forced_run"].get("blank_cells_commented"):
                 result["cached_values"] = cached_values.add_cached_values(result["workbook_path"])
+            # Last write: ExcelJS (the browser's workbook editor) cannot open openpyxl's absolute comment links.
+            result["comment_parts_renamed"] = xlsx_rels.normalise_comment_parts(result["workbook_path"])
             result["validation"] = _validation(rfq_id)
             # The export still produces the workbook (the file is what the user needs to look at), but it says plainly whether it is
             # release-ready: only when the report validation passed for every check AND the engine checked every formula.

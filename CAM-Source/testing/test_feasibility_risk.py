@@ -82,9 +82,13 @@ def test_the_tab_has_plain_values_the_rule_set_and_the_machine_note():
     assert ws.title == "Feasibility & Risk"
     text = " ".join(str(c.value) for row in ws.iter_rows(max_row=3) for c in row if c.value)
     assert "Rule set" in text and "none are saved in Settings" in text and "2 lines" in text
-    values = [[c.value for c in row] for row in ws.iter_rows(min_row=6)]
+    # Since 2026-11-18 the tab has a legend and a live summary (COUNTIF over the table) above the header row; the lines stay plain values.
+    header = next(r for r in range(1, 12) if any(c.value == "Verdict" for c in ws[r]))
+    values = [[c.value for c in row] for row in ws.iter_rows(min_row=header + 1)]
     assert [v[2] for v in values] == ["A", "B"] and [v[9] for v in values] == ["Can build", "Cannot build"]
-    assert not any(isinstance(c.value, str) and c.value.startswith("=") for row in ws.iter_rows() for c in row)
+    formulas = [c for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=")]
+    assert formulas and all(c.row < header and c.value.startswith(("=COUNTIF(", "=COUNTA(")) for c in formulas)
+    assert f"$J${header + 1}:$J${header + 2}" in " ".join(c.value for c in formulas)
 
 
 # ---- the rules are settings (Settings > Feasibility), not code ----

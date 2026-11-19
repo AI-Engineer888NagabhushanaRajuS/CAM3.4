@@ -173,8 +173,10 @@ def write_lead_time_formulas(ws, bounds):
     for i in range(n):
         r = i + 2                      # helper row
         src = first + i                # CBOM tab row
-        ws[f"{c_asm}{r}"] = f"='{CBOM_TAB}'!A{src}"
-        ws[f"{c_part}{r}"] = f"='{CBOM_TAB}'!C{src}"
+        # A spacer row of the CBOM tab holds " " in A and nothing in C. A bare reference gave Excel 0 (blank cell) and the engine "" or " ",
+        # so the first-occurrence flags below counted the spacer rows in Excel only (3 cells per FG, found 2026-11-18). IF(TRIM(x)="","",x) is the same everywhere.
+        ws[f"{c_asm}{r}"] = f"=IF(TRIM('{CBOM_TAB}'!A{src})=\"\",\"\",'{CBOM_TAB}'!A{src})"
+        ws[f"{c_part}{r}"] = f"=IF(TRIM('{CBOM_TAB}'!C{src})=\"\",\"\",'{CBOM_TAB}'!C{src})"
         ws[f"{c_lt}{r}"] = f"=IF('{CBOM_TAB}'!S{src}=\"\",\"\",'{CBOM_TAB}'!S{src})"
         test = _PART_LINE_TEST.format(y=f"{c_part}{r}")
         ws[f"{c_flt}{r}"] = (f"=IF({test},IF(COUNTIFS({c_asm}$2:{c_asm}{r},{c_asm}{r},{c_part}$2:{c_part}{r},{c_part}{r},"

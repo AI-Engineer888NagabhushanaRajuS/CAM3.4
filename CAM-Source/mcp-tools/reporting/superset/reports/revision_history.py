@@ -205,7 +205,8 @@ def revision_history_rows(payload):
 
         first_entry = next(iter(last_data.values()), {})
         row = [
-            s_no, last_rev if last_rev is not None else "-",
+            # A CPN no quote covers has no revision: "-" (the 3.3 PHP printed a literal FALSE here).
+            s_no, last_rev if last_rev not in (None, False) else "-",
             bom_row.get("Assembly", "-"), cpn, bom_row.get("Description", "-"),
             first_entry.get("Commodity", "-"), first_entry.get("Manufacturer", "-"),
             bom_row.get("MPN", "-"), first_entry.get("EAU", "-"),
@@ -523,7 +524,7 @@ def _demo():
 
     empty_row_payload = {"centum_id": "-", "bom_data": [{"CPN": "CPN-9999", "Assembly": "-", "Description": "-", "MPN": "-"}], "rfqs": []}
     empty_rows = revision_history_rows(empty_row_payload)
-    assert empty_rows[2][1] is False  # preserved PHP quirk: no revisions -> literal `false`, not "-"
+    assert empty_rows[2][1] == "-"  # no revision shows "-" (3.3 printed a literal FALSE)
     print("revision_history_rows() no-RFQ-revision quirk self-check passed")
 
     # v2 schema self-check: quote_win_revision rows adapt into the same

@@ -56,6 +56,7 @@ from costing_sheet_processing import process_costing_sheet
 from costing_sheet_to_database import process_costing_sheet_to_database
 from tool_calling import call_tool, create_session
 from db import versioned_key, duckdb_file_lock
+import volume_from_quotewin
 
 # Initialize the FastMCP server instance
 mcp = FastMCP("ScrubIntake")
@@ -333,6 +334,12 @@ def standardize_quote_win(rfq_id, version=1) -> str:
             result = process_quote_win_to_database(
                 key, standardized_df
             )
+            if result.get("status") == "success":
+                # A BOM workbook without a Settings sheet leaves this version with no volumes: take them from the awards.
+                try:
+                    result["derived_volumes"] = volume_from_quotewin.derive(key)
+                except Exception as derive_err:  # never fails the QuoteWin step; the report then shows the volumes as missing
+                    result["derived_volumes"] = {"derived": False, "reason": f"{type(derive_err).__name__}: {derive_err}"}
 
         if result.get("status") == "success":
             analytics_posthog_client.capture("upload_processing_completed", {
