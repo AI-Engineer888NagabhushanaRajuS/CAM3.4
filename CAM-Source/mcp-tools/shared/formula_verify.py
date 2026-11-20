@@ -196,6 +196,12 @@ def correct(path, as_of=None, budget_seconds=None):
     try:
         if result["complete"] and not result["error"] and any(fixes.values()):
             result["corrected"] = _store(path, fixes)
+            if result["corrected"]:
+                # Report the file as it now is: the counts above are from before the corrections were stored.
+                before = {"totals": result["totals"], "sheets": result["sheets"]}
+                after = verify(path, as_of, budget_seconds)
+                result.update(totals=after["totals"], sheets=after["sheets"], complete=after["complete"], diagnostics=after["diagnostics"])
+                result["before_correction"] = before
     except Exception as e:
         result["error"] = f"The corrected values could not be stored ({type(e).__name__}: {str(e)[:160]})."
         path.with_name("." + path.stem + ".engine.xlsx").unlink(missing_ok=True)
