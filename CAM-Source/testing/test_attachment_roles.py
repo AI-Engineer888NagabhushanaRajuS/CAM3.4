@@ -26,7 +26,7 @@ def test_scrub_bom_workbook_is_recognised_by_its_sheet_name_ignoring_case_and_sp
     r = ar.classify_file(p)
     assert r["role"] == "scrub_bom" and not r["problems"] and "Settings / Batch" in r["role_reason"]
     r2 = ar.classify_file(book(tmp_path / "b.xlsx", {"SCRUB BOM": [["FG"]]}))
-    assert r2["role"] == "scrub_bom" and "implicit volume" in r2["role_reason"]
+    assert r2["role"] == "scrub_bom" and "QuoteWin awards" in r2["role_reason"] and r2["volume_source"] == "quotewin"
 
 
 def test_plain_bom_is_recognised_but_flagged_because_the_first_step_would_reject_it(tmp_path):
@@ -44,7 +44,27 @@ def test_volume_file_has_part_and_volume_columns_only(tmp_path):
 def test_quotewin_is_found_by_the_table_header_below_the_report_preamble(tmp_path):
     rows = [["Awards Part Number List"], ["Template:", "x"]] + [["k", "v"]] * 8 + [["*** Assembly Summary"], ["Part Number", "Mfg Part Number", "Commodity", "Cost #1"]]
     r = ar.classify_file(book(tmp_path / "q.xlsx", {"Sheet0": rows}))
-    assert r["role"] == "quotewin" and "ERP & Quoting" in r["problems"][0]
+    # The QuoteWin is a required input of RFQ creation (the intake buckets), so no "belongs to another step" problem any more.
+    assert r["role"] == "quotewin" and r["problems"] == []
+
+
+def test_a_costing_sheet_is_not_a_quotewin(tmp_path):
+    """All 25 Centum costing sheets share Part Number / Mfg Part Number / Commodity with the QuoteWin, but carry Price Control and NRE
+    Charge and no Awarded Volume. They were labelled QuoteWin (2026-11-19, batch-05 in the real UI)."""
+    head = ["Project", "Part Number", "Description", "Commodity", "Mfg Name", "Mfg Part Number", "Unit", "Part Qty", "Price #1 (Original)",
+            "Currency (Original)", "Supp Name", "Pkg Qty", "MOQ", "Lead Time", "NRE Charge", "NRE Charge (Conv.)", "NCNR", "Price Control"]
+    r = ar.classify_file(book(tmp_path / "c.xlsx", {"Sheet3": [head, ["P", "A1", "d", "RES"] + [None] * 14]}))
+    assert r["role"] == "costing" and r["role_label"] == "Costing sheet"
+    qw = ["Part Number", "Mfg Part Number", "Commodity", "Cost #1 (Conv.)", "Awarded Volume #1", "Award #1", "Price Control"]
+    assert ar.classify_file(book(tmp_path / "q2.xlsx", {"Sheet0": [qw]}))["role"] == "quotewin"
+
+
+def test_a_scrub_bom_says_where_its_volumes_come_from(tmp_path):
+    head = [["FG", "Level", "Assembly", "CPN", "MPN", "Quantity"]]
+    with_settings = ar.classify_file(book(tmp_path / "a.xlsx", {"SCRUB BOM": head, "Settings": [["FG", "V1 Qty"]]}))
+    without = ar.classify_file(book(tmp_path / "b.xlsx", {"SCRUB BOM": head, "Sheet1": [["x"]]}))
+    assert with_settings["volume_source"] == "settings"
+    assert without["volume_source"] == "quotewin" and "QuoteWin awards" in without["role_reason"]
 
 
 def test_anything_else_is_unknown_and_never_guessed_as_costing_sheet(tmp_path):

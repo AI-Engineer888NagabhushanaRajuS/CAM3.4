@@ -128,6 +128,21 @@ def build_pending_conflicts(rfq_id, rows, columns, resolved_item_ids):
     return out
 
 
+AUTO_NO_PRICE = "auto: no source has a price"
+_SOURCE_ORDER = ("costing", "erp", "qw")
+
+
+def _has_price(available_sources_json):
+    return any((v or {}).get("price_conv") is not None for v in json.loads(available_sources_json).values())
+
+
+def _preferred_source(available_sources_json):
+    """The source with the most filled fields; ties go to the costing sheet, then ERP, then QuoteWin."""
+    sources = json.loads(available_sources_json)
+    filled = {s: sum(v not in (None, "", 0) for v in (sources[s] or {}).values()) for s in sources}
+    return max(sorted(sources, key=lambda s: _SOURCE_ORDER.index(s) if s in _SOURCE_ORDER else 9), key=lambda s: filled[s])
+
+
 def resolve_final_selection(con, rfq_id):
     """con is an open DuckDB connection (database.connect()). Auto-resolves
     single-source rows directly into cbom.duckdb's final_* (+ recomputes the
@@ -154,6 +169,11 @@ def resolve_final_selection(con, rfq_id):
             )
             resolved_item_ids = {str(r[0]) for r in cur.fetchall()}
         conflicts_to_insert = build_pending_conflicts(rfq_id, conflict_rows, columns, resolved_item_ids)
+        # A "conflict" in which no source carries a price is not a price decision: every choice leaves the line uncosted, and
+        # the review popup showed "no price / no price / no price, pick one" (RFQ-000077, 2026-11-19). It is decided here, by
+        # the source with the most data (costing sheet, then ERP, then QuoteWin), recorded as automatic, and never shown.
+        no_price = [c for c in conflicts_to_insert if not _has_price(c[6])]
+        conflicts_to_insert = [c for c in conflicts_to_insert if _has_price(c[6])]
         with pg_conn.cursor() as cur:
             # resolve_final_selection is idempotent/re-runnable (same as
             # cbom/enrich_* before it) -- clear this rfq_id's stale
@@ -175,12 +195,27 @@ def resolve_final_selection(con, rfq_id):
                     conflicts_to_insert,
                     template="(%s, %s, %s, %s, %s, %s, %s::jsonb)"
                 )
+            for row in no_price:
+                source = _preferred_source(row[6])
+                cur.execute(
+                    """
+                    INSERT INTO final_selection_conflicts
+                        (conflict_id, rfq_id, cbom_item_id, bom_item_id, volume_no, cpn, available_sources,
+                         resolved_source, resolved_by, resolved_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, now())
+                    """,
+                    row + (source, AUTO_NO_PRICE),
+                )
+                apply_resolved_conflict(con, rfq_id, row[2], json.loads(row[6])[source])
             cur.execute(
                 "SELECT COUNT(*) FROM final_selection_conflicts WHERE rfq_id = %s AND resolved_source IS NULL",
                 (rfq_id,)
             )
             pending_count = cur.fetchone()[0]
         pg_conn.commit()
+    if no_price:
+        for statement in queries.final_selection_recompute_derived_sql(rfq_lit):
+            con.execute(statement)
 
     return {
         "status": "success",

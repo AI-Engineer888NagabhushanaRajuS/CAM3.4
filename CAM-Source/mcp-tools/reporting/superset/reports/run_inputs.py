@@ -32,6 +32,17 @@ def run_input_rows(bom_rows: int, quotewin_rows: int) -> list[list[str]]:
     return out
 
 
+def input_note_rows(con, rfq_key: str) -> list[list[str]]:
+    """What the intake had to derive or assume for this run (input_db.input_notes, written by scrub-intake/volume_from_quotewin.py when
+    the BOM workbook has no Settings sheet). Highlighted like a missing input, because the figures depend on it. None when the table does
+    not exist yet (older databases)."""
+    try:
+        rows = con.execute("SELECT item, status, detail FROM input_db.input_notes WHERE rfq_id = ? ORDER BY item", [rfq_key]).fetchall()
+    except Exception:
+        return []
+    return [[item, "Yes", status, detail] for item, status, detail in rows]
+
+
 def has_missing_required(rows: list[list[str]]) -> bool:
     return any(r[1] == "Yes" and r[2].startswith("MISSING") for r in rows)
 
@@ -47,6 +58,9 @@ def build_run_inputs_sheet(wb, rows: list[list[str]], title: str = "Run Inputs")
         if row[1] == "Yes" and row[2].startswith("MISSING"):
             for c in ws[ws.max_row]:
                 c.fill = PatternFill("solid", fgColor="F8D7DA")
+        elif row[2].startswith("DERIVED"):
+            for c in ws[ws.max_row]:
+                c.fill = PatternFill("solid", fgColor="FFF2CC")
     for col, width in zip("ABCD", (22, 12, 22, 90)):
         ws.column_dimensions[col].width = width
     for row in ws.iter_rows(min_row=2):

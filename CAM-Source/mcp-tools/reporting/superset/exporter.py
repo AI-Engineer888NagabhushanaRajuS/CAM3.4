@@ -343,6 +343,8 @@ def _export_excel(rfq_id, con):
         )
         worksheet_names.append(ex_inv_sheet_name)
 
+    from reports.run_inputs import input_note_rows
+    input_notes = input_note_rows(con, rfq_id)   # read before the connection closes (volumes derived from the QuoteWin, ...)
     con.close()
 
     # Second-granularity timestamp alone can collide: two export_reports calls
@@ -406,7 +408,7 @@ def _export_excel(rfq_id, con):
     # The Run Inputs tab: which inputs this report was built from. A missing required input (run allowed to proceed with missing values)
     # is shown red here, so the workbook never reads as complete when it is not.
     from reports.run_inputs import build_run_inputs_sheet, run_input_rows, has_missing_required
-    run_inputs = run_input_rows(bom_rows=len(scrub_df), quotewin_rows=len(quote_df))
+    run_inputs = run_input_rows(bom_rows=len(scrub_df), quotewin_rows=len(quote_df)) + input_notes
     build_run_inputs_sheet(wb, run_inputs)
     worksheet_names.append("Run Inputs")
     from reports.presentation import style_workbook

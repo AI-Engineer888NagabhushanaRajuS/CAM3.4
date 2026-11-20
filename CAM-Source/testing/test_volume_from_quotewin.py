@@ -89,3 +89,27 @@ def test_volumes_given_by_the_workbook_are_never_replaced(tmp_path):
 def test_dominant(ratios, expected):
     got = vq.dominant(ratios)
     assert (got[0] if got else None) == expected
+
+
+def test_the_run_inputs_tab_lists_the_derived_volumes(tmp_path):
+    """The report says where its volumes came from: a DERIVED row on the Run Inputs tab, highlighted."""
+    import openpyxl
+    sup = os.path.join(ROOT, "mcp-tools", "reporting", "superset")
+    sys.path.insert(0, sup)
+    try:
+        from reports.run_inputs import build_run_inputs_sheet, input_note_rows, run_input_rows
+    finally:
+        sys.path.remove(sup)
+    scrub = [("FG-1", "1", f"P{i}", 1) for i in range(5)]
+    path = _db(tmp_path, scrub, [(f"P{i}", 400, None) for i in range(5)])
+    assert vq.derive(KEY, db_path=path)["derived"]
+    con = duckdb.connect()
+    con.execute(f"ATTACH '{path}' AS input_db (READ_ONLY)")
+    notes = input_note_rows(con, KEY)
+    assert notes and notes[0][0] == "Volumes" and notes[0][2] == "DERIVED from QuoteWin" and "FG-1 V1 = 400" in notes[0][3]
+    assert input_note_rows(con, "OTHER-RFQ") == []
+    wb = openpyxl.Workbook()
+    ws = build_run_inputs_sheet(wb, run_input_rows(5, 5) + notes)
+    assert ws.cell(row=4, column=3).value == "DERIVED from QuoteWin" and ws.cell(row=4, column=1).fill.fgColor.rgb.endswith("FFF2CC")
+    plain = duckdb.connect()
+    assert input_note_rows(plain, KEY) == []   # no input_db attached: no rows, no error
