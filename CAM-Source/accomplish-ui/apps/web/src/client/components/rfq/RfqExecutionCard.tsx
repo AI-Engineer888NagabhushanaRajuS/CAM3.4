@@ -7,6 +7,7 @@ import { getAccomplish } from '@/lib/accomplish';
 import { RFQ_UPLOAD_URL } from '@/config/endpoints';
 import { authFetch } from '@/lib/apiAuth';
 import { refusalMessage } from '@/lib/uploadRefusal';
+import { stageInput, unstageInput } from '@/lib/intakeInputs';
 import { AttachFilesDialog } from './AttachFilesDialog';
 
 interface RfqExecutionCardProps {
@@ -149,6 +150,8 @@ export function RfqExecutionCard({
   const [rfqIdMessage, setRfqIdMessage] = useState<string | null>(null);
   const [bomFile, setBomFile] = useState<File | null>(null);
   const [volumeFile, setVolumeFile] = useState<File | null>(null);
+  const [quoteWinFile, setQuoteWinFile] = useState<File | null>(null);
+  const [costingFile, setCostingFile] = useState<File | null>(null);
   // What was just dropped: it goes through the Uppy dashboard and both security engines, which sort the files into BOM and volume.
   const [picked, setPicked] = useState<File[]>([]);
   // Optional -- RFQ_Flow's gerber_integration__extract_features skips itself
@@ -222,6 +225,21 @@ export function RfqExecutionCard({
     onCreated(trimmedId);
     onUploadStart(bomFile.name);
 
+    if (quoteWinFile) {
+      try {
+        await stageInput(trimmedId, 'quotewin', quoteWinFile);
+      } catch (err) {
+        logger.warn('Failed to pre-stage QuoteWin under rfqId', { err });
+      }
+    }
+    if (costingFile) {
+      try {
+        await stageInput(trimmedId, 'costing', costingFile);
+      } catch (err) {
+        logger.warn('Failed to pre-stage Costing sheet under rfqId', { err });
+      }
+    }
+
     const formData = new FormData();
     formData.append('bom_file', bomFile);
     if (volumeFile) { formData.append('volume_file', volumeFile); }
@@ -246,7 +264,7 @@ export function RfqExecutionCard({
     // progress panel takes over immediately after.
     onUploadSuccess(bomFile.name);
     setSubmitting(false);
-  }, [customerId, projectId, bomFile, volumeFile, gerberFile, rfqId, rfqIdMessage, onCreated, onUploadStart, onUploadSuccess, onUploadError]);
+  }, [customerId, projectId, bomFile, volumeFile, quoteWinFile, costingFile, gerberFile, rfqId, rfqIdMessage, onCreated, onUploadStart, onUploadSuccess, onUploadError]);
 
   return (
     <div className="flex h-full items-center justify-center overflow-y-auto p-6">
@@ -301,9 +319,54 @@ export function RfqExecutionCard({
           </div>
 
           {bomFile ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <FileDropSlot label="BOM workbook" file={bomFile} onSelect={setBomFile} onClear={() => { setBomFile(null); setVolumeFile(null); }} />
-              <FileDropSlot label="Volume file (optional)" file={volumeFile} onSelect={setVolumeFile} onClear={() => setVolumeFile(null)} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <FileDropSlot
+                  label="BOM workbook"
+                  file={bomFile}
+                  onSelect={setBomFile}
+                  onClear={() => {
+                    const id = rfqId.trim();
+                    if (id) {
+                      void unstageInput(id, 'quotewin').catch(() => undefined);
+                      void unstageInput(id, 'costing').catch(() => undefined);
+                    }
+                    setBomFile(null);
+                    setVolumeFile(null);
+                    setQuoteWinFile(null);
+                    setCostingFile(null);
+                  }}
+                />
+                <FileDropSlot label="Volume file (optional)" file={volumeFile} onSelect={setVolumeFile} onClear={() => setVolumeFile(null)} />
+              </div>
+              {(quoteWinFile || costingFile) && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {quoteWinFile && (
+                    <FileDropSlot
+                      label="QuoteWin export"
+                      file={quoteWinFile}
+                      onSelect={setQuoteWinFile}
+                      onClear={() => {
+                        const id = rfqId.trim();
+                        if (id) void unstageInput(id, 'quotewin').catch(() => undefined);
+                        setQuoteWinFile(null);
+                      }}
+                    />
+                  )}
+                  {costingFile && (
+                    <FileDropSlot
+                      label="Costing sheet (optional)"
+                      file={costingFile}
+                      onSelect={setCostingFile}
+                      onClear={() => {
+                        const id = rfqId.trim();
+                        if (id) void unstageInput(id, 'costing').catch(() => undefined);
+                        setCostingFile(null);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <FilesDrop disabled={!rfqId.trim()} onPick={setPicked} />
@@ -315,7 +378,12 @@ export function RfqExecutionCard({
             alreadyAttached={[]}
             onClose={() => setPicked([])}
             onReleased={() => undefined}
-            onUseFiles={({ bom, volume }) => { setBomFile(bom); setVolumeFile(volume); }}
+            onUseFiles={({ bom, volume, quotewin, costing }) => {
+              setBomFile(bom);
+              setVolumeFile(volume);
+              if (quotewin) setQuoteWinFile(quotewin);
+              if (costing) setCostingFile(costing);
+            }}
           />
 
           <FileDropSlot

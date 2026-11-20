@@ -444,6 +444,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
                 f'$A${first_data_row}:$A${last_data_row}, $C{_summary_row}, '
                 f'$AH${first_data_row}:$AH${last_data_row}, "<>TRUE")'
             )
+            ws.cell(row=_summary_row, column=7).value = f'=F{_summary_row}*E{_summary_row}'
         ws.cell(row=total_row, column=5).value = f'=SUM(E{summary_data_start}:E{summary_data_end})'
         ws.cell(row=total_row, column=7).value = f'=SUM(G{summary_data_start}:G{summary_data_end})'
 
@@ -505,8 +506,10 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     )
     ws.cell(row=13, column=11).value = "=K14-K11"
     ws.cell(row=14, column=11).value = (
-        f'=SUMPRODUCT(--((LOWER(TRIM($AF${first_data_row}:$AF${last_data_row}))="true")+'
-        f'(LOWER(TRIM($AF${first_data_row}:$AF${last_data_row}))="false")))'
+        f'=SUMPRODUCT(--(($AF${first_data_row}:$AF${last_data_row}=TRUE)+'
+        f'($AF${first_data_row}:$AF${last_data_row}="TRUE")+'
+        f'($AF${first_data_row}:$AF${last_data_row}=FALSE)+'
+        f'($AF${first_data_row}:$AF${last_data_row}="FALSE")>0))'
     )
     # Uncosted Line Items Count: a plain, un-deduped count of real data rows with Is
     # Costed=FALSE -- same grain as Total Line Items (K14) above, matching the
@@ -526,7 +529,8 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     # all (same reason Total Line Items is 843, not 847 -- see that K14 comment).
     ws.cell(row=15, column=11).value = (
         f'=COUNTIFS($AO${first_data_row}:$AO${last_data_row},FALSE,'
-        f'$AF${first_data_row}:$AF${last_data_row},TRUE)'
+        f'$AF${first_data_row}:$AF${last_data_row},TRUE,'
+        f'$AH${first_data_row}:$AH${last_data_row},"<>TRUE")'
     )
     ws.cell(row=16, column=11).value = (
         f'=SUMPRODUCT(($AM${first_data_row}:$AM${last_data_row}=FALSE)*'
@@ -588,7 +592,7 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
     ws["M10"] = "MOQ Cost"
     _style_range(ws, 10, 10, 13, 13, _HEADER_FILL, _HEADER_FONT)
     ex_inv_sheet = "Ex Inv VL-proto" if volume == "proto" else f"Ex Inv VL-{volume}"
-    ws.cell(row=11, column=13).value = f"='{ex_inv_sheet}'!$A$2"
+    ws.cell(row=11, column=13).value = f"=IFERROR('{ex_inv_sheet}'!$A$2, 0)"
     ws.cell(row=11, column=13).fill = _TOTAL_FILL
     ws.cell(row=9, column=13).value = f"=IFERROR($M$11/G{total_row},0)"
     ws.cell(row=9, column=13).fill = _TOTAL_FILL
@@ -780,8 +784,10 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
                         f'=IF($AF{_r}, IF($A{_r}=$B{_r}, '
                         f'$I{_r}*IFERROR(INDEX(\'Batch Settings\'!$C$2:$C${batch_settings_last_row}, '
                         f'MATCH($A{_r}&"|"&"{volume}", \'Batch Settings\'!$D$2:$D${batch_settings_last_row}, 0)), 0), '
-                        f'$I{_r}*IFERROR(INDEX($AG:$AG, SUMPRODUCT(($A${first_data_row}:$A${last_data_row}=$A{_r})*'
-                        f'($C${first_data_row}:$C${last_data_row}=$B{_r})*ROW($C${first_data_row}:$C${last_data_row}))), 0)'
+                        f'$I{_r}*IFERROR(INDEX($AG:$AG, IF(SUMPRODUCT(($A${first_data_row}:$A${last_data_row}=$A{_r})*'
+                        f'($C${first_data_row}:$C${last_data_row}=$B{_r})*ROW($C${first_data_row}:$C${last_data_row}))>0, '
+                        f'SUMPRODUCT(($A${first_data_row}:$A${last_data_row}=$A{_r})*'
+                        f'($C${first_data_row}:$C${last_data_row}=$B{_r})*ROW($C${first_data_row}:$C${last_data_row})), "error")), 0)'
                         f'), "")'
                     )
                     # Is Assembly -- purely "does this row's own Part Number+Line key
@@ -867,18 +873,18 @@ def build_cbom_vl_sheet(wb, data, volume, expected_row_count=None):
                     # exclusive" bucketing given the Scrap Factor sheet's contiguous, gap-free
                     # tiers.
                     ws.cell(row=_r, column=36).value = (
-                        f'=IF($AF{_r}, IF($K{_r}<>"", INDEX(\'Scrap Factor\'!$C$2:$C${scrap_last_row}, '
-                        f'MATCH($K{_r}, \'Scrap Factor\'!$A$2:$A${scrap_last_row}, 1)), ""), "")'
+                        f'=IF($AF{_r}, IF($K{_r}<>"", IFERROR(INDEX(\'Scrap Factor\'!$C$2:$C${scrap_last_row}, '
+                        f'MATCH($K{_r}, \'Scrap Factor\'!$A$2:$A${scrap_last_row}, 1)), ""), ""), "")'
                     )
                     ws.cell(row=_r, column=37).value = (
-                        f'=IF($AF{_r}, IF($K{_r}<>"", INDEX(\'Scrap Factor\'!$D$2:$D${scrap_last_row}, '
-                        f'MATCH($K{_r}, \'Scrap Factor\'!$A$2:$A${scrap_last_row}, 1)), ""), "")'
+                        f'=IF($AF{_r}, IF($K{_r}<>"", IFERROR(INDEX(\'Scrap Factor\'!$D$2:$D${scrap_last_row}, '
+                        f'MATCH($K{_r}, \'Scrap Factor\'!$A$2:$A${scrap_last_row}, 1)), ""), ""), "")'
                     )
                     # Is Price Same / Is MPN Same / Is Costed / Recurring Count.
                     ws.cell(row=_r, column=39).value = (
                         f'=IF($AF{_r},IF($K{_r}="",TRUE,ROUND(SUMIFS('
                         f'$K${first_data_row}:$K${last_data_row},$C${first_data_row}:$C${last_data_row},$C{_r})/'
-                        f'COUNTIFS($C${first_data_row}:$C${last_data_row},$C{_r}),3)=ROUND($K{_r},3)),"")'
+                        f'COUNTIFS($C${first_data_row}:$C${last_data_row},$C{_r},$K${first_data_row}:$K${last_data_row},"<>"),3)=ROUND($K{_r},3)),"")'
                     )
                     # Is MPN Same: an exact compare, not COUNTIFS(G, "<>"&G): Excel reads a criterion such as "3-1953" as a DATE, so
                     # an MPN that looks like a date counted as different and Excel showed FALSE where LibreOffice and the engine
@@ -1129,7 +1135,8 @@ def _demo():
     assert ws.cell(row=13, column=11).value == "=K14-K11"
     assert ws.cell(row=15, column=11).value == (
         f'=COUNTIFS($AO${first_data_row}:$AO${last_data_row},FALSE,'
-        f'$AF${first_data_row}:$AF${last_data_row},TRUE)'
+        f'$AF${first_data_row}:$AF${last_data_row},TRUE,'
+        f'$AH${first_data_row}:$AH${last_data_row},"<>TRUE")'
     )
     assert ws.cell(row=11, column=13).value == "='Ex Inv VL-1'!$A$2"
     assert ws.cell(row=9, column=13).value == f"=IFERROR($M$11/G{11},0)"

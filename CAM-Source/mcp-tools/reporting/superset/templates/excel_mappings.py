@@ -1193,8 +1193,10 @@ def to_cbom_tree_payload(cbom_df, scrub_df, project_name):
                     fg_vol_ext_price_sum[(fg, vol_no)] = fg_vol_ext_price_sum.get((fg, vol_no), 0) + ext_price_conv * multiplier
                     fg_vol_ext_part_vol_price_sum[(fg, vol_no)] = fg_vol_ext_part_vol_price_sum.get((fg, vol_no), 0) + ext_part_vol_price_conv
                 volumes.append({
-                    "volume": vol_no, "manufacturerName": r.get("final_mfg_name"), "MPN": r.get("mfg_part_number"),
-                    "UOM": r.get("final_unit_of_measure"),
+                    "volume": vol_no,
+                    "manufacturerName": r.get("final_mfg_name") or r.get("mfg_name_qw") or r.get("mfr_in_customer_bom") or "",
+                    "MPN": r.get("mfg_part_number") or "",
+                    "UOM": r.get("final_unit_of_measure") or r.get("unit_of_measure_qw") or "",
                     "ext_vol_qty": ext_vol_qty,
                     "price_conv": r.get("final_price_conv"),
                     "price_original": r.get("final_price_original"), "currency": r.get("final_currency_original"),

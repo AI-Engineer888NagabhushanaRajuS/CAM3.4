@@ -64,13 +64,15 @@ def part_num_vs_mfg_num(payload):
                     json_map[cpn] = item
             json_mpn_keys = {item.get("MPN") for item in scrub_items}
 
+            rfq_mpn_map = {r.get("cpn"): r.get("MPN") for r in rfqs if r.get("is_L1") is True and r.get("cpn")}
             for row in rows:
-                if row["part_number"] not in rfqs_cpns:
+                cpn = row["part_number"]
+                if cpn not in rfqs_cpns:
                     continue
-                entry = json_map.get(row["part_number"])
-                row["mpn"] = (entry.get("MPN") if entry else None) or "-"
-                mpn = entry.get("MPN") if entry else None
-                row["in_scrub_bom"] = "true" if mpn in json_mpn_keys else "false"
+                quoted_mpn = rfq_mpn_map.get(cpn)
+                scrub_entry = json_map.get(cpn)
+                row["mpn"] = quoted_mpn or (scrub_entry.get("MPN") if scrub_entry else None) or "-"
+                row["in_scrub_bom"] = "true" if (quoted_mpn and quoted_mpn in json_mpn_keys) else "false"
 
     # Step 3: ensure uniqueness on part_number+mpn, preserving first occurrence.
     deduped = []

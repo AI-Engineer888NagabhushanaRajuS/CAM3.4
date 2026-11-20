@@ -27,8 +27,8 @@ interface AttachFilesDialogProps {
   onReleased: () => void;
   /** "Create RFQ from these files": the pane sends the sentence to the assistant, whose confirmation card still comes first. */
   onCreateRfq?: () => void;
-  /** The Create RFQ window: hand over the scanned, released BOM workbook (and the volume file when there is one) as real Files. */
-  onUseFiles?: (use: { bom: File; volume: File | null }) => void;
+  /** The Create RFQ window: hand over the scanned, released BOM workbook (and volume, quotewin, costing when present) as real Files. */
+  onUseFiles?: (use: { bom: File; volume: File | null; quotewin?: File | null; costing?: File | null }) => void;
 }
 
 /** Pick on the Uppy dashboard (tiles you can remove or add to), then run both security engines on the rest. Nothing reaches the assistant before that. */
@@ -44,6 +44,9 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   const [response, setResponse] = useState<ScanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wave, setWave] = useState({ n: 1, of: 1 });
+  // What the progress list shows: every picked file on a scan, only the flagged ones on "Run anyway" (it never re-scans the clean ones,
+  // but the list used to show all of them as scanning again, 2026-11-19).
+  const [scanning, setScanning] = useState<File[]>([]);
   const [failure, setFailure] = useState<WaveOutcome['failure']>(null);
   // The files that need a workbook fix, one popup each, back to back: one file = one popup, three = three, all = all.
   // A file leaves the queue once its popup is closed or its corrected copy is saved (previousId marks it done).
@@ -73,6 +76,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
     setError(null);
     setFailure(null);
     setWave({ n: 1, of: waves });
+    setScanning(picked);
     setPhase('scanning');
     try {
       const out = await scanInWaves(rfqId, picked, { signal: controller.signal, onWave: (n, of) => setWave({ n, of }) });
@@ -133,6 +137,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
     const chosen = picked.filter((f) => warned.some((w) => w.name === f.name));
     const digests = warned.map((w) => w.sha256.slice(0, 12));
     setError(null);
+    setScanning(chosen);
     setPhase('scanning');
     setWave({ n: 1, of: 1 });
     try {
@@ -169,11 +174,18 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
   };
   const useThese = async () => {
     const released = response?.results.filter((r) => r.decision === 'released') ?? [];
-    const bom = released.find((r) => r.role === 'scrub_bom');
-    const volume = released.find((r) => r.role === 'volume');
+    const bom = released.find((r) => r.role === 'scrub_bom' || assignment[r.name] === 'scrub_bom');
+    const volume = released.find((r) => r.role === 'volume' || assignment[r.name] === 'volume');
+    const quotewin = released.find((r) => r.role === 'quotewin' || assignment[r.name] === 'quotewin' || /quotewin/i.test(r.name));
+    const costing = released.find((r) => r.role === 'costing' || assignment[r.name] === 'costing' || /costing/i.test(r.name));
     if (!bom || !onUseFiles) return;
     try {
-      onUseFiles({ bom: await fileOf(bom), volume: volume ? await fileOf(volume) : null });
+      onUseFiles({
+        bom: await fileOf(bom),
+        volume: volume ? await fileOf(volume) : null,
+        quotewin: quotewin ? await fileOf(quotewin) : null,
+        costing: costing ? await fileOf(costing) : null,
+      });
       close();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The files could not be used');
@@ -227,7 +239,7 @@ export function AttachFilesDialog({ open, rfqId, files, alreadyAttached, onClose
         </div>
 
         {phase === 'scanning' && (
-          <ScanProgress files={wave.of > 1 ? planWaves(picked).waves[wave.n - 1] ?? [] : picked} wave={wave} total={picked.length} />
+          <ScanProgress files={wave.of > 1 ? planWaves(scanning).waves[wave.n - 1] ?? [] : scanning} wave={wave} total={scanning.length} />
         )}
 
         {phase === 'result' && response && <ScanResults response={response} />}

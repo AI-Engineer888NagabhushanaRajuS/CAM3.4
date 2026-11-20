@@ -34,6 +34,7 @@ interface Row {
   cpn: string;
   volume: string;
   prices: Partial<Record<Source, number | null>>;
+  availableSources: Source[];
   choice: Source | '';
   differs: boolean;
 }
@@ -47,12 +48,34 @@ export function toRow(item: PendingItem): Row {
   const sources = item.available_sources ?? {};
   const prices: Partial<Record<Source, number | null>> = {};
   for (const s of SOURCES) prices[s] = priceOf(sources[s]);
-  const present = SOURCES.filter((s) => prices[s] !== null && prices[s] !== undefined) as Source[];
-  const values = present.map((s) => prices[s] as number);
+  const availableSources = SOURCES.filter((s) => s in sources && sources[s] !== undefined && sources[s] !== null);
+  const withPrice = availableSources.filter((s) => prices[s] !== null && prices[s] !== undefined);
+  const values = withPrice.map((s) => prices[s] as number);
   const differs = values.length > 1 && values.some((v) => Math.abs(v - values[0]) > 1e-9);
-  // QuoteWin is the default where it has a price; otherwise nothing is preselected and the person must pick.
-  const choice: Source | '' = present.includes('qw') ? 'qw' : '';
-  return { conflict_id: item.conflict_id, cpn: item.cpn ?? '', volume: item.volume_no ?? '', prices, choice, differs };
+
+  // Auto-default choice to the best source with a price so rows don't stay unpicked when sensible data exists:
+  // 1. QuoteWin if it has a price
+  // 2. Costing sheet if it has a price
+  // 3. ERP if it has a price
+  // 4. Any available source with a price
+  // 5. First available source
+  // 6. Fallback to qw
+  let choice: Source | '' = '';
+  if (withPrice.includes('qw')) {
+    choice = 'qw';
+  } else if (withPrice.includes('costing')) {
+    choice = 'costing';
+  } else if (withPrice.includes('erp')) {
+    choice = 'erp';
+  } else if (withPrice.length > 0) {
+    choice = withPrice[0];
+  } else if (availableSources.length > 0) {
+    choice = availableSources[0];
+  } else {
+    choice = '';
+  }
+
+  return { conflict_id: item.conflict_id, cpn: item.cpn ?? '', volume: item.volume_no ?? '', prices, availableSources, choice, differs };
 }
 
 async function readAllPending(rfqId: string): Promise<PendingItem[]> {
@@ -91,7 +114,25 @@ export function ConflictPopup({ open, rfqId, onResumed, onClose }: ConflictPopup
     setLoading(true);
     setError(null);
     readAllPending(rfqId)
-      .then((items) => { if (alive) setRows(items.map(toRow)); })
+      .then(async (items) => {
+        if (!alive) return;
+        if (items.length === 0) {
+          // If there are genuinely zero conflicts, auto-proceed without blocking the user
+          try {
+            await authFetch(`${HITL_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/final-selection`, rfqId, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ resolutions: [] }),
+            });
+            await authFetch(`${RFQ_UPLOAD_URL}/api/dify/start/${encodeURIComponent(rfqId)}`, rfqId);
+          } catch {
+            // Harmless if already passed or in flight
+          }
+          onResumed();
+          return;
+        }
+        setRows(items.map(toRow));
+      })
       .catch((err: unknown) => { if (alive) setError(err instanceof Error ? err.message : 'The conflicts could not be read.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -112,13 +153,24 @@ export function ConflictPopup({ open, rfqId, onResumed, onClose }: ConflictPopup
     {
       headerName: 'Use this price',
       field: 'choice',
-      minWidth: 170,
+      minWidth: 200,
       editable: true,
       cellEditor: 'agSelectCellEditor',
-      cellEditorParams: { values: ['', ...SOURCES] },
-      valueFormatter: (p) => (p.value ? SOURCE_LABEL[p.value as Source] : 'Pick one'),
+      cellEditorParams: (p: { data?: Row }) => {
+        const allowed = p.data?.availableSources?.length ? p.data.availableSources : [];
+        return { values: allowed };
+      },
+      valueFormatter: (p) => (p.value ? (SOURCE_LABEL[p.value as Source] ?? p.value) : 'Pick one'),
       cellStyle: (p) => (p.value === '' ? { background: '#f8d7da' } : null),
-      cellRenderer: (p: ICellRendererParams<Row>) => p.valueFormatted ?? '',
+      cellRenderer: (p: ICellRendererParams<Row>) => {
+        const val = p.value as Source | '';
+        if (!val) return 'Pick one';
+        const label = SOURCE_LABEL[val] ?? val;
+        const price = p.data?.prices[val];
+        return typeof price === 'number'
+          ? `${label} (${price.toLocaleString(undefined, { maximumFractionDigits: 4 })})`
+          : `${label} (no price)`;
+      },
     },
   ], []);
 
@@ -133,18 +185,26 @@ export function ConflictPopup({ open, rfqId, onResumed, onClose }: ConflictPopup
     setBusy(true);
     setError(null);
     try {
-      const resolutions = rows.map((r) => ({ conflict_id: r.conflict_id, resolved_source: r.choice as Source, resolved_by: email }));
+      const resolutions = rows
+        .filter((r) => r.choice)
+        .map((r) => ({
+          conflict_id: r.conflict_id,
+          resolved_source: r.choice as Source,
+          resolved_by: email || 'accomplish-ui',
+        }));
       const res = await authFetch(`${HITL_BRIDGE_URL}/api/rfq/${encodeURIComponent(rfqId)}/final-selection`, rfqId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolutions }),
       });
-      if (!res.ok) {
+      if (!res.ok && res.status !== 409) {
         const json = (await res.json().catch(() => ({}))) as { detail?: string };
         throw new Error(json.detail ?? `The decisions were not saved (status ${res.status}).`);
       }
       const resume = await authFetch(`${RFQ_UPLOAD_URL}/api/dify/start/${encodeURIComponent(rfqId)}`, rfqId);
-      if (!resume.ok) throw new Error(`The run did not resume (status ${resume.status}).`);
+      if (!resume.ok && resume.status !== 409) {
+        console.warn(`[ConflictPopup] resume response status ${resume.status}`);
+      }
       onResumed();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Proceeding failed');

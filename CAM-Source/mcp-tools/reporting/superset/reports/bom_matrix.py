@@ -330,7 +330,9 @@ def build_bom_matrix_sheet(wb, rows, cbom_row_counts, ex_inv_row_counts):
     _style_range(ws, fg_grand_first, 8, fg_grand_last, 8, alignment=_CENTER)
     for vi, vl in enumerate(volume_keys):
         col = fg_grand_cols[vi]
-        ws.cell(row=7, column=col).value = vl
+        col_letter = get_column_letter(col)
+        ws.cell(row=6, column=col).value = vl
+        ws.cell(row=7, column=col).value = f"=SUM({col_letter}9:{col_letter}{last_data_row})"
         if col == fg_grand_first:
             # Only the merge's anchor cell is settable in openpyxl (and the only
             # one Excel would ever display) — this single write is what makes the

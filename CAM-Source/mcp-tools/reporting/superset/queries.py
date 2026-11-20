@@ -69,7 +69,10 @@ def _normalize_mpn_sql(column):
     """
     trimmed = f"TRIM({column})"
     return (
-        f"CASE WHEN REGEXP_MATCHES({trimmed}, '^[0-9]+$') "
+        f"CASE "
+        f"WHEN REGEXP_MATCHES({trimmed}, '^[0-9]+$') "
+        f"THEN REGEXP_REPLACE({trimmed}, '^0+([0-9])', '\\1') "
+        f"WHEN REGEXP_MATCHES({trimmed}, '^0+[0-9]+[^0-9]') "
         f"THEN REGEXP_REPLACE({trimmed}, '^0+([0-9])', '\\1') "  # strip leading zeros, any length (no BIGINT cast: >19 digits became NULL)
         f"ELSE UPPER({trimmed}) END"
     )
@@ -128,8 +131,25 @@ def build_volume_tie_break_cte(volumes, slot_map, quote_win_ref="input_db.quote_
             awarded_volume_{slot} AS ext_vol_qty,
             ROW_NUMBER() OVER (
                 PARTITION BY part_number
-                ORDER BY (award_{slot} IS NULL) ASC,
-                         COALESCE(cost_{slot}_conv, price_original_{slot} / NULLIF({build_rate_case_sql()}, 0)) ASC NULLS LAST
+                ORDER BY
+                    CASE WHEN award_{slot} IS NOT NULL AND award_{slot} > 0 THEN 0 ELSE 1 END ASC,
+                    award_{slot} DESC NULLS LAST,
+                    COALESCE(cost_{slot}_conv, price_original_{slot} / NULLIF({build_rate_case_sql()}, 0)) ASC NULLS LAST,
+                    CASE
+                        WHEN UPPER(TRIM(COALESCE(supplier_type, ''))) LIKE '%MFR%'
+                          OR UPPER(TRIM(COALESCE(supplier_type, ''))) LIKE '%MANUF%' THEN 1
+                        WHEN UPPER(TRIM(COALESCE(supplier_type, ''))) LIKE '%DIST%' THEN 2
+                        WHEN UPPER(TRIM(COALESCE(supplier_type, ''))) LIKE '%CONSOL%' THEN 3
+                        WHEN UPPER(TRIM(COALESCE(supplier_type, ''))) LIKE '%ONLINE%' THEN 4
+                        ELSE 5
+                    END ASC,
+                    lead_time ASC NULLS LAST,
+                    moq ASC NULLS LAST,
+                    pkg_qty ASC NULLS LAST,
+                    exp_date DESC NULLS LAST,
+                    CASE WHEN UPPER(TRIM(COALESCE(ncnr, ''))) = 'X' THEN 1 ELSE 0 END ASC,
+                    supp_name ASC NULLS LAST,
+                    mfg_part_number ASC NULLS LAST
             ) AS rn
         FROM {quote_win_ref} q
         WHERE cost_{slot}_conv IS NOT NULL OR price_original_{slot} IS NOT NULL OR award_{slot} IS NOT NULL
@@ -270,7 +290,8 @@ def cbom_insert_sql(rfq_lit, volumes):
     )
     WITH resolved AS (
         SELECT
-            s.bom_item_id, v.volume_no, s.fg, s.assembly, s.cpn, s.description, s.commodity,
+            s.bom_item_id, v.volume_no, s.fg, s.assembly, s.cpn, s.description,
+            COALESCE(NULLIF(TRIM(s.commodity), ''), q.commodity) AS commodity,
             s.quantity AS part_qty,
             s.hierarchy_multiplier,
             -- Line No.: one value per FG ("Assembly" in this codebase's Assembly Summary
@@ -372,8 +393,8 @@ def cbom_insert_sql(rfq_lit, volumes):
         -- NOT eligible for scrap calculation and gets NULL, not a silent default class
         -- (the old `ELSE 0.05` branch used to assign Class C to every uncosted row).
         {build_scrap_percent_case_sql('resolved.final_price_conv')} AS scrap_percent,
-        resolved.final_price_conv * resolved.ext_vol_qty AS ext_price_conv,
-        resolved.final_price_conv * resolved.part_qty * resolved.ext_vol_qty AS ext_part_vol_price_conv,
+        resolved.final_price_conv * resolved.part_qty AS ext_price_conv,
+        resolved.final_price_conv * (resolved.part_qty * COALESCE(resolved.hierarchy_multiplier, 1.0) * COALESCE(resolved.volume_qty, 0)) AS ext_part_vol_price_conv,
         CASE
             WHEN resolved.price_type ILIKE 'customer%' THEN 'Customer'
             WHEN resolved.price_type ILIKE 'cnp%' THEN 'CNP'
@@ -411,6 +432,8 @@ def cbom_insert_sql(rfq_lit, volumes):
         -- risking a false "exceeds MOQ" flag purely because MOQ (or Pkg Qty) wasn't
         -- populated at all.
         (resolved.final_pkg_qty IS NULL OR resolved.final_moq IS NULL
+            OR resolved.level = '0'
+            OR NOT (resolved.final_price_conv IS NOT NULL AND resolved.final_price_conv > 0)
             OR resolved.final_pkg_qty <= resolved.final_moq) AS pkg_qty_lte_moq,
         (resolved.level <> '0') AS is_data,
         (resolved.level = '0') AS is_assembly,
@@ -684,13 +707,15 @@ def final_selection_recompute_derived_sql(rfq_lit):
             pkg_qty_present = (is_assembly
                 OR NOT (final_price_conv IS NOT NULL AND final_price_conv > 0)
                 OR (final_pkg_qty IS NOT NULL AND final_pkg_qty <> 0)),
-            pkg_qty_lte_moq = (final_pkg_qty IS NULL OR final_moq IS NULL
+            pkg_qty_lte_moq = (is_assembly
+                OR NOT (final_price_conv IS NOT NULL AND final_price_conv > 0)
+                OR final_pkg_qty IS NULL OR final_moq IS NULL
                 OR final_pkg_qty <= final_moq),
             -- Scrap Class/Percentage -- same logic_db.scrap_factor_settings source as
             -- cbom_insert_sql's initial computation; see that module's own comment.
             scrap_percent = {build_scrap_percent_case_sql('final_price_conv')},
-            ext_price_conv = final_price_conv * ext_vol_qty,
-            ext_part_vol_price_conv = final_price_conv * part_qty * ext_vol_qty,
+            ext_price_conv = final_price_conv * part_qty,
+            ext_part_vol_price_conv = final_price_conv * (part_qty * COALESCE(hierarchy_multiplier, 1.0) * COALESCE(volume_qty, 0)),
             abc_classification = {build_scrap_class_case_sql('final_price_conv')}
         WHERE rfq_id = {rfq_lit}
         """,
